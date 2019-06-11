@@ -2,15 +2,12 @@
 import express = require("express")
 import * as Crypto from './Crypto'
 require('dotenv').config()
-const axios = require('axios')
-const nano = require('nano')('http://localhost:'+ process.env.COUCHDBPORT)
+const r = require('rethinkdb')
 
 var blocks = 0
 var analyze = 0
-var watchlist = []
+var conn
 var analyzed = 0
-const explorer = nano.use('explorer')
-const txdb = nano.use('transactions')
 const fs = require('fs')
 
 module Daemon {
@@ -18,6 +15,7 @@ module Daemon {
   export class Sync {
     
     public async init() {
+        conn = await r.connect({db: 'idanodejs'})
         var wallet = new Crypto.Wallet
         wallet.request('getinfo').then(info => {
             blocks = info['result'].blocks
@@ -28,10 +26,7 @@ module Daemon {
     }
 
     public async process(){
-        var reset = await explorer.get('reset').catch(err => {
-            console.log('RESET FIELD DOES NOT EXSIST')
-            explorer.insert({value: ''}, 'reset')
-        })
+        var reset = '' //CHECK FOR RESET VALUE
         fs.readFile('sync.lock', {encoding: 'utf-8'}, async function(err,data){
             var last
             if(err){
@@ -41,7 +36,7 @@ module Daemon {
             }else{
                 last = data
             }
-            if(reset !== undefined && reset.value === ''){
+            if(reset !== undefined && reset === ''){
                 if(last !== null && last !== undefined){
                     analyze = parseInt(last) + 1
                 }else{
@@ -75,28 +70,9 @@ module Daemon {
                 for(var address in block['analysis'][txid]['balances']){
                     var tx = block['analysis'][txid]['balances'][address]
                     var movements = block['analysis'][txid]['movements']
-                    if(process.env.MODE === 'full'){
-                        var task = new Daemon.Sync
-                        console.log('STORING '+ tx.type +' OF '+ tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
-                        await task.store(address, block, txid, tx, movements)
-                    }else{
-                        var insert = false
-                        for(var check in movements.from){
-                            if(watchlist.indexOf(movements.from[check]) !== -1){
-                                insert = true
-                            }
-                        }
-                        for(var check in movements.to){
-                            if(watchlist.indexOf(movements.to[check]) !== -1){
-                                insert = true
-                            }
-                        }
-                        if(insert === true){
-                            var task = new Daemon.Sync
-                            console.log('STORING '+ tx.type +' OF '+ tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
-                            await task.store(address, block, txid, tx, movements)
-                        }
-                    }
+                    var task = new Daemon.Sync
+                    console.log('STORING '+ tx.type +' OF '+ tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
+                    await task.store(address, block, txid, tx, movements)
                 }
             }
             var end = Date.now()
@@ -122,21 +98,23 @@ module Daemon {
 
     private async store(address, block, txid, tx, movements){
         return new Promise (async response => {
-            await txdb.insert(
-                {
-                    address: address,
-                    txid: txid,
-                    type: tx.type,
-                    from: movements.from,
-                    to: movements.to,
-                    value: tx.value,
-                    blockhash: block['hash'],
-                    blockheight: block['height'],
-                    time: block['time']
-                }, txid
-            ).catch(err => {
-                console.log('TXID STORED YET')
-            })
+            var check
+            await r.table("transactions").getAll([address,txid], {index: "addresstxid"}).run(conn, check)
+            if(check === undefined){
+                await r.table("transactions").insert(
+                    {
+                        address: address,
+                        txid: txid,
+                        type: tx.type,
+                        from: movements.from,
+                        to: movements.to,
+                        value: tx.value,
+                        blockhash: block['hash'],
+                        blockheight: block['height'],
+                        time: block['time']
+                    }
+                ).run(conn)
+            }
             response(block['height'])
         })
     }

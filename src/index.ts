@@ -2,6 +2,7 @@ import app from './App'
 import * as Crypto from './libs/Crypto'
 import * as Daemon from "./libs/Daemon"
 import * as Database from "./libs/Database"
+const r = require('rethinkdb')
 
 let {nextAvailable} = require('node-port-check')
 require('dotenv').config()
@@ -19,19 +20,20 @@ const idanodejs = async () => {
     wallet.request('getinfo').then( async function(info){
       if(info !== undefined){
         console.log(process.env.COIN + ' wallet successfully connected.')
-        let db = await axios.get('http://localhost:' + process.env.COUCHDBPORT)
-        if(db.data.uuid !== undefined){
-          console.log('CouchDB ready at port ' + process.env.COUCHDBPORT + ', checking databases.')
-          var dbManagement = new Database.Management
-          var check = await dbManagement.check()
-          console.log(check)
-          console.log('Starting block synchronization.')
-          var task
-          task = new Daemon.Sync
-          task.init()
-        }else{
-          console.log('Can\'t communicate with database, please check CouchDB.')
-        }
+        r.connect({ host: process.env.DB_HOST, port: process.env.DB_PORT }, async function(err, conn) {
+          if(err){
+            console.log('Can\'t communicate with database, please check.')
+          }else{
+            console.log('Starting database and tables check.')
+            var DB = new Database.Management
+            var result = await DB.check()
+            console.log(result)
+            console.log('Starting block synchronization.')
+            var task
+            task = new Daemon.Sync
+            task.init()
+          }
+        })
       }else{
         console.log('Can\'t communicate with wallet, please check RPC.')
       }
