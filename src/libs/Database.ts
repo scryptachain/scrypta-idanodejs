@@ -34,7 +34,7 @@ module Database {
             }
             
             //CHECKING INDEXES
-            var txIndexes = ["address", "txid"]
+            var txIndexes = ["address", "txid", "time"]
             var exsistingIndexes = await r.table('transactions').indexList().run(conn)
             for(var tdi in txIndexes){
                 await r.table('transactions').indexList().contains(txIndexes[tdi])

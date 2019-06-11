@@ -2,6 +2,7 @@ import express = require("express")
 import * as Utilities from '../libs/Utilities'
 import * as Crypto from '../libs/Crypto'
 import { type } from "os";
+const r = require('rethinkdb')
 
 export function info(req: express.Request, res: express.Response) {
     res.json({status: "ONLINE"})
@@ -37,18 +38,33 @@ export function getblock(req: express.Request, res: express.Response) {
 
 export async function transactions(req: express.Request, res: express.Response) {
     var address = req.params.address
+    var conn = await r.connect({db: 'idanodejs'})
+    r.table('transactions').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
+        if(err) {
+            console.log(err)
+        }
     
-    var list = []
-    var transactions = [] //read transactions
-    for(var index in list){
-        var tx = JSON.parse(list[index])
-        transactions.push(tx)
-    }
-    transactions.sort((a, b) => Number(b.time) - Number(a.time));        
-    res.json({
-        data: transactions,
-        status: 200
-    })
+        cursor.toArray(function(err, result) {
+            if(err) {
+                console.log(err)
+            }
+
+            var list = result
+            var transactions = []
+
+            for(var index in list){
+                var tx = list[index]
+                transactions.push(tx)
+            }
+
+            transactions.sort((a, b) => Number(b.time) - Number(a.time))
+               
+            res.json({
+                data: transactions,
+                status: 200
+            })
+        });
+    });
 };
 
 export async function unspent(req: express.Request, res: express.Response) {
@@ -71,17 +87,30 @@ export async function unspent(req: express.Request, res: express.Response) {
 
 export async function balance(req: express.Request, res: express.Response) {
     var address = req.params.address
-        var balance = 0
-        var list = [] //read transactions
-        for(var index in list){
-            var tx = JSON.parse(list[index])
-            balance += tx.value
+    var balance = 0
+    var conn = await r.connect({db: 'idanodejs'})
+    r.table('transactions').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
+        if(err) {
+            console.log(err)
         }
-        res.json({
-            balance: balance,
-            status: 200
-        })
-   
+    
+        cursor.toArray(function(err, result) {
+            if(err) {
+                console.log(err)
+            }
+
+            var list = result
+            for(var index in list){
+                var tx = list[index]
+                balance += parseFloat(tx.value.toFixed(8))
+            }
+
+            res.json({
+                balance: parseFloat(balance.toFixed(8)),
+                status: 200
+            })
+        });
+    });
 };
 
 export async function stats(req: express.Request, res: express.Response) {
@@ -104,59 +133,72 @@ export async function stats(req: express.Request, res: express.Response) {
                 txns: []
             }
         }
-        var list = [] //read transactions
-        var transactions = []
-        for(var index in list){
-            var unordered = JSON.parse(list[index])
-            transactions.push(unordered)
-        }
-        transactions.sort((a, b) => Number(a.time) - Number(b.time));        
-        for(var index in transactions){
-            var tx = transactions[index]
-            
-            if(tx.value > 0){
-                received += tx.value
-            }else{
-                sent += tx.value
+        var conn = await r.connect({db: 'idanodejs'})
+        r.table('transactions').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
+            if(err) {
+                console.log(err)
             }
-            balance += tx.value
-            var datetime = new Date(tx.time * 1000);
-            var date = datetime.getFullYear()+ '-' + ('0' + (datetime.getMonth()+1)).slice(-2) + '-' + ('0' + datetime.getDate()).slice(-2);
-            
-
-            if(tx.type === 'STAKE'){
-                stats.stake.count++
-                stats.stake.amount += tx.value
-                stats.stake.txns.push(tx)
-
-                if(stats.stake.stats[date] === undefined){
-                    stats.stake.stats[date] = 0
-                }
-                stats.stake.stats[date] += tx.value
-            }
-
-            if(tx.type === 'REWARD'){
-                stats.rewards.count++
-                stats.rewards.amount += tx.value
-                stats.rewards.txns.push(tx)
-
-                if(stats.rewards.stats[date] === undefined){
-                    stats.rewards.stats[date] = 0
-                }
-                stats.rewards.stats[date] += tx.value
-            }
-        }
         
-        sent = sent * -1
+            cursor.toArray(function(err, result) {
+                if(err) {
+                    console.log(err)
+                }
 
-        res.json({
-            balance: balance,
-            received: received, 
-            sent: sent,
-            rewards: stats.rewards,
-            stake: stats.stake,
-            status: 200
-        })
+                var list = result
+                var transactions = []
+                for(var index in list){
+                    var unordered = list[index]
+                    transactions.push(unordered)
+                }
+                transactions.sort((a, b) => Number(a.time) - Number(b.time));        
+                for(var index in transactions){
+                    var tx = transactions[index]
+                    
+                    if(tx.value > 0){
+                        received += tx.value
+                    }else{
+                        sent += tx.value
+                    }
+                    balance += tx.value
+                    var datetime = new Date(tx.time * 1000);
+                    var date = datetime.getFullYear()+ '-' + ('0' + (datetime.getMonth()+1)).slice(-2) + '-' + ('0' + datetime.getDate()).slice(-2);
+                    
+
+                    if(tx.type === 'STAKE'){
+                        stats.stake.count++
+                        stats.stake.amount += tx.value
+                        stats.stake.txns.push(tx)
+
+                        if(stats.stake.stats[date] === undefined){
+                            stats.stake.stats[date] = 0
+                        }
+                        stats.stake.stats[date] += tx.value
+                    }
+
+                    if(tx.type === 'REWARD'){
+                        stats.rewards.count++
+                        stats.rewards.amount += tx.value
+                        stats.rewards.txns.push(tx)
+
+                        if(stats.rewards.stats[date] === undefined){
+                            stats.rewards.stats[date] = 0
+                        }
+                        stats.rewards.stats[date] += tx.value
+                    }
+                }
+                
+                sent = sent * -1
+
+                res.json({
+                    balance: balance,
+                    received: received, 
+                    sent: sent,
+                    rewards: stats.rewards,
+                    stake: stats.stake,
+                    status: 200
+                })
+            });
+        });
         
     }else{
         res.json({
