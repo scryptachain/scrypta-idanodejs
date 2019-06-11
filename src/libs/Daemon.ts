@@ -98,24 +98,35 @@ module Daemon {
 
     private async store(address, block, txid, tx, movements){
         return new Promise (async response => {
-            var check
-            await r.table("transactions").getAll([address,txid], {index: "addresstxid"}).run(conn, check)
-            if(check === undefined){
-                await r.table("transactions").insert(
-                    {
-                        address: address,
-                        txid: txid,
-                        type: tx.type,
-                        from: movements.from,
-                        to: movements.to,
-                        value: tx.value,
-                        blockhash: block['hash'],
-                        blockheight: block['height'],
-                        time: block['time']
+            r.table("transactions").getAll([address,txid], {index: "addresstxid"}).run(conn, async function(err, cursor) {
+                if(err) {
+                  console.log(err)
+                }
+                cursor.toArray(async function(err, result) {
+                    if(err) {
+                        console.log(err)
                     }
-                ).run(conn)
-            }
-            response(block['height'])
+                    if(result[0] === undefined){
+                        console.log('STORING TX NOW!')
+                        await r.table("transactions").insert(
+                            {
+                                address: address,
+                                txid: txid,
+                                type: tx.type,
+                                from: movements.from,
+                                to: movements.to,
+                                value: tx.value,
+                                blockhash: block['hash'],
+                                blockheight: block['height'],
+                                time: block['time']
+                            }
+                        ).run(conn)
+                    }else{
+                        console.log('TX ALREADY STORED.')
+                    }
+                    response(block['height'])
+                })
+            })
         })
     }
   }
