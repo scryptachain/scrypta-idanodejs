@@ -1,6 +1,7 @@
 import * as express from 'express'
 import * as wallet from "./routes/Wallet"
 import * as explorer from "./routes/Explorer"
+import * as pdm from "./routes/Pdm"
 import * as manage from "./routes/Manage"
 
 var bodyParser = require('body-parser')
@@ -30,6 +31,9 @@ class App {
     app.express.get('/balance/:address', explorer.balance)
     app.express.get('/stats/:address', explorer.stats)
     app.express.get('/unspent/:address', explorer.unspent)
+
+    //PROGRESSIVE DATA MANAGEMENT
+    app.express.post('/read', pdm.read)
   }
 }
 

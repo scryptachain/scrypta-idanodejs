@@ -19,6 +19,9 @@ module Utilities {
                 form.parse(req, function(err, fields, files) {
                     response (fields)
                 })
+                setTimeout(function(){
+                    response(false)
+                },200)
             } else {
                 response (req.body)
             }
