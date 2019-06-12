@@ -55,7 +55,10 @@ module Crypto {
                 block['result']['totvout'] = 0
                 block['result']['fees'] = 0
                 block['result']['analysis'] = {}
-                block['result']['data'] = {}
+                block['result']['raw_written'] = {}
+                block['result']['raw_received'] = {}
+                block['result']['data_written'] = {}
+                block['result']['data_received'] = {}
                 //PARSING ALL TRANSACTIONS
                 new Promise (async resolve => {
                     for(var i = 0; i < block['result']['tx'].length; i++){
@@ -126,10 +129,22 @@ module Crypto {
                                     //console.log('CHECKING OP_RETURN')
                                     var parser = new Utilities.Parser
                                     var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
-                                    if(block['result']['data'][receivingaddress] === undefined){
-                                        block['result']['data'][receivingaddress] = []
+                                    var addressdata 
+                                    var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
+                                    if(addresswrite === receivingaddress){
+                                        addressdata = addresswrite
+                                        if(block['result']['raw_written'][addressdata] === undefined){
+                                            block['result']['raw_written'][addressdata] = []
+                                        }
+                                        block['result']['raw_written'][addressdata].push(OP_RETURN)
+                                    }else{
+                                        addressdata = receivingaddress
+                                        if(block['result']['raw_received'][addressdata] === undefined){
+                                            block['result']['raw_received'][addressdata] = []
+                                        }
+                                        block['result']['raw_received'][addressdata].push(OP_RETURN)
                                     }
-                                    block['result']['data'][receivingaddress].push(OP_RETURN)
+
                                 }
                             }
                         }
@@ -171,6 +186,128 @@ module Crypto {
                         }
                         
                     }
+
+                    //COMPACTING DATA AGAIN
+                    for(let addressdata in block['result']['raw_written']){
+                        var written = block['result']['raw_written'][addressdata]
+                        var singledata = ''
+                        console.log(written)
+                        for(var wix in written){
+                            var data = written[wix]
+                            var checkhead = data.substr(0,3)
+                            var checkfoot = data.substr(-3)
+                            console.log('CHECKING HEAD ' + checkhead)
+                            console.log('CHECKING FOOT ' + checkfoot)
+
+                            if(singledata === '' && checkhead === checkfoot && checkhead === '*!*' && checkfoot === '*!*'){
+                                singledata = data;
+                                if(block['result']['data_written'][addressdata] === undefined){
+                                    block['result']['data_written'][addressdata] = []
+                                }
+                                block['result']['data_written'][addressdata].push(singledata)
+                                singledata = ''
+                                console.log('FOUND SINGLE DATA')
+                            }else{
+                                console.log('CHECK FOR CHUCKED DATA')
+                                if(singledata === '' && data.indexOf('*!*') === 0){
+                                    console.log('INIT CHUCK SEARCH')
+                                    var prevcontrol = data.substr(-6).substr(0,3)
+                                    console.log('PREV CONTROL IS ' + prevcontrol)
+                                    var nextcontrol = data.substr(-3)
+                                    console.log('NEXT CONTROL IS ' + nextcontrol)
+                                    var chunkcontrol = prevcontrol + nextcontrol
+                                    singledata += '*!*'
+                                    console.log('NEED TO FIND ' + chunkcontrol)
+                                    var endofdata = 'N'
+                                    var idc = 0
+
+                                    while(endofdata === 'N'){
+                                        console.log('CHECKING INDEX ' + idc)
+                                        if(written[idc] !== undefined){
+                                            var checkdata = written[idc].substr(0,6)
+                                            console.log('CHECKING ' + checkdata + ' AGAINST ' + chunkcontrol)
+                                            if(checkdata === chunkcontrol){
+                                                console.log('CHUNK FOUND ' + chunkcontrol)
+                                                if(checkdata.indexOf('*!*') !== -1){
+                                                    singledata += data.substr(6, data.length)
+                                                    console.log('END OF DATA')
+                                                    endofdata = 'Y';
+                                                }else{
+                                                    var chunk = data.substr(6, data.length)
+                                                    var datalm3 = data.length - 6
+                                                    chunk = chunk.substr(0,datalm3)
+                                                    singledata += chunk
+                                                    console.log('CHUNKED DATA IS ' + chunk)
+                                                    if(written[idc] !== undefined){
+                                                        var data = written[idc]
+                                                        var prevcontrol = data.substr(-6).substr(0,3)
+                                                        console.log('PREV CONTROL IS ' + prevcontrol)
+                                                        var nextcontrol = data.substr(-3)
+                                                        console.log('NEXT CONTROL IS ' + nextcontrol)
+                                                        chunkcontrol = prevcontrol + nextcontrol
+
+                                                        if(chunkcontrol.indexOf('*!*') !== -1){
+                                                            singledata += data.substr(6, data.length)
+                                                            console.log('END OF DATA')
+                                                            endofdata = 'Y'
+                                                        }else{
+                                                            console.log('NEED TO FIND ' + chunkcontrol)
+                                                            idc = 0
+                                                        }
+                                                        idc ++ 
+                                                    }else{
+                                                        idc = 0
+                                                        console.log(written)
+                                                        endofdata = 'Y'
+                                                    }
+                                                }
+                                            }else{
+                                                idc++
+                                            }
+
+                                            if(idc > 100){
+                                                endofdata = 'Y'
+                                                console.log('MALFORMED DATA, CAN\'T REBUILD')
+                                            }
+                                        }else{
+                                            endofdata = 'Y'
+                                        }
+                                    }
+
+                                    checkhead = singledata.substr(0,3)
+                                    checkfoot = singledata.substr(-3)
+                                    if(endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*'){
+                                        console.log('COMPLETED DATA, INSERTING IN DB ' + singledata)
+                                        if(block['result']['data_written'][addressdata] === undefined){
+                                            block['result']['data_written'][addressdata] = []
+                                        }
+                                        singledata = singledata.substr(3)
+                                        var datalm3 = singledata.length - 3
+                                        singledata = singledata.substr(0, datalm3)
+                                        var split = singledata.split('*=>')
+                                        var headsplit = split[0].split('!*!')
+                                        var parsed = {
+                                            address: addressdata,
+                                            uuid: headsplit[0],
+                                            collection: headsplit[1],
+                                            refID: headsplit[2],
+                                            procotol: headsplit[3],
+                                            data: JSON.parse(split[1]),
+                                            block: block['result']['height'],
+                                            blockhash: block['result']['hash'],
+                                            time: block['result']['time']
+                                        }
+                                        block['result']['data_written'][addressdata].push(parsed)
+                                    }
+
+                                    endofdata = 'Y'
+                                    singledata = ''
+                                }
+                            }
+
+                        }
+                    }
+
                     delete block['result']['tx']
                     response(block['result'])
                 })   
@@ -182,4 +319,4 @@ module Crypto {
 
 }
 
-export = Crypto;
+export = Crypto; 
