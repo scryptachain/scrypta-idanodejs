@@ -311,6 +311,9 @@ module Crypto {
                                 }else{
                                     var protocol = ''
                                 }
+                                if(datastore === undefined){
+                                    datastore = ''
+                                }
                                 var parsed = {
                                     address: addressdata,
                                     uuid: headsplit[0],
