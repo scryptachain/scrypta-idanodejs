@@ -204,8 +204,7 @@ module Crypto {
                                 if(block['result']['data_written'][addressdata] === undefined){
                                     block['result']['data_written'][addressdata] = []
                                 }
-                                block['result']['data_written'][addressdata].push(singledata)
-                                singledata = ''
+                                endofdata = 'Y'
                                 console.log('FOUND SINGLE DATA')
                             }else{
                                 console.log('CHECK FOR CHUCKED DATA')
@@ -274,44 +273,58 @@ module Crypto {
                                         }
                                     }
 
-                                    checkhead = singledata.substr(0,3)
-                                    checkfoot = singledata.substr(-3)
-                                    if(endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*'){
-                                        console.log('COMPLETED DATA, INSERTING IN DB ' + singledata)
-                                        if(block['result']['data_written'][addressdata] === undefined){
-                                            block['result']['data_written'][addressdata] = []
-                                        }
-                                        singledata = singledata.substr(3)
-                                        var datalm3 = singledata.length - 3
-                                        singledata = singledata.substr(0, datalm3)
-                                        var split = singledata.split('*=>')
-                                        var headsplit = split[0].split('!*!')
-                                        var datastore
-
-                                        try{
-                                            datastore = JSON.parse(split[1]);
-                                        }catch(e){
-                                            datastore = split[1]
-                                        }
-
-                                        var parsed = {
-                                            address: addressdata,
-                                            uuid: headsplit[0],
-                                            collection: headsplit[1],
-                                            refID: headsplit[2],
-                                            procotol: headsplit[3],
-                                            data: datastore,
-                                            block: block['result']['height'],
-                                            blockhash: block['result']['hash'],
-                                            time: block['result']['time']
-                                        }
-                                        block['result']['data_written'][addressdata].push(parsed)
-                                    }
-
-                                    endofdata = 'Y'
-                                    singledata = ''
                                 }
                             }
+
+                            checkhead = singledata.substr(0,3)
+                            checkfoot = singledata.substr(-3)
+                            
+                            if(endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*'){
+                                console.log('COMPLETED DATA ' + singledata)
+                                if(block['result']['data_written'][addressdata] === undefined){
+                                    block['result']['data_written'][addressdata] = []
+                                }
+                                singledata = singledata.substr(3)
+                                var datalm3 = singledata.length - 3
+                                singledata = singledata.substr(0, datalm3)
+                                var split = singledata.split('*=>')
+                                var headsplit = split[0].split('!*!')
+                                var datastore
+
+                                try{
+                                    datastore = JSON.parse(split[1]);
+                                }catch(e){
+                                    datastore = split[1]
+                                }
+                                if(headsplit[1] !== undefined){
+                                    var collection = headsplit[1]
+                                }else{
+                                    var collection = ''
+                                }
+                                if(headsplit[2] !== undefined){
+                                    var refID = headsplit[2]
+                                }else{
+                                    var refID = ''
+                                }
+                                if(headsplit[3] !== undefined){
+                                    var protocol = headsplit[3]
+                                }else{
+                                    var protocol = ''
+                                }
+                                var parsed = {
+                                    address: addressdata,
+                                    uuid: headsplit[0],
+                                    collection: collection,
+                                    refID: refID,
+                                    procotol: protocol,
+                                    data: datastore,
+                                    block: block['result']['height'],
+                                    blockhash: block['result']['hash'],
+                                    time: block['result']['time']
+                                }
+                                block['result']['data_written'][addressdata].push(parsed)
+                            }
+
 
                         }
                     }
