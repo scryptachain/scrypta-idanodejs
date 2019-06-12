@@ -33,7 +33,7 @@ module Database {
                 }).run(conn)
             }
             
-            //CHECKING INDEXES
+            //CHECKING TRANSACTIONS INDEXES
             var txIndexes = ["address", "txid", "time"]
             var exsistingIndexes = await r.table('transactions').indexList().run(conn)
             for(var tdi in txIndexes){
@@ -49,6 +49,27 @@ module Database {
             if(exsistingIndexes.indexOf("addresstxid") === -1){
                 r.table("transactions").indexCreate(
                     "addresstxid", [r.row("address"), r.row("txid")]
+                ).run(conn)
+            }
+            
+            //CHECKING DATA INDEXES
+            var txIndexes = ["address", "block", "uuid", "collection", "protocol"]
+            var exsistingIndexes = await r.table('written').indexList().run(conn)
+            
+            for(var tdi in txIndexes){
+                await r.table('written').indexList().contains(txIndexes[tdi])
+                .do(function(indexExsists){
+                    return r.branch(
+                        indexExsists,
+                        { td_created: 0 },
+                        r.table("written").indexCreate(txIndexes[tdi])
+                    );
+                }).run(conn)
+            }
+
+            if(exsistingIndexes.indexOf("uuidblock") === -1){
+                r.table("written").indexCreate(
+                    "uuidblock", [r.row("uuid"), r.row("block")]
                 ).run(conn)
             }
 

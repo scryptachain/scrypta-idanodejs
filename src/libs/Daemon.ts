@@ -75,6 +75,16 @@ module Daemon {
                     await task.store(address, block, txid, tx, movements)
                 }
             }
+
+            for(var address in block['data_written']){
+                var data = block['data_written'][address]
+                console.log('\x1b[32m%s\x1b[0m', 'FOUND DATA FOR ' + address + '.')
+                for(var dix in data){
+                    var task = new Daemon.Sync
+                    await task.storedata(data[dix])
+                }
+            }
+
             var end = Date.now()
             var elapsed = (end - start) / 1000
             var remains = blocks - analyze
@@ -125,6 +135,28 @@ module Daemon {
                         console.log('TX ALREADY STORED.')
                     }
                     response(block['height'])
+                })
+            })
+        })
+    }
+
+    private async storedata(datastore){
+        return new Promise (async response => {
+            r.table("written").getAll([datastore.uuid,datastore.block], {index: "uuidblock"}).run(conn, async function(err, cursor) {
+                if(err) {
+                console.log(err)
+                }
+                cursor.toArray(async function(err, result) {
+                    if(err) {
+                        console.log(err)
+                    }
+                    if(result[0] === undefined){
+                        console.log('STORING DATA NOW!')
+                        await r.table("written").insert(datastore).run(conn)
+                    }else{
+                        console.log('DATA ALREADY STORED.')
+                    }
+                    response('STORED')
                 })
             })
         })

@@ -286,13 +286,21 @@ module Crypto {
                                         singledata = singledata.substr(0, datalm3)
                                         var split = singledata.split('*=>')
                                         var headsplit = split[0].split('!*!')
+                                        var datastore
+
+                                        try{
+                                            datastore = JSON.parse(split[1]);
+                                        }catch(e){
+                                            datastore = split[1]
+                                        }
+
                                         var parsed = {
                                             address: addressdata,
                                             uuid: headsplit[0],
                                             collection: headsplit[1],
                                             refID: headsplit[2],
                                             procotol: headsplit[3],
-                                            data: JSON.parse(split[1]),
+                                            data: datastore,
                                             block: block['result']['height'],
                                             blockhash: block['result']['hash'],
                                             time: block['result']['time']
