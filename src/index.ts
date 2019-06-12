@@ -31,7 +31,7 @@ const idanodejs = async () => {
             console.log('Starting block synchronization.')
             var task
             task = new Daemon.Sync
-            //task.init()
+            task.init()
           }
         })
       }else{

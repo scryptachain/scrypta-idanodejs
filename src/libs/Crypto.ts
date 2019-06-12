@@ -219,8 +219,9 @@ module Crypto {
                                     console.log('NEED TO FIND ' + chunkcontrol)
                                     var endofdata = 'N'
                                     var idc = 0
-
+                                    var idct = 0
                                     while(endofdata === 'N'){
+                                        idct++
                                         console.log('CHECKING INDEX ' + idc)
                                         if(written[idc] !== undefined){
                                             var checkdata = written[idc].substr(0,6)
@@ -264,7 +265,7 @@ module Crypto {
                                                 idc++
                                             }
 
-                                            if(idc > 100){
+                                            if(idct > 100){
                                                 endofdata = 'Y'
                                                 console.log('MALFORMED DATA, CAN\'T REBUILD')
                                             }
