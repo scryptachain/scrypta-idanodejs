@@ -2,3 +2,4 @@
 node_modules/
 sync.lock
 dist/
+rethinkdb_data/
