@@ -15,7 +15,7 @@ module Daemon {
   export class Sync {
     
     public async init() {
-        conn = await r.connect({db: 'idanodejs'})
+        conn = await r.connect({ host: process.env.DB_HOST, port: process.env.DB_PORT, db: 'idanodejs'})
         var wallet = new Crypto.Wallet
         wallet.request('getinfo').then(info => {
             blocks = info['result'].blocks

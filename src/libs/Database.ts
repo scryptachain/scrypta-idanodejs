@@ -8,7 +8,7 @@ module Database {
 
     public async check() {
         return new Promise(async response => {
-            var conn = await r.connect({})
+            var conn = await r.connect({ host: process.env.DB_HOST, port: process.env.DB_PORT })
             //CHECKING DATABASE
             await r.dbList().contains('idanodejs')
             .do(function(databaseExists) {
