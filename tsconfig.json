@@ -12,6 +12,7 @@
   ],
   "include": [
     "src/**/*.ts",
+    "src/**/*.js",
     ".env"
   ],
   "exclude": [

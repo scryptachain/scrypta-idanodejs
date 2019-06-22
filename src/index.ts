@@ -4,7 +4,6 @@ import * as Daemon from "./libs/Daemon"
 import * as Database from "./libs/Database"
 const r = require('rethinkdb')
 const exec = require('child_process')
-
 let {nextAvailable} = require('node-port-check')
 require('dotenv').config()
 const axios = require('axios')
@@ -30,7 +29,7 @@ function sleep (time) {
 async function runIdaNode(){
   var wallet = new Crypto.Wallet;
     wallet.request('getinfo').then( async function(info){
-      if(info !== undefined && info['result'] !== null && info['result']['blocks'] >= 0){
+      if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
         console.log(process.env.COIN + ' wallet successfully connected.')
         var dbconnected = false
         while(dbconnected === false){

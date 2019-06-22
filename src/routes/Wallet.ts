@@ -30,3 +30,23 @@ export async function getmasternodelist(req: express.Request, res: express.Respo
         })
     })
 };
+
+export async function init(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+   
+};
+
+export async function send(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+   
+};
+
+export async function listunspent(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+   
+};
+
+export async function sendrawtransaction(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+   
+};
