@@ -48,10 +48,15 @@ async function runIdaNode(){
             var DB = new Database.Management
             var result = await DB.check()
             console.log(result)
-            console.log('Starting block synchronization.')
-            var task
-            task = new Daemon.Sync
-            task.init()
+            var sync = (process.env.SYNC === 'true')
+            if(sync === true){
+              console.log('Starting block synchronization.')
+              var task
+              task = new Daemon.Sync
+              task.init()
+            }else{
+              console.log('Automatic sync is turned off.')
+            }
           }
         }
       }else{

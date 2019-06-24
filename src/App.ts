@@ -22,6 +22,7 @@ class App {
     app.express.use(cors())
 
     //WALLET
+    app.express.post('/init',wallet.init)
     app.express.get('/wallet/getinfo',wallet.getinfo)
     app.express.get('/wallet/masternodelist',wallet.getmasternodelist)
 

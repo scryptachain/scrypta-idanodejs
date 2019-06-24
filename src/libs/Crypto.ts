@@ -1,5 +1,6 @@
 "use strict";
 import * as Utilities from './Utilities'
+import Trx from '../libs/trx/trx.js'
 let request = require("request")
 
 module Crypto {
@@ -40,10 +41,47 @@ module Crypto {
         })
     }
 
-    public async send(password = '', send = false, to, amount, metadata = '', fees = 0.001, key = ''){
-        return new Promise (response => {
-            
-            response('3b32d311ef310564c6f31c0e4d40756a9e95dc525f5e084580cd3dc62dc93dc3') //PLACEHOLDER TXID
+    public async send(private_key, from, to, amount, metadata = '', fees = 0.001){
+        return new Promise (async response => {
+            var wallet = new Crypto.Wallet;
+            var unspent = await wallet.request('listunspent',[0,99999999,[from]])
+            if(unspent['result'].length > 0){
+                var inputamount = 0;
+                var trx = Trx.transaction();
+                for (var i=0; i < unspent['result'].length; i++){
+                    if(inputamount <= amount){
+                        var txid = unspent['result'][i]['txid'];
+                        var index = unspent['result'][i]['vout'];
+                        var script = unspent['result'][i]['scriptPubKey'];
+                        trx.addinput(txid,index,script);
+                        inputamount += unspent['result'][i]['amount']
+                    }
+                }
+                var amountneed = amount + fees;
+                if(inputamount >= amountneed){
+                    var change = inputamount - amountneed;
+                    if(amount > 0.00001){
+                        trx.addoutput(to,amount);
+                    }
+                    if(change > 0.00001){
+                        trx.addoutput(from,change);
+                    }
+
+                    if(metadata !== '' && metadata.length <= 80){
+                        trx.addmetadata(metadata);
+                    }
+
+                    var signed = trx.sign(private_key,1);
+
+                    var txid = await wallet.request('sendrawtransaction',[signed])
+                    response(txid['result'])
+                }else{
+                    console.log('NOT ENOUGH FUNDS')
+                    response(false)
+                }
+            }else{
+                response(false)
+            }
         })
     }
 

@@ -2,7 +2,6 @@
 import express = require("express")
 import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
-import Trx from '../libs/trx/trx.js'
 import { ifError } from "assert";
 require('dotenv').config()
 const r = require('rethinkdb')
@@ -51,29 +50,38 @@ export async function write(req: express.Request, res: express.Response) {
                             let txid = ''
                             var i = 0
                             var totalfees = 0
-                            while(txid.length !== 64){
+                            var error = false
+                            while(txid.length !== 64 && error == false){
                                 var fees = 0.001 + (i / 1000)
-                                txid = <string> await wallet.send(private_key,true,dapp_address,0,dataToWrite,fees)
-                                console.log('SEND SUCCESS, TXID IS: ' + txid)
+                                txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees)
+                                console.log('SEND SUCCESS, TXID IS: ' + txid  + '. FEES ARE: ' + fees + 'LYRA')
                                 if(txid.length === 64){
                                     totalfees += fees
                                 }
                                 i++;
+                                if(i > 20){
+                                    error = true
+                                }
                             }
-                            
-                            res.json({
-                                uuid: uuid,
-                                address: wallet,
-                                fees: totalfees,
-                                collection: collection.replace('!*!',''),
-                                refID: refID.replace('!*!',''),
-                                protocol: protocol.replace('!*!',''),
-                                dimension: dataToWrite.length,
-                                chunks: 1,
-                                stored: dataToWrite,
-                                txs: [txid]
-                            })
-
+                            if(error === false){
+                                res.json({
+                                    uuid: uuid,
+                                    address: wallet,
+                                    fees: totalfees,
+                                    collection: collection.replace('!*!',''),
+                                    refID: refID.replace('!*!',''),
+                                    protocol: protocol.replace('!*!',''),
+                                    dimension: dataToWrite.length,
+                                    chunks: 1,
+                                    stored: dataToWrite,
+                                    txs: [txid]
+                                })
+                            }else{
+                                res.json({
+                                    data: 'Can\'t write data.',
+                                    status: 501
+                                })
+                            }
                         }else{
                             
                             var txs = []
@@ -111,33 +119,45 @@ export async function write(req: express.Request, res: express.Response) {
                             }
 
                             var totalfees = 0
+                            var error = false
+
                             for(var cix=0; cix<chunks.length; cix++){
                                 var txid = ''
                                 var i = 0
                                 while(txid.length !== 64){
                                     var fees = 0.001 + (i / 1000)
-                                    txid = <string> await wallet.send(private_key,true,dapp_address,0,chunks[cix],fees)
-                                    console.log('SEND SUCCESS, TXID IS: ' + txid)
+                                    txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees)
+                                    console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                                     if(txid.length === 64){
                                         totalfees += fees
                                         txs.push(txid)
                                     }
                                     i++;
+                                    if(i > 20){
+                                        error = true
+                                        txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                                    }
                                 }
                             }
-
-                            res.json({
-                                uuid: uuid,
-                                address: wallet,
-                                fees: totalfees,
-                                collection: collection.replace('!*!',''),
-                                refID: refID.replace('!*!',''),
-                                protocol: protocol.replace('!*!',''),
-                                dimension: dataToWrite.length,
-                                chunks: nchunks,
-                                stored: dataToWrite,
-                                txs: txs
-                            })
+                            if(error === false){
+                                res.json({
+                                    uuid: uuid,
+                                    address: wallet,
+                                    fees: totalfees,
+                                    collection: collection.replace('!*!',''),
+                                    refID: refID.replace('!*!',''),
+                                    protocol: protocol.replace('!*!',''),
+                                    dimension: dataToWrite.length,
+                                    chunks: nchunks,
+                                    stored: dataToWrite,
+                                    txs: txs
+                                })
+                            }else{
+                                res.json({
+                                    data: 'Can\'t write data.',
+                                    status: 501
+                                })
+                            }
                         }
                     }else{
                         res.json({
