@@ -38,9 +38,9 @@ module Database {
             var exsistingIndexes = await r.table('settings').indexList().run(conn)
             for(var tdi in txIndexes){
                 await r.table('settings').indexList().contains(txIndexes[tdi])
-                .do(function(indexExsists){
+                .do(function(indexExists){
                     return r.branch(
-                        indexExsists,
+                        indexExists,
                         { td_created: 0 },
                         r.table("settings").indexCreate(txIndexes[tdi])
                     );
@@ -52,9 +52,9 @@ module Database {
             var exsistingIndexes = await r.table('transactions').indexList().run(conn)
             for(var tdi in txIndexes){
                 await r.table('transactions').indexList().contains(txIndexes[tdi])
-                .do(function(indexExsists){
+                .do(function(indexExists){
                     return r.branch(
-                        indexExsists,
+                        indexExists,
                         { td_created: 0 },
                         r.table("transactions").indexCreate(txIndexes[tdi])
                     );
@@ -72,9 +72,9 @@ module Database {
             
             for(var tdi in txIndexes){
                 await r.table('written').indexList().contains(txIndexes[tdi])
-                .do(function(indexExsists){
+                .do(function(indexExists){
                     return r.branch(
-                        indexExsists,
+                        indexExists,
                         { td_created: 0 },
                         r.table("written").indexCreate(txIndexes[tdi])
                     );
