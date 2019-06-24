@@ -25,36 +25,37 @@ export async function write(req: express.Request, res: express.Response) {
                         
                         var collection
                         if(request['body']['collection'] !== undefined && request['body']['collection'] !== ''){
-                            collection = '!*!' + collection
+                            collection = '!*!' + request['body']['collection']
                         }else{
                             collection = '!*!'
                         }
 
                         var refID
                         if(request['body']['refID'] !== undefined && request['body']['refID'] !== ''){
-                            refID = '!*!' + refID
+                            refID = '!*!' + request['body']['refID']
                         }else{
                             refID = '!*!'
                         }
 
                         var protocol
                         if(request['body']['protocol'] !== undefined && request['body']['protocol'] !== ''){
-                            protocol = '!*!' + protocol
+                            protocol = '!*!' + request['body']['protocol']
                         }else{
                             protocol = '!*!'
                         }
 
                         var metadata = request['body']['data']
                         var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + metadata + '*!*'
-
+                        console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
                         if(dataToWrite.length <= 80){
-                            var txid
+                            let txid = ''
                             var i = 0
                             var totalfees = 0
-                            while(txid !== false && txid.length !== 64){
+                            while(txid.length !== 64){
                                 var fees = 0.001 + (i / 1000)
-                                txid = await wallet.send(private_key,true,dapp_address,0,dataToWrite,fees)
-                                if(txid !== false && txid.length === 64){
+                                txid = <string> await wallet.send(private_key,true,dapp_address,0,dataToWrite,fees)
+                                console.log('SEND SUCCESS, TXID IS: ' + txid)
+                                if(txid.length === 64){
                                     totalfees += fees
                                 }
                                 i++;
@@ -111,12 +112,13 @@ export async function write(req: express.Request, res: express.Response) {
 
                             var totalfees = 0
                             for(var cix=0; cix<chunks.length; cix++){
-                                var txid
+                                var txid = ''
                                 var i = 0
                                 while(txid.length !== 64){
                                     var fees = 0.001 + (i / 1000)
-                                    txid = await wallet.send(private_key,true,dapp_address,0,chunks[cix],fees)
-                                    if(txid !== false && txid.length === 64){
+                                    txid = <string> await wallet.send(private_key,true,dapp_address,0,chunks[cix],fees)
+                                    console.log('SEND SUCCESS, TXID IS: ' + txid)
+                                    if(txid.length === 64){
                                         totalfees += fees
                                         txs.push(txid)
                                     }

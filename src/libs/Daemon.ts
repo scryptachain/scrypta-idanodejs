@@ -37,30 +37,30 @@ module Daemon {
                 }
                 var last
                 if(result[0] === undefined){
-                    last = 0
                     console.log('Sync lock not found, creating')
                     await r.table("settings").insert({setting: "sync", value: 0}).run(conn)
+                    last = 0
                 }else{
                     last = result[0].value
-                    if(reset !== undefined && reset === ''){
-                        if(last !== null && last !== undefined){
-                            analyze = parseInt(last) + 1
-                        }else{
-                            analyze = 1
-                        }
+                }
+                if(reset !== undefined && reset === ''){
+                    if(last !== null && last !== undefined){
+                        analyze = parseInt(last) + 1
                     }else{
                         analyze = 1
                     }
-                    if(analyze <= blocks){
+                }else{
+                    analyze = 1
+                }
+                if(analyze <= blocks){
+                    var task = new Daemon.Sync
+                    task.analyze()
+                }else{
+                    console.log('SYNC FINISHED, RESTART IN 30 SECONDS')
+                    setTimeout(function(){
                         var task = new Daemon.Sync
-                        task.analyze()
-                    }else{
-                        console.log('SYNC FINISHED, RESTART IN 30 SECONDS')
-                        setTimeout(function(){
-                            var task = new Daemon.Sync
-                            task.init()
-                        },30000)
-                    }
+                        task.init()
+                    },30000)
                 }
             })
         })

@@ -42,7 +42,8 @@ module Crypto {
 
     public async send(password = '', send = false, to, amount, metadata = '', fees = 0.001, key = ''){
         return new Promise (response => {
-            response('TODO')
+            
+            response('3b32d311ef310564c6f31c0e4d40756a9e95dc525f5e084580cd3dc62dc93dc3') //PLACEHOLDER TXID
         })
     }
 
