@@ -17,13 +17,19 @@ module Utilities {
             if(jsonEmpty === true){
                 var form = new formidable.IncomingForm()
                 form.parse(req, function(err, fields, files) {
-                    response (fields)
+                    response ({
+                        body: fields,
+                        files: files
+                    })
                 })
                 setTimeout(function(){
                     response(false)
                 },200)
             } else {
-                response (req.body)
+                response ({
+                    body: req.body,
+                    files: []
+                })
             }
         })
     }

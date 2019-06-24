@@ -40,6 +40,12 @@ module Crypto {
         })
     }
 
+    public async send(password = '', send = false, to, amount, metadata = '', fees = 0.001, key = ''){
+        return new Promise (response => {
+            response('TODO')
+        })
+    }
+
     public async analyzeTransaction(transaction){
         return new Promise (response => {
             response('TODO')

@@ -20,10 +20,16 @@ class App {
     app.express.use(bodyParser.urlencoded({extended: true}))
     app.express.use(express.static('public'))
     app.express.use(cors())
-    
+
+    //WALLET
     app.express.get('/wallet/getinfo',wallet.getinfo)
     app.express.get('/wallet/masternodelist',wallet.getmasternodelist)
 
+    //PROGRESSIVE DATA MANAGEMENT
+    app.express.post('/write', pdm.write)
+    app.express.post('/read', pdm.read)
+
+    //EXPLORER
     app.express.get('/',explorer.info)
     app.express.get('/block/:block',explorer.getblock)
     app.express.get('/transaction/:txid', explorer.gettransaction)
@@ -31,9 +37,6 @@ class App {
     app.express.get('/balance/:address', explorer.balance)
     app.express.get('/stats/:address', explorer.stats)
     app.express.get('/unspent/:address', explorer.unspent)
-
-    //PROGRESSIVE DATA MANAGEMENT
-    app.express.post('/read', pdm.read)
   }
 }
 

@@ -33,6 +33,20 @@ module Database {
                 }).run(conn)
             }
             
+            //CHECKING SETTINGS INDEXES
+            var txIndexes = ["setting"]
+            var exsistingIndexes = await r.table('settings').indexList().run(conn)
+            for(var tdi in txIndexes){
+                await r.table('settings').indexList().contains(txIndexes[tdi])
+                .do(function(indexExsists){
+                    return r.branch(
+                        indexExsists,
+                        { td_created: 0 },
+                        r.table("settings").indexCreate(txIndexes[tdi])
+                    );
+                }).run(conn)
+            }
+
             //CHECKING TRANSACTIONS INDEXES
             var txIndexes = ["address", "txid", "time"]
             var exsistingIndexes = await r.table('transactions').indexList().run(conn)

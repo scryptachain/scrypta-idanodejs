@@ -31,7 +31,8 @@
     "nodemon": "^1.18.10",
     "opn": "^5.5.0",
     "request": "^2.88.0",
-    "rethinkdb": "^2.3.3"
+    "rethinkdb": "^2.3.3",
+    "uuid": "^3.3.2"
   },
   "devDependencies": {
     "@types/mocha": "2.2.41",

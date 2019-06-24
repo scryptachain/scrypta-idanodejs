@@ -27,34 +27,42 @@ module Daemon {
 
     public async process(){
         var reset = '' //CHECK FOR RESET VALUE
-        fs.readFile('sync.lock', {encoding: 'utf-8'}, async function(err,data){
-            var last
-            if(err){
-                fs.writeFile("sync.lock",0, function(){
-                    last = 0
-                })
-            }else{
-                last = data
+        r.table("settings").filter({setting: "sync"}).run(conn, async function(err, cursor) {
+            if(err) {
+                console.log(err)
             }
-            if(reset !== undefined && reset === ''){
-                if(last !== null && last !== undefined){
-                    analyze = parseInt(last) + 1
-                }else{
-                    analyze = 1
+            cursor.toArray(async function(err, result) {
+                if(err) {
+                    console.log(err)
                 }
-            }else{
-                analyze = 1
-            }
-            if(analyze <= blocks){
-                var task = new Daemon.Sync
-                task.analyze()
-            }else{
-                console.log('SYNC FINISHED, RESTART IN 30 SECONDS')
-                setTimeout(function(){
-                    var task = new Daemon.Sync
-                    task.init()
-                },30000)
-            }
+                var last
+                if(result[0] === undefined){
+                    last = 0
+                    console.log('Sync lock not found, creating')
+                    await r.table("settings").insert({setting: "sync", value: 0}).run(conn)
+                }else{
+                    last = result[0].value
+                    if(reset !== undefined && reset === ''){
+                        if(last !== null && last !== undefined){
+                            analyze = parseInt(last) + 1
+                        }else{
+                            analyze = 1
+                        }
+                    }else{
+                        analyze = 1
+                    }
+                    if(analyze <= blocks){
+                        var task = new Daemon.Sync
+                        task.analyze()
+                    }else{
+                        console.log('SYNC FINISHED, RESTART IN 30 SECONDS')
+                        setTimeout(function(){
+                            var task = new Daemon.Sync
+                            task.init()
+                        },30000)
+                    }
+                }
+            })
         })
     }
 
@@ -90,8 +98,7 @@ module Daemon {
             var remains = blocks - analyze
             var estimated = (elapsed * remains) / 60 / 60;
             console.log('\x1b[33m%s\x1b[0m', 'FINISHED IN '+ elapsed +'s. ' + remains + ' BLOCKS UNTIL END. ' + estimated.toFixed(2) + 'h ESTIMATED.')
-            console.log('STORING UPDATED INDEX')
-            fs.writeFile("sync.lock",block['height'], function(){
+            r.table("settings").filter({setting: "sync"}).update({value: block['height']}).run(conn, result =>{
                 setTimeout(function(){
                     var task = new Daemon.Sync
                     task.process()
