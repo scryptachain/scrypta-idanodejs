@@ -71,7 +71,6 @@ export async function unspent(req: express.Request, res: express.Response) {
     var address = req.params.address
     var wallet = new Crypto.Wallet
     var balance = 0
-    
     wallet.request('listunspent',[0,9999999,[address]]).then(response => {
         var unspent = response['result']
         for(var i = 0; i < unspent.length; i++){

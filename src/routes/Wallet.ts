@@ -66,12 +66,79 @@ export async function init(req: express.Request, res: express.Response) {
     }
 };
 
-export async function listunspent(req: express.Request, res: express.Response) {
+export async function send(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
-   
+    var parser = new Utilities.Parser
+    var request = await parser.body(req)
+    if(request['body']['from'] !== undefined && request['body']['to'] !== undefined && request['body']['amount'] !== undefined && request['body']['private_key'] !== undefined){
+        var from = request['body']['from']
+        var to = request['body']['to']
+        var amount = request['body']['amount']
+        var private_key = request['body']['private_key']
+        
+        var metadata
+        if(request['body']['message'] !== undefined){
+            metadata = request['body']['message']
+        }
+
+        wallet.request('validateaddress',[from]).then(async response => {
+            var validation = response['result']
+            if(validation.isvalid === true){
+                wallet.request('validateaddress',[to]).then(async response => {
+                    var validation = response['result']
+                    if(validation.isvalid === true){
+                        if(parseFloat(amount) > 0){
+                            var txid = <string> await wallet.send(private_key,from,to,amount,metadata) 
+                            res.json({
+                                data: {
+                                    success: true,
+                                    txid: txid
+                                },
+                                status: 200
+                            })
+                        }else{
+                            res.json({
+                                data: 'Amount must be grater than zero.',
+                                status: 402
+                            })
+                        }
+                    }else{
+                        res.json({
+                            data: 'Receiving address is invalid.',
+                            status: 402
+                        })
+                    }
+                })
+            }else{
+                res.json({
+                    data: 'Sending address is invalid.',
+                    status: 402
+                })
+            }
+        })
+    }else{
+        res.json({
+            data: 'Provide from, to, amount and private key first.',
+            status: 402
+        })
+    }
 };
 
 export async function sendrawtransaction(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
-   
+    var parser = new Utilities.Parser
+    var request = await parser.body(req)
+    if(request['body']['rawtransaction'] !== undefined){
+        wallet.request('sendrawtransaction',[request['body']['rawtransaction']]).then(async response => {
+            res.json({
+                data: response['result'],
+                status: 200
+            })
+        })
+    }else{
+        res.json({
+            data: 'Provide raw transaction first.',
+            status: 402
+        })
+    }    
 };

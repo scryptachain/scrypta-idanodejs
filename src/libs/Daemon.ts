@@ -86,10 +86,19 @@ module Daemon {
 
             for(var address in block['data_written']){
                 var data = block['data_written'][address]
-                console.log('\x1b[32m%s\x1b[0m', 'FOUND DATA FOR ' + address + '.')
+                console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
                 for(var dix in data){
                     var task = new Daemon.Sync
-                    await task.storedata(data[dix])
+                    await task.storewritten(data[dix])
+                }
+            }
+
+            for(var address in block['data_received']){
+                var data = block['data_received'][address]
+                console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
+                for(var dix in data){
+                    var task = new Daemon.Sync
+                    await task.storereceived(data[dix])
                 }
             }
 
@@ -147,7 +156,7 @@ module Daemon {
         })
     }
 
-    private async storedata(datastore){
+    private async storewritten(datastore){
         return new Promise (async response => {
             r.table("written").getAll([datastore.uuid,datastore.block], {index: "uuidblock"}).run(conn, async function(err, cursor) {
                 if(err) {
@@ -160,6 +169,28 @@ module Daemon {
                     if(result[0] === undefined){
                         console.log('STORING DATA NOW!')
                         await r.table("written").insert(datastore).run(conn)
+                    }else{
+                        console.log('DATA ALREADY STORED.')
+                    }
+                    response('STORED')
+                })
+            })
+        })
+    }
+
+    private async storereceived(datastore){
+        return new Promise (async response => {
+            r.table("received").getAll([datastore.txid,datastore.address], {index: "txidaddress"}).run(conn, async function(err, cursor) {
+                if(err) {
+                console.log(err)
+                }
+                cursor.toArray(async function(err, result) {
+                    if(err) {
+                        console.log(err)
+                    }
+                    if(result[0] === undefined){
+                        console.log('STORING DATA NOW!')
+                        await r.table("received").insert(datastore).run(conn)
                     }else{
                         console.log('DATA ALREADY STORED.')
                     }

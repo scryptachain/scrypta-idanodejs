@@ -2,7 +2,6 @@
 import express = require("express")
 import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
-import { ifError } from "assert";
 require('dotenv').config()
 const r = require('rethinkdb')
 
@@ -19,8 +18,13 @@ export async function write(req: express.Request, res: express.Response) {
                         var private_key = request['body']['private_key']
                         var dapp_address = request['body']['dapp_address']
 
-                        var Uuid = require('uuid/v4')
-                        var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+                        var uuid
+                        if(request['body']['uuid'] !== undefined && request['body']['uuid'] !== ''){
+                            uuid = request['body']['uuid']
+                        }else{
+                            var Uuid = require('uuid/v4')
+                            uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+                        }
                         
                         var collection
                         if(request['body']['collection'] !== undefined && request['body']['collection'] !== ''){
@@ -191,9 +195,9 @@ export async function read(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request !== false){
-        if(request['address'] !== undefined){
+        if(request['body']['address'] !== undefined){
             var conn = await r.connect({db: 'idanodejs'})
-            r.table('written').getAll(request['address'], {index: 'address'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
+            r.table('written').getAll(request['body']['address'], {index: 'address'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
                 if(err) {
                     console.log(err)
                 }
@@ -232,11 +236,32 @@ export async function read(req: express.Request, res: express.Response) {
     }
 };
 
-export function received(req: express.Request, res: express.Response) {
-    var wallet = new Crypto.Wallet;
-    wallet.request('getinfo').then(function(info){
-        res.json(info['result'])
-    })
+export async function received(req: express.Request, res: express.Response) {
+    var parser = new Utilities.Parser
+    var request = await parser.body(req)
+    if(request['body']['address'] !== undefined){
+        var conn = await r.connect({db: 'idanodejs'})
+        r.table('received').getAll(request['body']['address'], {index: 'address'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
+            if(err) {
+                console.log(err)
+            }
+        
+            cursor.toArray(function(err, result) {
+                if(err) {
+                    console.log(err)
+                }
+                res.json({
+                    data: result,
+                    status: 200
+                })
+            })
+        })
+    }else{
+        res.json({
+            data: 'Provide address first.',
+            status: 402
+        })
+    }
 };
 
 export function invalidate(req: express.Request, res: express.Response) {
@@ -246,10 +271,4 @@ export function invalidate(req: express.Request, res: express.Response) {
     })
 };
 
-export function daemon(req: express.Request, res: express.Response) {
-    var wallet = new Crypto.Wallet;
-    wallet.request('getinfo').then(function(info){
-        res.json(info['result'])
-    })
-};
 

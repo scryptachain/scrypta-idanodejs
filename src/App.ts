@@ -2,7 +2,6 @@ import * as express from 'express'
 import * as wallet from "./routes/Wallet"
 import * as explorer from "./routes/Explorer"
 import * as pdm from "./routes/Pdm"
-import * as manage from "./routes/Manage"
 
 var bodyParser = require('body-parser')
 var cors = require('cors')
@@ -21,14 +20,20 @@ class App {
     app.express.use(express.static('public'))
     app.express.use(cors())
 
-    //WALLET
+    //ADDRESSES
     app.express.post('/init',wallet.init)
+    app.express.post('/send',wallet.send)
+    app.express.post('/sendrawtransaction', wallet.sendrawtransaction)
+
+    //WALLET
     app.express.get('/wallet/getinfo',wallet.getinfo)
     app.express.get('/wallet/masternodelist',wallet.getmasternodelist)
 
     //PROGRESSIVE DATA MANAGEMENT
     app.express.post('/write', pdm.write)
     app.express.post('/read', pdm.read)
+    app.express.post('/invalidate', pdm.invalidate)
+    app.express.post('/received', pdm.received)
 
     //EXPLORER
     app.express.get('/',explorer.info)

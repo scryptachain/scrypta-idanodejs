@@ -57,7 +57,7 @@ module Crypto {
                         inputamount += unspent['result'][i]['amount']
                     }
                 }
-                var amountneed = amount + fees;
+                var amountneed = parseFloat(amount) + fees;
                 if(inputamount >= amountneed){
                     var change = inputamount - amountneed;
                     if(amount > 0.00001){
@@ -101,7 +101,6 @@ module Crypto {
                 block['result']['fees'] = 0
                 block['result']['analysis'] = {}
                 block['result']['raw_written'] = {}
-                block['result']['raw_received'] = {}
                 block['result']['data_written'] = {}
                 block['result']['data_received'] = {}
                 //PARSING ALL TRANSACTIONS
@@ -166,7 +165,9 @@ module Crypto {
                                         block['result']['analysis'][txid]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
                                         block['result']['analysis'][txid]['balances'][address]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
                                         txtotvout += block['result']['tx'][i]['vout'][voutx]['value']
-                                        receivingaddress = address
+                                        if(receivingaddress === ''){
+                                            receivingaddress = address
+                                        }
                                     })
                                 }
                                 //CHECKING OP_RETURN
@@ -184,10 +185,16 @@ module Crypto {
                                         block['result']['raw_written'][addressdata].push(OP_RETURN)
                                     }else{
                                         addressdata = receivingaddress
-                                        if(block['result']['raw_received'][addressdata] === undefined){
-                                            block['result']['raw_received'][addressdata] = []
+                                        if(block['result']['data_received'][addressdata] === undefined){
+                                            block['result']['data_received'][addressdata] = []
                                         }
-                                        block['result']['raw_received'][addressdata].push(OP_RETURN)
+                                        block['result']['data_received'][addressdata].push({
+                                            txid: txid,
+                                            block: block['result']['height'],
+                                            address: addressdata,
+                                            sender: addresswrite,
+                                            data: OP_RETURN
+                                        })
                                     }
 
                                 }

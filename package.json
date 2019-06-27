@@ -24,6 +24,7 @@
     "express": "^4.16.4",
     "file-type": "^10.9.0",
     "formidable": "^1.2.1",
+    "ipfs": "^0.36.4",
     "lcrypt": "^1.0.2",
     "mongodb": "^3.2.7",
     "node-port-check": "^2.0.1",

@@ -87,6 +87,26 @@ module Database {
                 ).run(conn)
             }
 
+            var txIndexes = ["address", "block", "uuid", "collection", "protocol"]
+            var exsistingIndexes = await r.table('received').indexList().run(conn)
+            
+            for(var tdi in txIndexes){
+                await r.table('received').indexList().contains(txIndexes[tdi])
+                .do(function(indexExists){
+                    return r.branch(
+                        indexExists,
+                        { td_created: 0 },
+                        r.table("received").indexCreate(txIndexes[tdi])
+                    );
+                }).run(conn)
+            }
+
+            if(exsistingIndexes.indexOf("txidaddress") === -1){
+                r.table("received").indexCreate(
+                    "txidaddress", [r.row("txid"), r.row("address")]
+                ).run(conn)
+            }
+
             response('Database and tables are ok.')
         })
     }
