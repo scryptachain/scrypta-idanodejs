@@ -1,7 +1,6 @@
 import express = require("express")
 import * as Utilities from '../libs/Utilities'
 import * as Crypto from '../libs/Crypto'
-import { type } from "os";
 const r = require('rethinkdb')
 
 export function info(req: express.Request, res: express.Response) {

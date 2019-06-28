@@ -1,6 +1,7 @@
 import * as express from 'express'
 import * as wallet from "./routes/Wallet"
 import * as explorer from "./routes/Explorer"
+import * as ipfs from "./routes/Ipfs"
 import * as pdm from "./routes/Pdm"
 
 var bodyParser = require('body-parser')
@@ -34,6 +35,17 @@ class App {
     app.express.post('/read', pdm.read)
     app.express.post('/invalidate', pdm.invalidate)
     app.express.post('/received', pdm.received)
+
+    //IPFS
+    app.express.get('/ipfs/info', ipfs.info)
+    app.express.post('/ipfs/add', ipfs.add)
+    app.express.post('/ipfs/verify/:hash', ipfs.verify)
+    app.express.get('/ipfs/type/:hash', ipfs.filetype)
+    app.express.get('/ipfs/ls/:hash', ipfs.ls)
+    app.express.get('/ipfs/pins', ipfs.pins)
+    app.express.get('/ipfs/add/:hash', ipfs.addhash)
+    app.express.get('/ipfs/:hash/:folder', ipfs.getfolder)
+    app.express.get('/ipfs/:hash', ipfs.getfile)
 
     //EXPLORER
     app.express.get('/',explorer.info)
