@@ -50,10 +50,10 @@ module Crypto {
                 var trx = Trx.transaction();
                 for (var i=0; i < unspent['result'].length; i++){
                     if(inputamount <= amount){
-                        var txid = unspent['result'][i]['txid'];
+                        var txin = unspent['result'][i]['txid'];
                         var index = unspent['result'][i]['vout'];
                         var script = unspent['result'][i]['scriptPubKey'];
-                        trx.addinput(txid,index,script);
+                        trx.addinput(txin,index,script);
                         inputamount += unspent['result'][i]['amount']
                     }
                 }
