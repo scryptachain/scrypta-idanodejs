@@ -13,10 +13,6 @@ export async function write(req: express.Request, res: express.Response) {
 
 }
 
-export async function invalidate(req: express.Request, res: express.Response) {
-
-}
-
 export async function send(req: express.Request, res: express.Response) {
 
 }

@@ -2,8 +2,10 @@
 import express = require("express")
 import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
+import * as ipfs from '../routes/Ipfs'
 require('dotenv').config()
 const r = require('rethinkdb')
+var fs = require('fs')
 
 export async function write(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
@@ -46,8 +48,23 @@ export async function write(req: express.Request, res: express.Response) {
                         }else{
                             protocol = '!*!'
                         }
+                        
+                        var metadata
+                        //TODO: ADD FOLDER, NOT ONLY SINGLE FILES
+                        if(request['files']['file'] !== undefined){
+                            metadata = 'ipfs:'
+                            var path = request['files']['file'].path
+                            var hash = await ipfs.addfile(path).catch(err =>{
+                                console.log(err)
+                            })
+                            metadata += hash
+                            if(request['body']['data'] !== undefined && request['body']['data'].length > 0){
+                                metadata += '***' + request['body']['data']
+                            }
+                        }else{
+                            metadata = request['body']['data']
+                        }
 
-                        var metadata = request['body']['data']
                         var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + metadata + '*!*'
                         console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
                         if(dataToWrite.length <= 80){
@@ -206,6 +223,7 @@ export async function read(req: express.Request, res: express.Response) {
                     if(err) {
                         console.log(err)
                     }
+                    //TODO: EXTRACT PROTOCOLS DATA
                     res.json({
                         data: result,
                         status: 200

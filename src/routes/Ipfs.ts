@@ -1,9 +1,5 @@
 import express = require("express")
-import * as Utilities from '../libs/Utilities'
-import * as Crypto from '../libs/Crypto'
-const r = require('rethinkdb')
 const fileType = require('file-type')
-var app = express()
 const IPFS = require('ipfs')
 const node = new IPFS({ repo: 'ipfs_data' })
 var formidable = require('formidable')
@@ -73,6 +69,33 @@ export function add(req: express.Request, res: express.Response) {
       }
     })
 };
+
+export function addfile(path) {
+  return new Promise (response => {
+    var content = fs.readFileSync(path)
+      node.add(content).then(results => {
+        const hash = results[0].hash
+        response(hash)
+      })
+  })
+}
+
+export function addfolder(files, folder) {
+  return new Promise (response => {
+    var ipfscontents = new Array()
+    for(var k in files){
+      var file = fs.readFileSync(files[k].path)
+      var ipfsobj = {
+        path: folder + '/' + files[k].name,
+        content: file
+      }
+      ipfscontents.push(ipfsobj)
+    }
+    node.add(ipfscontents).then(results => {
+      response(results)
+    })
+  })
+}
 
 export function verify(req: express.Request, res: express.Response) {
     var hash = req.params.hash
