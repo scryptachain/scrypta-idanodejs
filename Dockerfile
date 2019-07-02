@@ -1,8 +1,8 @@
 FROM node:8-alpine
 
-CMD apk update && apk add node-typescript
+RUN apk update && apk add --no-cache git python && apk add build-base  
 
-CMD mkdir /opt/src
+RUN mkdir /opt/src
 
 COPY src /opt/src
 
