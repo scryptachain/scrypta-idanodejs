@@ -6,21 +6,24 @@ import SysTray from 'systray'
 const open = require('opn')
 const r = require('rethinkdb')
 const exec = require('child_process')
+var publicIp = require('public-ip')
 let {nextAvailable} = require('node-port-check')
 require('dotenv').config()
 var server
 
 const nodeprocess = async () => {
   let port = await nextAvailable(3001, '0.0.0.0')
-  app.engine('html', require('ejs').renderFile);
-  
+  app.engine('html', require('ejs').renderFile)
+  var ip = await publicIp.v4()
+
   server = app.listen(port, (err) => {
     if (err) {
       return console.log(err)
     }
     runIdaNode()
-    return console.log(`Scrypta IdaNode listening at port ${port}.`)  
+    return console.log(`Scrypta IdaNode listening at port ${port}. Public IP is: ${ip}.`)  
   })
+
   var servermode = (process.env.SERVERMODE === 'true')
   if(servermode === false){
     const systray = new SysTray({
