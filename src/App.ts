@@ -50,7 +50,6 @@ class App {
     //EXPLORER
     app.express.get('/',explorer.info)
     app.express.get('/block/:block',explorer.getblock)
-    app.express.get('/transaction/:txid', explorer.gettransaction)
     app.express.get('/transactions/:address', explorer.transactions)
     app.express.get('/balance/:address', explorer.balance)
     app.express.get('/stats/:address', explorer.stats)

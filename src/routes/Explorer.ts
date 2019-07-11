@@ -7,21 +7,6 @@ export function info(req: express.Request, res: express.Response) {
     res.json({status: "ONLINE"})
 };
 
-export function gettransaction(req: express.Request, res: express.Response) {
-    var wallet = new Crypto.Wallet;
-    var txid = req.params.txid
-    wallet.request('getrawtransaction', [txid]).then(function(rawtransaction){
-        wallet.request('decoderawransaction', [txid]).then(function(rawtransaction){
-            wallet.analyzeTransaction(rawtransaction['result']).then(response => {
-                res.json({
-                    data: response,
-                    status: 200
-                })
-            })
-        })
-    })
-};
-
 export function getblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     var block = req.params.block
