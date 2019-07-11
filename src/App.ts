@@ -2,6 +2,7 @@ import * as express from 'express'
 import * as wallet from "./routes/Wallet"
 import * as explorer from "./routes/Explorer"
 import * as ipfs from "./routes/Ipfs"
+import * as trustlink from "./routes/Trustlink"
 import * as pdm from "./routes/Pdm"
 
 var bodyParser = require('body-parser')
@@ -35,6 +36,9 @@ class App {
     app.express.post('/read', pdm.read)
     app.express.post('/invalidate', pdm.invalidate)
     app.express.post('/received', pdm.received)
+
+    //TRUSTLINK
+    app.express.post('/trustlink/init', trustlink.init)
 
     //IPFS
     app.express.get('/ipfs/info', ipfs.info)
