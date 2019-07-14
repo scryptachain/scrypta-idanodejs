@@ -13,9 +13,8 @@ export async function init(req: express.Request, res: express.Response) {
     if(request['body']['addresses'] !== undefined){
         var addresses = request['body']['addresses'].split(',')
         if(addresses.length > 0){
-            wallet.request('createmultisig',[addresses.length, addresses]).then(async function(result){
-                console.log(result)
-                var trustlink = result['result'].address
+            wallet.request('createmultisig',[addresses.length, addresses]).then(async function(init){
+                var trustlink = init['result'].address
                 var txid
                 wallet.request('importaddress',[trustlink,"",false]).then(async function(result){
                     var airdrop = (request['body']['airdrop'] === 'true' || request['body']['airdrop'] === true)
@@ -33,7 +32,7 @@ export async function init(req: express.Request, res: express.Response) {
                         }
                     }
                     res.json({
-                        data: result['result'],
+                        data: init['result'],
                         status: 200
                     })
                 })
