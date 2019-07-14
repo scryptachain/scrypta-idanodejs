@@ -17,23 +17,25 @@ export async function init(req: express.Request, res: express.Response) {
                 console.log(result)
                 var trustlink = result['result'].address
                 var txid
-                var airdrop = (request['body']['airdrop'] === 'true' || request['body']['airdrop'] === true)
-                if(request['body']['airdrop'] !== undefined && airdrop === true){
-                    var wallet = new Crypto.Wallet;
-                    var balance = await wallet.request('getbalance')
-                    var airdrop_value = parseFloat(process.env.AIRDROP)
-                    if(balance['result'] > airdrop_value){
-                        var airdrop_tx = await wallet.request('sendtoaddress',[trustlink,airdrop_value])
-                        txid = airdrop_tx['result']
-                        trustlink['airdrop'] = txid
-                    }else{
-                        trustlink['airdrop'] = false
-                        console.log('Balance insufficient for airdrop')
+                wallet.request('importaddress',[trustlink,"",false]).then(async function(result){
+                    var airdrop = (request['body']['airdrop'] === 'true' || request['body']['airdrop'] === true)
+                    if(request['body']['airdrop'] !== undefined && airdrop === true){
+                        var wallet = new Crypto.Wallet;
+                        var balance = await wallet.request('getbalance')
+                        var airdrop_value = parseFloat(process.env.AIRDROP)
+                        if(balance['result'] > airdrop_value){
+                            var airdrop_tx = await wallet.request('sendtoaddress',[trustlink,airdrop_value])
+                            txid = airdrop_tx['result']
+                            trustlink['airdrop'] = txid
+                        }else{
+                            trustlink['airdrop'] = false
+                            console.log('Balance insufficient for airdrop')
+                        }
                     }
-                }
-                res.json({
-                    data: result['result'],
-                    status: 200
+                    res.json({
+                        data: result['result'],
+                        status: 200
+                    })
                 })
             })
         }else{
