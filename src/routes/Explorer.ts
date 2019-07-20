@@ -23,7 +23,7 @@ export function getblock(req: express.Request, res: express.Response) {
 export function getlastblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     wallet.request('getinfo').then(info => {
-        block = info['result'].blocks
+        var block = info['result'].blocks
 
         wallet.request('getblockhash', [block]).then(function(blockhash){
             wallet.analyzeBlock(blockhash['result']).then(response => {
