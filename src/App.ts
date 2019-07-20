@@ -53,6 +53,7 @@ class App {
 
     //EXPLORER
     app.express.get('/',explorer.info)
+    app.express.get('/lastblock',explorer.getlastblock)
     app.express.get('/block/:block',explorer.getblock)
     app.express.get('/transactions/:address', explorer.transactions)
     app.express.get('/balance/:address', explorer.balance)

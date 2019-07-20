@@ -20,6 +20,22 @@ export function getblock(req: express.Request, res: express.Response) {
     })
 };
 
+export function getlastblock(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+    wallet.request('getinfo').then(info => {
+        block = info['result'].blocks
+
+        wallet.request('getblockhash', [block]).then(function(blockhash){
+            wallet.analyzeBlock(blockhash['result']).then(response => {
+              res.json({
+                data: response,
+                status: 200
+              })
+            })
+        })
+    })
+};
+
 export async function transactions(req: express.Request, res: express.Response) {
     var address = req.params.address
     var conn = await r.connect({db: 'idanodejs'})
@@ -27,7 +43,7 @@ export async function transactions(req: express.Request, res: express.Response) 
         if(err) {
             console.log(err)
         }
-    
+
         cursor.toArray(function(err, result) {
             if(err) {
                 console.log(err)
@@ -42,7 +58,7 @@ export async function transactions(req: express.Request, res: express.Response) 
             }
 
             transactions.sort((a, b) => Number(b.time) - Number(a.time))
-               
+
             res.json({
                 data: transactions,
                 status: 200
@@ -76,7 +92,7 @@ export async function balance(req: express.Request, res: express.Response) {
         if(err) {
             console.log(err)
         }
-    
+
         cursor.toArray(function(err, result) {
             if(err) {
                 console.log(err)
@@ -121,7 +137,7 @@ export async function stats(req: express.Request, res: express.Response) {
             if(err) {
                 console.log(err)
             }
-        
+
             cursor.toArray(function(err, result) {
                 if(err) {
                     console.log(err)
@@ -133,10 +149,10 @@ export async function stats(req: express.Request, res: express.Response) {
                     var unordered = list[index]
                     transactions.push(unordered)
                 }
-                transactions.sort((a, b) => Number(a.time) - Number(b.time));        
+                transactions.sort((a, b) => Number(a.time) - Number(b.time));
                 for(var index in transactions){
                     var tx = transactions[index]
-                    
+
                     if(tx.value > 0){
                         received += tx.value
                     }else{
@@ -145,7 +161,7 @@ export async function stats(req: express.Request, res: express.Response) {
                     balance += tx.value
                     var datetime = new Date(tx.time * 1000);
                     var date = datetime.getFullYear()+ '-' + ('0' + (datetime.getMonth()+1)).slice(-2) + '-' + ('0' + datetime.getDate()).slice(-2);
-                    
+
 
                     if(tx.type === 'STAKE'){
                         stats.stake.count++
@@ -169,12 +185,12 @@ export async function stats(req: express.Request, res: express.Response) {
                         stats.rewards.stats[date] += tx.value
                     }
                 }
-                
+
                 sent = sent * -1
 
                 res.json({
                     balance: balance,
-                    received: received, 
+                    received: received,
                     sent: sent,
                     rewards: stats.rewards,
                     stake: stats.stake,
@@ -182,7 +198,7 @@ export async function stats(req: express.Request, res: express.Response) {
                 })
             });
         });
-        
+
     }else{
         res.json({
             data: 'Missing parameter: address',
