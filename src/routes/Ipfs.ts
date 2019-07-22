@@ -1,12 +1,10 @@
 import express = require("express")
 const fileType = require('file-type')
-const IPFS = require('ipfs')
-const node = new IPFS({ repo: 'ipfs_data' })
 var formidable = require('formidable')
 var fs = require('fs')
 
 export function info(req: express.Request, res: express.Response) {
-    node.version(function (err, version) {
+    global['ipfs'].version(function (err, version) {
         if (err) {
           throw err
         }
@@ -32,7 +30,7 @@ export function add(req: express.Request, res: express.Response) {
             }
             ipfscontents.push(ipfsobj)
           }
-          node.add(ipfscontents).then(results => {
+          global['ipfs'].add(ipfscontents).then(results => {
             res.send({
               data: results,
               status: 200
@@ -49,7 +47,7 @@ export function add(req: express.Request, res: express.Response) {
       }else{
         if(files.file !== undefined){
           var content = fs.readFileSync(files.file.path)
-          node.add(content).then(results => {
+          global['ipfs'].add(content).then(results => {
             const hash = results[0].hash
             res.send({
               data: {
@@ -73,7 +71,7 @@ export function add(req: express.Request, res: express.Response) {
 export function addfile(path) {
   return new Promise (response => {
     var content = fs.readFileSync(path)
-      node.add(content).then(results => {
+      global['ipfs'].add(content).then(results => {
         const hash = results[0].hash
         response(hash)
       })
@@ -91,7 +89,7 @@ export function addfolder(files, folder) {
       }
       ipfscontents.push(ipfsobj)
     }
-    node.add(ipfscontents).then(results => {
+    global['ipfs'].add(ipfscontents).then(results => {
       response(results)
     })
   })
@@ -103,7 +101,7 @@ export function verify(req: express.Request, res: express.Response) {
     form.parse(req)
     form.on('file', function (name, file){
         fs.readFile(file.path, {onlyHash: true}, function(error, content){
-          node.add(content).then(results => {
+          global['ipfs'].add(content).then(results => {
             var calculated = results[0].hash
             if(calculated !== hash){
               res.send(false)
@@ -120,7 +118,7 @@ export function verify(req: express.Request, res: express.Response) {
 
 export function ls(req: express.Request, res: express.Response) {
     const hash = req.params.hash
-    node.ls(hash, function (err, result) {
+    global['ipfs'].ls(hash, function (err, result) {
       if (err) {
           throw err
       }
@@ -131,7 +129,7 @@ export function ls(req: express.Request, res: express.Response) {
 export function getfolder(req: express.Request, res: express.Response) {
     const hash = req.params.hash
     const folder = req.params.folder
-    node.cat(hash + '/' + folder, function (err, file) {
+    global['ipfs'].cat(hash + '/' + folder, function (err, file) {
       if (err) {
           throw err
       }
@@ -145,9 +143,9 @@ export function getfolder(req: express.Request, res: express.Response) {
 
 export function getfile(req: express.Request, res: express.Response) {
     const hash = req.params.hash
-    node.cat(hash, function (err, file) {
+    global['ipfs'].cat(hash, function (err, file) {
       if (err) {
-        node.ls(hash, function (err, result) {
+        global['ipfs'].ls(hash, function (err, result) {
             if (err) {
                 res.send({
                     message: 'CAN\'T RETRIEVE FILE OR FOLDER',
@@ -169,7 +167,7 @@ export function getfile(req: express.Request, res: express.Response) {
 
 export function filetype(req: express.Request, res: express.Response) {
     const hash = req.params.hash
-    node.cat(hash, function (err, file) {
+    global['ipfs'].cat(hash, function (err, file) {
       if (err) {
         res.send({
             message: 'CAN\'T RETRIEVE FILE',
@@ -193,7 +191,7 @@ export function filetype(req: express.Request, res: express.Response) {
 };
 
 export function pins(req: express.Request, res: express.Response) {
-    node.pin.ls({ type: 'recursive' }, function (err, pinset) {
+    global['ipfs'].pin.ls({ type: 'recursive' }, function (err, pinset) {
         if (err) {
             throw err
         }
@@ -206,7 +204,7 @@ export function pins(req: express.Request, res: express.Response) {
 
 export function addhash(req: express.Request, res: express.Response) {
     const hash = req.params.hash
-    node.pin.add(hash, function (err) {
+    global['ipfs'].pin.add(hash, function (err) {
       if (err) {
         throw err
       }

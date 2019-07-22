@@ -4,9 +4,12 @@ import * as explorer from "./routes/Explorer"
 import * as ipfs from "./routes/Ipfs"
 import * as trustlink from "./routes/Trustlink"
 import * as pdm from "./routes/Pdm"
+import * as dapps from "./routes/dApps"
 
 var bodyParser = require('body-parser')
 var cors = require('cors')
+const IPFS = require('ipfs')
+global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
 
 class App {
   public express
@@ -39,6 +42,9 @@ class App {
 
     //TRUSTLINK
     app.express.post('/trustlink/init', trustlink.init)
+
+    //DAPPS
+    app.express.post('/dapps/upload', dapps.upload)
 
     //IPFS
     app.express.get('/ipfs/info', ipfs.info)
