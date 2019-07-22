@@ -125,3 +125,7 @@ export function upload(req: express.Request, res: express.Response) {
       }
     })
 };
+
+export function serve(req: express.Request, res: express.Response) {
+    //TODO: copy code from scrypta-dapps-engine
+};
