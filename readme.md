@@ -8,8 +8,8 @@ You can install both by running the `install.sh` file.
 
 
 Please attention, minimum requirements for lyra.conf are
-
-`rpcuser=astronguserpleasedonotusethis
+```
+rpcuser=astronguserpleasedonotusethis
 
 rpcpassword=astrongpasswordpleasedonotusethis
 
@@ -25,8 +25,8 @@ index=1
 
 txindex=1
 
-logtimestamps=1`
-
+logtimestamps=1
+```
 
 After you've installed all dependencies please write your own `.env` file by copying the example with
 `cp example.env .env`
