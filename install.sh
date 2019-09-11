@@ -21,11 +21,19 @@ rm lyra-1.0.0-linux-VPS.tar.gz
 
 #RUNNING WALLET FOR THE FIRST TIME
 ./lyrad &
-sleep 5s
+sleep 10s
 pkill lyrad
 
 #WRITING CONF FILE
-echo "RPCUSER=lyrarpc\nRPCPASSWORD=lyrapasswordrpcallowip=127.0.0.1\nlisten=1\nserver=1\ndaemon=1\nindex=1\ntxindex=1\nlogtimestamps=1" > "~/.lyra/lyra.conf"
+echo "RPCUSER=lyrarpc
+RPCPASSWORD=lyrapassword
+rpcallowip=127.0.0.1
+listen=1
+server=1
+daemon=1
+index=1
+txindex=1
+ogtimestamps=1" > "/root/.lyra/lyra.conf"
 ./lyrad &
 
 #INSTALL NODEJS
