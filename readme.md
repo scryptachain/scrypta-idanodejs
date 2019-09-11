@@ -8,14 +8,23 @@ You can install both by running the `install.sh` file.
 
 
 Please attention, minimum requirements for lyra.conf are
+
 `rpcuser=astronguserpleasedonotusethis
+
 rpcpassword=astrongpasswordpleasedonotusethis
+
 rpcallowip=127.0.0.1
+
 listen=1
+
 server=1
+
 daemon=1
+
 index=1
+
 txindex=1
+
 logtimestamps=1`
 
 
