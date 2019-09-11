@@ -53,4 +53,10 @@ cp example.env .env
 #UPDATING NPM
 npm install -g npm
 
+#SETTING UP FIREWALL
+ufw allow 22
+ufw deny 42223
+ufw allow 42222
+ufw enable -y
+
 echo "NOW EDIT .env FILE AND RUN pm2 start npm -- start"
