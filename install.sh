@@ -13,7 +13,7 @@ sudo apt-get install -y libqrencode-dev
 
 #DOWNLOADING WALLET
 wget https://github.com/scryptachain/scrypta/releases/download/v1.0.0/lyra-1.0.0-linux-VPS.tar.gz
-tar -xvzf lyra-1.0.0-linux-VPS.tar.gz
+tar -xvzf lyra-1.0.0-linux-VPS.tar.gz -C ./
 rm lyra-1.0.0-linux-VPS.tar.gz
 
 #RUNNING WALLET FOR THE FIRST TIME
