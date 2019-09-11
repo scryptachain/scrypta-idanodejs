@@ -14,6 +14,9 @@ sudo apt-get install -y libqrencode-dev
 #DOWNLOADING WALLET
 wget https://github.com/scryptachain/scrypta/releases/download/v1.0.0/lyra-1.0.0-linux-VPS.tar.gz
 tar -xvzf lyra-1.0.0-linux-VPS.tar.gz -C ./
+mv lyra-1.0.0-linux-VPS/lyrad ./lyrad
+mv lyra-1.0.0-linux-VPS/lyra-cli ./lyrad-cli
+rm -rf lyra-1.0.0-linux-VPS
 rm lyra-1.0.0-linux-VPS.tar.gz
 
 #RUNNING WALLET FOR THE FIRST TIME
@@ -33,5 +36,8 @@ npm install pm2 -g
 #DOWNLOADING NODE MODULES
 npm install
 cp example.env .env
+
+#UPDATING NPM
+npm install -g npm
 
 echo "NOW EDIT .env FILE AND RUN pm2 start npm -- start"
