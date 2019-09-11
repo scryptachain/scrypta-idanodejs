@@ -3,7 +3,9 @@
 <a href="http://tiny.cc/devbounty"><img src="https://i.imgur.com/Yf2iz8w.png" title="source: imgur.com" /></a>
 
 
+
 Start the IdaNode requires a working Scrypta Wallet and NodeJS. 
+
 You can install both by running the `install.sh` file.
 
 
