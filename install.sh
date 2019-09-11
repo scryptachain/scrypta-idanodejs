@@ -15,7 +15,7 @@ sudo apt-get install -y libqrencode-dev
 wget https://github.com/scryptachain/scrypta/releases/download/v1.0.0/lyra-1.0.0-linux-VPS.tar.gz
 tar -xvzf lyra-1.0.0-linux-VPS.tar.gz -C ./
 mv lyra-1.0.0-linux-VPS/lyrad ./lyrad
-mv lyra-1.0.0-linux-VPS/lyra-cli ./lyrad-cli
+mv lyra-1.0.0-linux-VPS/lyra-cli ./lyra-cli
 rm -rf lyra-1.0.0-linux-VPS
 rm lyra-1.0.0-linux-VPS.tar.gz
 
