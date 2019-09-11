@@ -25,15 +25,15 @@ sleep 10s
 pkill lyrad
 
 #WRITING CONF FILE
-echo "RPCUSER=lyrarpc
-RPCPASSWORD=lyrapassword
+echo "rpcuser=lyrarpc
+rpcpassword=lyrapassword
 rpcallowip=127.0.0.1
 listen=1
 server=1
 daemon=1
 index=1
 txindex=1
-ogtimestamps=1" > "/root/.lyra/lyra.conf"
+logtimestamps=1" > "/root/.lyra/lyra.conf"
 ./lyrad &
 
 #INSTALL NODEJS
