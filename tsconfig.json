@@ -16,6 +16,8 @@
     ".env"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "ipfs_data",
+    "rethinkdb_data"
   ]
 }

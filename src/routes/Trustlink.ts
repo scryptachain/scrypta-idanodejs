@@ -52,13 +52,13 @@ export async function init(req: express.Request, res: express.Response) {
 }
 
 export async function write(req: express.Request, res: express.Response) {
-
+    //TODO: Write a trustlink data
 }
 
 export async function send(req: express.Request, res: express.Response) {
-
+    //TODO: Send funds from trustlink
 }
 
 export async function invalidate(req: express.Request, res: express.Response) {
-
+    //TODO: Invalidate trustlink data
 }

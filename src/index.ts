@@ -14,14 +14,18 @@ var server
 const nodeprocess = async () => {
   let port = await nextAvailable(3001, '0.0.0.0')
   app.engine('html', require('ejs').renderFile)
-  var ip = await publicIp.v4()
-
+  var ip = ''
+  try{
+    ip = await publicIp.v4()
+  }catch(error){
+    ip = '?'
+  }
   server = app.listen(port, (err) => {
     if (err) {
       return console.log(err)
     }
     runIdaNode()
-    return console.log(`Scrypta IdaNode listening at port ${port}. Public IP is: ${ip}.`)  
+    return console.log(`Scrypta IdaNode listening at port ${port}. Public IP is: ${ip}`)  
   })
 
   var servermode = (process.env.SERVERMODE === 'true')
