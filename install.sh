@@ -34,7 +34,6 @@ daemon=1
 index=1
 txindex=1
 logtimestamps=1" > "/root/.lyra/lyra.conf"
-./lyrad &
 
 #INSTALL NODEJS
 curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
