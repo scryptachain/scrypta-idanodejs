@@ -2,6 +2,7 @@ import express = require("express")
 import * as Utilities from '../libs/Utilities'
 import * as Crypto from '../libs/Crypto'
 const r = require('rethinkdb')
+var watchlist = []
 
 export function info(req: express.Request, res: express.Response) {
     res.json({status: "ONLINE"})
@@ -71,6 +72,9 @@ export async function unspent(req: express.Request, res: express.Response) {
     var address = req.params.address
     var wallet = new Crypto.Wallet
     var balance = 0
+    if(watchlist.indexOf(address) === -1){
+        await wallet.request('importaddress',[address, address, true])
+    }
     wallet.request('listunspent',[0,9999999,[address]]).then(response => {
         var unspent = response['result']
         for(var i = 0; i < unspent.length; i++){
