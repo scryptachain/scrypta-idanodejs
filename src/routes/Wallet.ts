@@ -54,7 +54,7 @@ export async function init(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request['body']['address'] !== undefined){
-        wallet.request('importaddress',[request['body']['address'], request['body']['address'], true]).then(async function(result){
+        wallet.request('importaddress',[request['body']['address'], request['body']['address'], false]).then(async function(result){
             var txid
             var airdrop = (request['body']['airdrop'] === 'true' || request['body']['airdrop'] === true)
             if(request['body']['airdrop'] !== undefined && airdrop === true){

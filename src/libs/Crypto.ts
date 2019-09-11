@@ -2,6 +2,7 @@
 import * as Utilities from './Utilities'
 import Trx from '../libs/trx/trx.js'
 let request = require("request")
+var watchinglist = []
 
 module Crypto {
 
@@ -125,6 +126,10 @@ module Crypto {
                                 block['result']['tx'][i]['vin'][vinx]['addresses'] = txvin['result']['vout'][vout]['scriptPubKey']['addresses']
                                 for(var key in txvin['result']['vout'][vout]['scriptPubKey']['addresses']){
                                     var address = txvin['result']['vout'][vout]['scriptPubKey']['addresses'][key]
+                                    if(watchinglist.indexOf(address) === -1){
+                                        console.log('IMPORTING ADDRESS ' + address)
+                                        await wallet.request('importaddress',[address, address, false])
+                                    }
                                     if(block['result']['analysis'][txid]['balances'][address] === undefined){
                                         block['result']['analysis'][txid]['balances'][address] = {}
                                         block['result']['analysis'][txid]['balances'][address]['value'] = 0
