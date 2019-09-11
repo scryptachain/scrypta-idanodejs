@@ -59,4 +59,14 @@ ufw deny 42223
 ufw allow 42222
 ufw enable -y
 
+#SETTING UP NGINX
+sudo apt update
+sudo apt install nginx -y
+sudo ufw allow 'Nginx Full'
+
+#INSTALL CERTBOT
+sudo add-apt-repository ppa:certbot/certbot -y
+sudo apt update
+sudo apt install python-certbot-nginx -y
+
 echo "NOW EDIT .env FILE AND RUN pm2 start npm -- start"
