@@ -61,9 +61,11 @@ module Crypto {
                 var amountneed = parseFloat(amount) + fees;
                 if(inputamount >= amountneed){
                     var change = inputamount - amountneed;
+                    
                     if(amount > 0.00001){
                         trx.addoutput(to,amount);
                     }
+
                     if(change > 0.00001){
                         trx.addoutput(from,change);
                     }
@@ -95,9 +97,12 @@ module Crypto {
                 block['result']['totvout'] = 0
                 block['result']['fees'] = 0
                 block['result']['analysis'] = {}
+                block['result']['inputs'] = []
+                block['result']['outputs'] = []
                 block['result']['raw_written'] = {}
                 block['result']['data_written'] = {}
                 block['result']['data_received'] = {}
+                
                 //PARSING ALL TRANSACTIONS
                 new Promise (async resolve => {
                     for(var i = 0; i < block['result']['tx'].length; i++){
@@ -116,20 +121,21 @@ module Crypto {
                         
                         //FETCHING ALL VIN
                         for(var vinx = 0; vinx < block['result']['tx'][i]['vin'].length; vinx++){
-                            var vout =  block['result']['tx'][i]['vin'][vinx]['vout']
+                            var vout = block['result']['tx'][i]['vin'][vinx]['vout']
                             if(block['result']['tx'][i]['vin'][vinx]['txid']){
                                 //console.log('ANALYZING VIN ' + vinx)
                                 var rawtxvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid']])
                                 var txvin = await wallet.request('decoderawtransaction', [rawtxvin['result']])
+                                let input = {
+                                    txid: tx['result']['vin'][vinx]['txid'],
+                                    vout: txvin['result']['vout'][vout]['n']
+                                }
+                                block['result']['inputs'].push(input)
                                 block['result']['tx'][i]['vin'][vinx]['value'] = txvin['result']['vout'][vout]['value']
                                 block['result']['totvin'] += txvin['result']['vout'][vout]['value']
                                 block['result']['tx'][i]['vin'][vinx]['addresses'] = txvin['result']['vout'][vout]['scriptPubKey']['addresses']
                                 for(var key in txvin['result']['vout'][vout]['scriptPubKey']['addresses']){
                                     var address = txvin['result']['vout'][vout]['scriptPubKey']['addresses'][key]
-                                    if(watchinglist.indexOf(address) === -1){
-                                        console.log('IMPORTING ADDRESS ' + address)
-                                        await wallet.request('importaddress',[address, address, false])
-                                    }
                                     if(block['result']['analysis'][txid]['balances'][address] === undefined){
                                         block['result']['analysis'][txid]['balances'][address] = {}
                                         block['result']['analysis'][txid]['balances'][address]['value'] = 0
@@ -167,6 +173,15 @@ module Crypto {
                                         if(receivingaddress === ''){
                                             receivingaddress = address
                                         }
+
+                                        let outputs = {
+                                            txid: txid,
+                                            vout: voutx, 
+                                            address: address,
+                                            scriptPubKey: block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'],
+                                            amount: block['result']['tx'][i]['vout'][voutx]['value']
+                                        }
+                                        block['result']['outputs'].push(outputs)
                                     })
                                 }
                                 //CHECKING OP_RETURN

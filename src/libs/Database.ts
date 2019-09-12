@@ -21,7 +21,7 @@ module Database {
 
             conn.use('idanodejs')
             //CHECKING TABLES
-            var tables = ["settings", "transactions", "received", "written"]
+            var tables = ["settings", "transactions", "received", "written", "unspent"]
             for(var tdk in tables){
                 await r.tableList().contains(tables[tdk])
                 .do(function(tableExsists){
@@ -63,6 +63,25 @@ module Database {
             if(exsistingIndexes.indexOf("addresstxid") === -1){
                 r.table("transactions").indexCreate(
                     "addresstxid", [r.row("address"), r.row("txid")]
+                ).run(conn)
+            }
+
+            //CHECKING UNSPENT INDEXES
+            var txIndexes = ["address", "txid"]
+            var exsistingIndexes = await r.table('unspent').indexList().run(conn)
+            for(var tdi in txIndexes){
+                await r.table('unspent').indexList().contains(txIndexes[tdi])
+                .do(function(indexExists){
+                    return r.branch(
+                        indexExists,
+                        { td_created: 0 },
+                        r.table("unspent").indexCreate(txIndexes[tdi])
+                    );
+                }).run(conn)
+            }
+            if(exsistingIndexes.indexOf("txidvout") === -1){
+                r.table("unspent").indexCreate(
+                    "txidvout", [r.row("txid"), r.row("vout")]
                 ).run(conn)
             }
             

@@ -84,6 +84,16 @@ module Daemon {
                 }
             }
 
+            for(var i in block['outputs']){
+                let unspent = block['outputs'][i]
+                await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
+            }
+
+            for(var i in block['inputs']){
+                let input = block['inputs'][i]
+                await task.redeemunspent(input['txid'], input['vout'])
+            }
+
             for(var address in block['data_written']){
                 var data = block['data_written'][address]
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
@@ -152,6 +162,61 @@ module Daemon {
                     }
                     response(block['height'])
                 })
+            })
+        })
+    }
+
+    private async storeunspent(address, vout, txid, amount, scriptPubKey, block){
+        return new Promise (async response => {
+            r.table("unspent").getAll([txid,vout], {index: "txidvout"}).run(conn, async function(err, cursor) {
+                if(err) {
+                  console.log(err)
+                }
+                cursor.toArray(async function(err, result) {
+                    if(err) {
+                        console.log(err)
+                    }
+                    if(result[0] === undefined){
+                        console.log('\x1b[36m%s\x1b[0m', 'STORING UNSPENT NOW!')
+                        await r.table("unspent").insert(
+                            {
+                                address: address,
+                                txid: txid,
+                                scriptPubKey: scriptPubKey,
+                                amount: amount,
+                                vout: vout,
+                                block: block
+                            }
+                        ).run(conn)
+                    }else{
+                        console.log('UNSPENT ALREADY STORED.')
+                    }
+                    response(true)
+                })
+            }).catch(error => {
+                console.log(error)
+            })
+        })
+    }
+
+    private async redeemunspent(txid, vout){
+        return new Promise (async response => {
+            r.table("unspent").getAll([txid,vout], {index: "txidvout"}).run(conn, async function(err, cursor) {
+                if(err) {
+                  console.log(err)
+                }
+                cursor.toArray(async function(err, result) {
+                    if(err) {
+                        console.log(err)
+                    }
+                    if(result[0] !== undefined){
+                        console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT NOW!')
+                        await r.table("unspent").get(result[0]['id']).delete().run(conn)
+                    }
+                    response(true)
+                })
+            }).catch(error => {
+                console.log(error)
             })
         })
     }

@@ -29,6 +29,7 @@ class App {
     app.express.post('/init',wallet.init)
     app.express.post('/send',wallet.send)
     app.express.post('/sendrawtransaction', wallet.sendrawtransaction)
+    app.express.post('/decoderawtransaction', wallet.decoderawtransaction)
 
     //WALLET
     app.express.get('/wallet/getinfo',wallet.getinfo)
