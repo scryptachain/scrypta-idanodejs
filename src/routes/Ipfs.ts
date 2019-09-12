@@ -201,16 +201,3 @@ export function pins(req: express.Request, res: express.Response) {
         })
     })
 };
-
-export function addhash(req: express.Request, res: express.Response) {
-    const hash = req.params.hash
-    global['ipfs'].pin.add(hash, function (err) {
-      if (err) {
-        throw err
-      }
-      res.send({
-        data: true,
-        status: 200
-      })
-    })
-};

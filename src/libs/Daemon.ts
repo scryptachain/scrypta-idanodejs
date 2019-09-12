@@ -233,6 +233,20 @@ module Daemon {
                     }
                     if(result[0] === undefined){
                         console.log('STORING DATA NOW!')
+                        if(datastore.data.indexOf('ipfs:') !== -1){
+                            let parsed = datastore.data.split('***')
+                            if(parsed[0] !== undefined){
+                                let parsehash = parsed[0].split(':')
+                                if(parsehash[1] !== undefined){
+                                    console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + parsehash[1])
+                                    global['ipfs'].pin.add(parsehash[1], function (err) {
+                                        if (err) {
+                                            throw err
+                                        }
+                                    })
+                                }
+                            }
+                        }
                         await r.table("written").insert(datastore).run(conn)
                     }else{
                         console.log('DATA ALREADY STORED.')

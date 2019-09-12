@@ -54,7 +54,6 @@ class App {
     app.express.get('/ipfs/type/:hash', ipfs.filetype)
     app.express.get('/ipfs/ls/:hash', ipfs.ls)
     app.express.get('/ipfs/pins', ipfs.pins)
-    app.express.get('/ipfs/add/:hash', ipfs.addhash)
     app.express.get('/ipfs/:hash/:folder', ipfs.getfolder)
     app.express.get('/ipfs/:hash', ipfs.getfile)
 
