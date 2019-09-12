@@ -69,4 +69,6 @@ sudo add-apt-repository ppa:certbot/certbot -y
 sudo apt update
 sudo apt install python-certbot-nginx -y
 
-echo "NOW EDIT .env FILE AND RUN pm2 start npm -- start"
+pm2 startup
+echo "NOW EDIT .env FILE AND RUN FOLLOWING COMMAND:"
+echo "pm2 start npm -- start && pm2 save"
