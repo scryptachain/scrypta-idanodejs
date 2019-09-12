@@ -56,7 +56,7 @@ export async function decoderawtransaction(req: express.Request, res: express.Re
     if(request['body']['rawtransaction'] !== undefined){
         wallet.request('decoderawtransaction',[request['body']['rawtransaction']]).then(function(decoded){
             res.json({
-                transaction: decoded,
+                transaction: decoded['result'],
                 status: 200
             })
         })
