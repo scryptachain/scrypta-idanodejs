@@ -71,35 +71,17 @@ export async function transactions(req: express.Request, res: express.Response) 
 export async function unspent(req: express.Request, res: express.Response) {
     var address = req.params.address
     var balance = 0
-    var conn = await r.connect({db: 'idanodejs'})
-    r.table('unspent').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
-        if(err) {
-            console.log(err)
-        }
-
-        cursor.toArray(function(err, result) {
-            if(err) {
-                console.log(err)
-            }
-
-            var list = result
-            var unspent = []
-
-            for(var index in list){
-                var tx = list[index]
-                balance += tx['amount']
-                unspent.push(tx)
-            }
-
-            unspent.sort((a, b) => Number(b.block) - Number(a.block))
-
-            res.json({
-                balance: balance,
-                unspent: unspent,
-                status: 200
-            })
-        });
-    });
+    var wallet = new Crypto.Wallet
+    let unspent = {}
+    unspent = await wallet.listunpent(address)
+    for(var i in unspent){
+        balance += unspent[i].amount
+    }
+    res.json({
+        balance: balance,
+        unspent: unspent,
+        status: 200
+    })
 };
 
 export async function balance(req: express.Request, res: express.Response) {

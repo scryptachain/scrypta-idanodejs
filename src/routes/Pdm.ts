@@ -141,13 +141,32 @@ export async function write(req: express.Request, res: express.Response) {
 
                             var totalfees = 0
                             var error = false
+                            var decoded
 
                             for(var cix=0; cix<chunks.length; cix++){
                                 var txid = ''
                                 var i = 0
                                 while(txid.length !== 64){
                                     var fees = 0.001 + (i / 1000)
-                                    txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees)
+                                    
+                                    if(cix === 0){
+                                        var rawtransaction = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees,[],false)
+                                    }else{
+                                        let unspent = {
+                                            txid: decoded.txid,
+                                            vout: 0, 
+                                            address: decoded.vout[0].scriptPubKey.addresses[0],
+                                            scriptPubKey: decoded.vout[0].scriptPubKey.hex,
+                                            amount: decoded.vout[0].value
+                                        }
+                                        var rawtransaction = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees,[unspent],false)
+                                    }
+                                    
+                                    let decoderawtransaction = await wallet.request('decoderawtransaction', [rawtransaction])
+                                    decoded = decoderawtransaction['result']
+                                    let sendrawtransaction = await wallet.request('sendrawtransaction', [rawtransaction])
+                                    txid = sendrawtransaction['result']
+
                                     console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                                     if(txid.length === 64){
                                         totalfees += fees

@@ -1,6 +1,7 @@
 "use strict";
 import * as Utilities from './Utilities'
 import Trx from '../libs/trx/trx.js'
+const r = require('rethinkdb')
 let request = require("request")
 var watchinglist = []
 
@@ -42,20 +43,53 @@ module Crypto {
         })
     }
 
-    public async send(private_key, from, to, amount, metadata = '', fees = 0.001){
+    public async listunpent(address){
+        return new Promise <any> (async response => {
+            var conn = await r.connect({db: 'idanodejs'})
+            r.table('unspent').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
+                if(err) {
+                    console.log(err)
+                }
+
+                cursor.toArray(function(err, result) {
+                    if(err) {
+                        console.log(err)
+                    }
+
+                    var list = result
+                    var unspent = []
+
+                    for(var index in list){
+                        var tx = list[index]
+                        unspent.push(tx)
+                    }
+
+                    unspent.sort((a, b) => Number(b.block) - Number(a.block))
+                    response(unspent)
+                });
+            });
+        });
+    }
+
+    public async send(private_key, from, to, amount, metadata = '', fees = 0.001, input = [], send = true){
         return new Promise (async response => {
             var wallet = new Crypto.Wallet;
-            var unspent = await wallet.request('listunspent',[0,99999999,[from]])
-            if(unspent['result'].length > 0){
+            var unspent
+            if(input[0] === undefined){
+                unspent = await wallet.listunpent(from)
+            }else{
+                unspent = input
+            }
+            if(unspent.length > 0){
                 var inputamount = 0;
                 var trx = Trx.transaction();
-                for (var i=0; i < unspent['result'].length; i++){
+                for (var i=0; i < unspent.length; i++){
                     if(inputamount <= amount){
-                        var txin = unspent['result'][i]['txid'];
-                        var index = unspent['result'][i]['vout'];
-                        var script = unspent['result'][i]['scriptPubKey'];
+                        var txin = unspent[i]['txid'];
+                        var index = unspent[i]['vout'];
+                        var script = unspent[i]['scriptPubKey'];
                         trx.addinput(txin,index,script);
-                        inputamount += unspent['result'][i]['amount']
+                        inputamount += unspent[i]['amount']
                     }
                 }
                 var amountneed = parseFloat(amount) + fees;
@@ -75,9 +109,12 @@ module Crypto {
                     }
 
                     var signed = trx.sign(private_key,1);
-
-                    var txid = await wallet.request('sendrawtransaction',[signed])
-                    response(txid['result'])
+                    if(send === true){
+                        var txid = await wallet.request('sendrawtransaction',[signed])
+                        response(txid['result'])
+                    }else{
+                        response(signed)
+                    }
                 }else{
                     console.log('NOT ENOUGH FUNDS')
                     response(false)
