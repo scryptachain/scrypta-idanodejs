@@ -31,7 +31,7 @@ class App {
 
     var corsOptions = {
       "origin": "*",
-      "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTION",
       "preflightContinue": true,
       "optionsSuccessStatus": 204
     }
