@@ -16,6 +16,7 @@ module Utilities {
             }
             if(jsonEmpty === true){
                 var form = new formidable.IncomingForm()
+                form.maxFileSize = 20 * 1024 * 1024
                 form.parse(req, function(err, fields, files) {
                     response ({
                         body: fields,
