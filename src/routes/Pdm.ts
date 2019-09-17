@@ -6,6 +6,7 @@ import * as ipfs from '../routes/Ipfs'
 require('dotenv').config()
 const r = require('rethinkdb')
 var fs = require('fs')
+const _ = require("underscore")
 
 export async function write(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
@@ -29,21 +30,21 @@ export async function write(req: express.Request, res: express.Response) {
                         }
                         
                         var collection
-                        if(request['body']['collection'] !== undefined && request['body']['collection'] !== ''){
+                        if(request['body']['collection'] !== undefined && request['body']['collection'] !== '' && request['body']['collection'] !== 'undefined'){
                             collection = '!*!' + request['body']['collection']
                         }else{
                             collection = '!*!'
                         }
 
                         var refID
-                        if(request['body']['refID'] !== undefined && request['body']['refID'] !== ''){
+                        if(request['body']['refID'] !== undefined && request['body']['refID'] !== '' && request['body']['refID'] !== 'undefined'){
                             refID = '!*!' + request['body']['refID']
                         }else{
                             refID = '!*!'
                         }
 
                         var protocol
-                        if(request['body']['protocol'] !== undefined && request['body']['protocol'] !== ''){
+                        if(request['body']['protocol'] !== undefined && request['body']['protocol'] !== '' && request['body']['protocol'] !== 'undefined'){
                             protocol = '!*!' + request['body']['protocol']
                         }else{
                             protocol = '!*!'
@@ -220,37 +221,62 @@ export async function read(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request !== false){
+        var conn = await r.connect({db: 'idanodejs'})
+        let filters = {}
+        var history
+        if(request['body']['protocol'] !== undefined){
+            filters['protocol'] = request['body']['protocol']
+        }
+        if(request['body']['collection'] !== undefined){
+            filters['collection'] = request['body']['collection']
+        }
+        if(request['body']['refID'] !== undefined){
+            filters['refID'] = request['body']['refID']
+        }
+        if(request['body']['history'] !== undefined){
+            history = request['body']['history']
+        }else{
+            history = false
+        }
+
         if(request['body']['address'] !== undefined){
-            var conn = await r.connect({db: 'idanodejs'})
             r.table('written').getAll(request['body']['address'], {index: 'address'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
                 if(err) {
                     console.log(err)
                 }
             
-                cursor.toArray(function(err, result) {
+                cursor.toArray(async function(err, result) {
                     if(err) {
                         console.log(err)
                     }
-                    //TODO: EXTRACT PROTOCOLS DATA
+
+                    let data = await parseDB(result, filters, history)
                     res.json({
-                        data: result,
+                        data: data,
                         status: 200
                     })
                 })
             })
         }else if(request['body']['uuid'] !== undefined){
-            res.json({
-                data: 'uuid',
-                status: 200
-            })
-        }else if(request['body']['protocol'] !== undefined){
-            res.json({
-                data: 'protocol',
-                status: 200
+            r.table('written').getAll(request['body']['uuid'], {index: 'uuid'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
+                if(err) {
+                    console.log(err)
+                }
+            
+                cursor.toArray(async function(err, result) {
+                    if(err) {
+                        console.log(err)
+                    }
+                    let data = await parseDB(result, filters, history)
+                    res.json({
+                        data: data,
+                        status: 200
+                    })
+                })
             })
         }else{
             res.json({
-                data: 'Provide UUID, Address or Protocol first.',
+                data: 'Provide UUID or Address first.',
                 status: 402
             })
         }
@@ -262,22 +288,72 @@ export async function read(req: express.Request, res: express.Response) {
     }
 };
 
+async function parseDB(DB, filters = {}, history = false){
+    return new Promise(async response => {
+        let data = []
+        let ended = []
+        for(let x in DB){
+            let written = DB[x]
+            if(written['data'] !== undefined){
+                if(written['data'] !== 'END'){
+                    if(ended.indexOf(written['uuid']) === -1){
+                        if(written['data'].indexOf('ipfs:') !== -1){
+                            written['is_file'] = true
+                            written['data'] = written['data'].replace('ipfs:','')
+                        }else{
+                            written['is_file'] = false
+                        }
+                        data.push(written)
+                    }
+                }else{
+                    if(history === false){
+                        ended.push(written['uuid'])
+                    }
+                }
+            }
+        }
+        var filtered = data
+        if(filtered.length > 0){
+            filtered = await _.where(data, filters);
+        }
+        response(filtered)
+    })
+}
+
 export async function received(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request['body']['address'] !== undefined){
         var conn = await r.connect({db: 'idanodejs'})
+        let filters = {}
+        var history
+        if(request['body']['protocol'] !== undefined){
+            filters['protocol'] = request['body']['protocol']
+        }
+        if(request['body']['collection'] !== undefined){
+            filters['collection'] = request['body']['collection']
+        }
+        if(request['body']['refID'] !== undefined){
+            filters['refID'] = request['body']['refID']
+        }
+        if(request['body']['history'] !== undefined){
+            history = request['body']['history']
+        }else{
+            history = false
+        }
+
         r.table('received').getAll(request['body']['address'], {index: 'address'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
             if(err) {
                 console.log(err)
             }
         
-            cursor.toArray(function(err, result) {
+            cursor.toArray(async function(err, result) {
                 if(err) {
                     console.log(err)
                 }
+                let data = await parseDB(result, filters, history)
                 res.json({
-                    data: result,
+                    data: data,
                     status: 200
                 })
             })
@@ -316,7 +392,7 @@ export async function invalidate(req: express.Request, res: express.Response) {
                             var i = 0
                             var totalfees = 0
                             var error = false
-                            while(txid.length !== 64 && error == false){
+                            while(txid.length !== 64 && error === false){
                                 var fees = 0.001 + (i / 1000)
                                 txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees)
                                 console.log('SEND SUCCESS, TXID IS: ' + txid  + '. FEES ARE: ' + fees + 'LYRA')

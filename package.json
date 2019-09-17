@@ -35,6 +35,7 @@
     "request": "^2.88.0",
     "rethinkdb": "^2.3.3",
     "systray": "^1.0.5",
+    "underscore": "^1.9.1",
     "uuid": "^3.3.2"
   },
   "devDependencies": {

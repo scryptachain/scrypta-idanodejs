@@ -453,7 +453,7 @@ module Crypto {
                                     uuid: headsplit[0],
                                     collection: collection,
                                     refID: refID,
-                                    procotol: protocol,
+                                    protocol: protocol,
                                     data: datastore,
                                     block: block['result']['height'],
                                     blockhash: block['result']['hash'],
