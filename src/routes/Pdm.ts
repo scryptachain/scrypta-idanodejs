@@ -11,6 +11,7 @@ const _ = require("underscore")
 export async function write(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)
+    console.log(request)
     if(request !== false){
         if(request['body']['dapp_address'] !== undefined && request['body']['private_key'] !== undefined){
             if(request['body']['data'] !== undefined || request['files']['file'] !== undefined){
