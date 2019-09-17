@@ -176,6 +176,8 @@ export function filetype(req: express.Request, res: express.Response) {
       }else{
         var mimetype = fileType(file)
         if(mimetype){
+            let details = mimetype.mime.split('/')
+            mimetype.type = details[0]
             res.send({
                 data: mimetype,
                 status: 200
