@@ -13,6 +13,7 @@ if [ $# -eq 0 ]
             server_name $1;
             location / {
                 proxy_pass http://127.0.0.1:3001;
+                client_max_body_size 20M;
             }
             listen 80;
         }" > "/etc/nginx/sites-enabled/default"
