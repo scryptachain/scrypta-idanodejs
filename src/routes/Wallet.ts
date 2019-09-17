@@ -124,13 +124,22 @@ export async function send(req: express.Request, res: express.Response) {
                     if(validation.isvalid === true){
                         if(parseFloat(amount) > 0){
                             var txid = <string> await wallet.send(private_key,from,to,amount,metadata) 
-                            res.json({
-                                data: {
-                                    success: true,
-                                    txid: txid
-                                },
-                                status: 200
-                            })
+                            if(txid !== 'false'){
+                                res.json({
+                                    data: {
+                                        success: true,
+                                        txid: txid
+                                    },
+                                    status: 200
+                                })
+                            }else{
+                                res.json({
+                                    data: {
+                                        success: false
+                                    },
+                                    status: 501
+                                })
+                            }
                         }else{
                             res.json({
                                 data: 'Amount must be grater than zero.',

@@ -71,15 +71,19 @@ module Crypto {
         });
     }
 
-    public async send(private_key, from, to, amount, metadata = '', fees = 0.001, input = [], send = true){
+    public async send(private_key, from, to, amount, metadata = '', fees = 0.001, send = true){
         return new Promise (async response => {
             var wallet = new Crypto.Wallet;
-            var unspent
-            if(input[0] === undefined){
-                unspent = await wallet.listunpent(from)
-            }else{
-                unspent = input
+            
+            var unspent = []
+            for(let x in global['utxocache']){
+                unspent.push(global['utxocache'][x])
             }
+            let blockchainunspent = await wallet.listunpent(from)
+            for(let y in blockchainunspent){
+                unspent.push(blockchainunspent[y])
+            }
+            var usedtx = []
             if(unspent.length > 0){
                 var inputamount = 0;
                 var trx = Trx.transaction();
@@ -88,16 +92,21 @@ module Crypto {
                         var txin = unspent[i]['txid'];
                         var index = unspent[i]['vout'];
                         var script = unspent[i]['scriptPubKey'];
-                        trx.addinput(txin,index,script);
-                        inputamount += unspent[i]['amount']
+                        if(global['txidcache'].indexOf(txin) === -1){
+                            trx.addinput(txin,index,script);
+                            usedtx.push(txin)
+                            inputamount += unspent[i]['amount']
+                        }
                     }
                 }
                 var amountneed = parseFloat(amount) + fees;
+                var voutchange = 0
                 if(inputamount >= amountneed){
                     var change = inputamount - amountneed;
                     
                     if(amount > 0.00001){
                         trx.addoutput(to,amount);
+                        voutchange++
                     }
 
                     if(change > 0.00001){
@@ -110,13 +119,31 @@ module Crypto {
 
                     var signed = trx.sign(private_key,1);
                     if(send === true){
-                        var txid = await wallet.request('sendrawtransaction',[signed])
+                        var txid = <string> await wallet.request('sendrawtransaction',[signed])
+                        if(txid['result'] !== null && txid['result'].length === 64){
+                            for(let x in usedtx){
+                                global['txidcache'].push(usedtx[x])
+                                delete global['utxocache'][usedtx[x]]
+                            }
+                            let decoderawtransaction = await wallet.request('decoderawtransaction', [signed])
+                            let decoded = decoderawtransaction['result']
+                            if(decoded.vout[0].scriptPubKey.addresses !== undefined){
+                                let unspent = {
+                                    txid: decoded.txid,
+                                    vout: voutchange, 
+                                    address: decoded.vout[voutchange].scriptPubKey.addresses[0],
+                                    scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
+                                    amount: decoded.vout[voutchange].value
+                                }
+                                global['utxocache'][decoded.txid] = unspent
+                            }
+                        }
                         response(txid['result'])
                     }else{
                         response(signed)
                     }
                 }else{
-                    console.log('NOT ENOUGH FUNDS')
+                    console.log('NOT ENOUGH FUNDS, NEEDED ' + amountneed + ' LYRA vs ' + inputamount + ' LYRA')
                     response(false)
                 }
             }else{

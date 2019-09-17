@@ -10,6 +10,8 @@ var bodyParser = require('body-parser')
 var cors = require('cors')
 const IPFS = require('ipfs')
 global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
+global['txidcache'] = []
+global['utxocache'] = []
 
 class App {
   public express

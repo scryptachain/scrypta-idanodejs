@@ -72,10 +72,15 @@ export async function unspent(req: express.Request, res: express.Response) {
     var address = req.params.address
     var balance = 0
     var wallet = new Crypto.Wallet
-    let unspent = {}
-    unspent = await wallet.listunpent(address)
-    for(var i in unspent){
-        balance += unspent[i].amount
+    let unspent = []
+    for(let i in global['utxocache']){
+        unspent.push(global['utxocache'][i])
+        balance +=  global['utxocache'][i].amount
+    }
+    let blockchainunspent = await wallet.listunpent(address)
+    for(let i in blockchainunspent){
+        unspent.push(blockchainunspent[i])
+        balance += blockchainunspent[i].amount
     }
     res.json({
         balance: balance,

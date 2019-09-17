@@ -93,7 +93,9 @@ module Daemon {
                 let input = block['inputs'][i]
                 await task.redeemunspent(input['txid'], input['vout'])
             }
-
+            console.log('CLEANING UXTO CACHE')
+            global['utxocache'] = []
+            global['txidcache'] = []
             for(var address in block['data_written']){
                 var data = block['data_written'][address]
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')

@@ -74,14 +74,18 @@ export async function write(req: express.Request, res: express.Response) {
                             var error = false
                             while(txid.length !== 64 && error == false){
                                 var fees = 0.001 + (i / 1000)
-                                txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees)
-                                console.log('SEND SUCCESS, TXID IS: ' + txid  + '. FEES ARE: ' + fees + 'LYRA')
-                                if(txid.length === 64){
+                                
+                                txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees,true)
+                                if(txid !== null && txid.length === 64){
+                                    console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                                     totalfees += fees
+                                    txs.push(txid)
                                 }
+
                                 i++;
                                 if(i > 20){
                                     error = true
+                                    txid = '0000000000000000000000000000000000000000000000000000000000000000'
                                 }
                             }
                             if(error === false){
@@ -125,15 +129,16 @@ export async function write(req: express.Request, res: express.Response) {
                                     var startprev = (i - 1) * 74
                                     var endprev = startprev + 74
                                     var nextref = ''
-                                    var prevref = dataToWrite.substr(startprev,endprev).substr(71)
+                                    var prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
                                 } else {
-                                    var startnext = (i + 1) * 74
+                                    var sni = i + 1
+                                    var startnext = sni * 74
                                     var endnext = startnext + 74
                                     var nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
-
-                                    var startprev = (i - 1) * 74
+                                    var spi = i - 1
+                                    var startprev = spi * 74
                                     var endprev = startprev + 74
-                                    var prevref = dataToWrite.substr(startprev,endprev).substr(71)
+                                    var prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
                                 }
                                 chunk = prevref + chunk + nextref
                                 chunks.push(chunk)
@@ -146,32 +151,17 @@ export async function write(req: express.Request, res: express.Response) {
                             for(var cix=0; cix<chunks.length; cix++){
                                 var txid = ''
                                 var i = 0
-                                while(txid.length !== 64){
+                                var rawtransaction
+                                while(txid !== null && txid !== undefined && txid.length !== 64){
                                     var fees = 0.001 + (i / 1000)
                                     
-                                    if(cix === 0){
-                                        var rawtransaction = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees,[],false)
-                                    }else{
-                                        let unspent = {
-                                            txid: decoded.txid,
-                                            vout: 0, 
-                                            address: decoded.vout[0].scriptPubKey.addresses[0],
-                                            scriptPubKey: decoded.vout[0].scriptPubKey.hex,
-                                            amount: decoded.vout[0].value
-                                        }
-                                        var rawtransaction = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees,[unspent],false)
-                                    }
-                                    
-                                    let decoderawtransaction = await wallet.request('decoderawtransaction', [rawtransaction])
-                                    decoded = decoderawtransaction['result']
-                                    let sendrawtransaction = await wallet.request('sendrawtransaction', [rawtransaction])
-                                    txid = sendrawtransaction['result']
-
-                                    console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
-                                    if(txid.length === 64){
+                                    txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees,true)
+                                    if(txid !== null && txid.length === 64){
+                                        console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                                         totalfees += fees
                                         txs.push(txid)
                                     }
+                                    
                                     i++;
                                     if(i > 20){
                                         error = true
@@ -249,12 +239,12 @@ export async function read(req: express.Request, res: express.Response) {
                     })
                 })
             })
-        }else if(request['uuid'] !== undefined){
+        }else if(request['body']['uuid'] !== undefined){
             res.json({
                 data: 'uuid',
                 status: 200
             })
-        }else if(request['protocol'] !== undefined){
+        }else if(request['body']['protocol'] !== undefined){
             res.json({
                 data: 'protocol',
                 status: 200
