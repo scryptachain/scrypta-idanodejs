@@ -322,6 +322,7 @@ module Crypto {
                         var written = block['result']['raw_written'][addressdata]
                         var singledata = ''
                         console.log(written)
+                        var readchunks = []
                         for(var wix in written){
                             var data = written[wix]
                             var checkhead = data.substr(0,3)
@@ -350,14 +351,17 @@ module Crypto {
                                     var endofdata = 'N'
                                     var idc = 0
                                     var idct = 0
+                                    var idctt = 0
                                     while(endofdata === 'N'){
                                         idct++
+                                        idctt++
                                         console.log('CHECKING INDEX ' + idc)
                                         if(written[idc] !== undefined){
                                             var checkdata = written[idc].substr(0,6)
                                             console.log('CHECKING ' + checkdata + ' AGAINST ' + chunkcontrol)
-                                            if(checkdata === chunkcontrol){
-                                                console.log('CHUNK FOUND ' + chunkcontrol)
+                                            if(checkdata === chunkcontrol && readchunks.indexOf(idc) === -1){
+                                                readchunks.push(idc)
+                                                console.log('\x1b[33m%s\x1b[0m', 'CHUNK FOUND ' + chunkcontrol + ' at #' + idc)
                                                 idct = 0
                                                 if(checkdata.indexOf('*!*') !== -1){
                                                     singledata += data.substr(6, data.length)
@@ -376,7 +380,6 @@ module Crypto {
                                                         var nextcontrol = data.substr(-3)
                                                         console.log('NEXT CONTROL IS ' + nextcontrol)
                                                         chunkcontrol = prevcontrol + nextcontrol
-
                                                         if(chunkcontrol.indexOf('*!*') !== -1){
                                                             singledata += data.substr(6, data.length)
                                                             console.log('END OF DATA')
@@ -396,9 +399,15 @@ module Crypto {
                                                 idc++
                                             }
 
-                                            if(idct > 100){
+                                            if(idct > 300){
                                                 endofdata = 'Y'
                                                 console.log('MALFORMED DATA, CAN\'T REBUILD')
+                                            }
+                                            let max = 300 * written.length
+                                            if(idctt > max){
+                                                endofdata = 'Y'
+                                                console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
+                                                console.log(written)
                                             }
                                         }else{
                                             endofdata = 'Y'
