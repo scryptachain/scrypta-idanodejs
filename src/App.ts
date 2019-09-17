@@ -25,8 +25,8 @@ class App {
     const app = this
     app.express = express()
 
-    app.express.use(bodyParser.json())
     app.express.use(bodyParser.urlencoded({extended: true, limit: '20mb'}))
+    app.express.use(bodyParser.json())
     app.express.use(express.static('public'))
 
     var corsOptions = {
