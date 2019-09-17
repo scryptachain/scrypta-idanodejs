@@ -79,7 +79,6 @@ export async function write(req: express.Request, res: express.Response) {
                                 if(txid !== null && txid.length === 64){
                                     console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                                     totalfees += fees
-                                    txs.push(txid)
                                 }
 
                                 i++;

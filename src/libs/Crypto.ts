@@ -358,6 +358,7 @@ module Crypto {
                                             console.log('CHECKING ' + checkdata + ' AGAINST ' + chunkcontrol)
                                             if(checkdata === chunkcontrol){
                                                 console.log('CHUNK FOUND ' + chunkcontrol)
+                                                idct = 0
                                                 if(checkdata.indexOf('*!*') !== -1){
                                                     singledata += data.substr(6, data.length)
                                                     console.log('END OF DATA')
