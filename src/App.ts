@@ -29,6 +29,7 @@ class App {
     app.express.use(bodyParser.urlencoded({extended: true}))
     app.express.use(express.static('public'))
     app.express.use(cors())
+    app.express.options('*', cors())
 
     //ADDRESSES
     app.express.post('/init',wallet.init)
