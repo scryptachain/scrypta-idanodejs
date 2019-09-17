@@ -321,7 +321,6 @@ module Crypto {
                     for(let addressdata in block['result']['raw_written']){
                         var written = block['result']['raw_written'][addressdata]
                         var singledata = ''
-                        console.log(written)
                         var readchunks = []
                         for(var wix in written){
                             var data = written[wix]
@@ -391,7 +390,6 @@ module Crypto {
                                                         idc ++ 
                                                     }else{
                                                         idc = 0
-                                                        console.log(written)
                                                         endofdata = 'Y'
                                                     }
                                                 }
@@ -399,15 +397,10 @@ module Crypto {
                                                 idc++
                                             }
 
-                                            if(idct > 300){
-                                                endofdata = 'Y'
-                                                console.log('MALFORMED DATA, CAN\'T REBUILD')
-                                            }
                                             let max = 300 * written.length
                                             if(idctt > max){
                                                 endofdata = 'Y'
                                                 console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
-                                                console.log(written)
                                             }
                                         }else{
                                             endofdata = 'Y'

@@ -13,6 +13,9 @@ global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
 global['txidcache'] = []
 global['utxocache'] = []
 
+//TODO: Implement a cache system so data can be parsed through different blocks
+global['writtencache'] = [] 
+
 class App {
   public express
   public db
