@@ -87,8 +87,9 @@ module Crypto {
             if(unspent.length > 0){
                 var inputamount = 0;
                 var trx = Trx.transaction();
-                for (var i=0; i < unspent.length; i++){
-                    if(inputamount <= amount){
+                for (let i in unspent){
+                    var amountneed = parseFloat(amount) + fees;
+                    if(inputamount <= amountneed){
                         var txin = unspent[i]['txid'];
                         var index = unspent[i]['vout'];
                         var script = unspent[i]['scriptPubKey'];
@@ -99,7 +100,6 @@ module Crypto {
                         }
                     }
                 }
-                var amountneed = parseFloat(amount) + fees;
                 var voutchange = 0
                 if(inputamount >= amountneed){
                     var change = inputamount - amountneed;
