@@ -23,9 +23,6 @@ module Utilities {
                         files: files
                     })
                 })
-                setTimeout(function(){
-                    response(false)
-                },200)
             } else {
                 response ({
                     body: req.body,
