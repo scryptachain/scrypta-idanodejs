@@ -300,6 +300,11 @@ async function parseDB(DB, filters = {}, history = false){
                         if(written['data'].indexOf('ipfs:') !== -1){
                             written['is_file'] = true
                             written['data'] = written['data'].replace('ipfs:','')
+                            let check = written['data'].split('***')
+                            if(check[1] !== undefined){
+                                written['data'] = check[0]
+                                written['title'] = check[1]
+                            }
                         }else{
                             written['is_file'] = false
                         }
