@@ -28,13 +28,16 @@ class App {
     app.express.use(bodyParser.json())
     app.express.use(bodyParser.urlencoded({extended: true}))
     app.express.use(express.static('public'))
-    app.express.use(cors())
+
+    var corsOptions = {
+      "origin": "*",
+      "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "preflightContinue": true,
+      "optionsSuccessStatus": 204
+    }
+    app.express.use(cors(corsOptions))
     app.express.options('*', cors())
-    app.express.use(function(req, res, next) {
-      res.header("Access-Control-Allow-Origin", "*");
-      res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-      next();
-    });
+
     //ADDRESSES
     app.express.post('/init',wallet.init)
     app.express.post('/send',wallet.send)
