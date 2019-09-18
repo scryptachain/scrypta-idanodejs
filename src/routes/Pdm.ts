@@ -392,74 +392,67 @@ export async function invalidate(req: express.Request, res: express.Response) {
     var request = await parser.body(req)
     if(request !== false){
         if(request['body']['dapp_address'] !== undefined && request['body']['private_key'] !== undefined){
-            if(request['body']['data'] !== undefined || request['files']['file'] !== undefined){
-                var wallet = new Crypto.Wallet;
-                wallet.request('validateaddress', [request['body']['dapp_address']]).then(async function(info){
-                    if(info['result']['isvalid'] === true){
+            var wallet = new Crypto.Wallet;
+            wallet.request('validateaddress', [request['body']['dapp_address']]).then(async function(info){
+                if(info['result']['isvalid'] === true){
+                    
+                    var private_key = request['body']['private_key']
+                    var dapp_address = request['body']['dapp_address']
+
+                    var uuid
+                    if(request['body']['uuid'] !== undefined && request['body']['uuid'] !== ''){
+                        uuid = request['body']['uuid']
+
+                        var metadata = 'END'
+
+                        var dataToWrite = '*!*' + uuid + '*=>' + metadata + '*!*'
+                        console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO INVALIDATE ' + uuid)
                         
-                        var private_key = request['body']['private_key']
-                        var dapp_address = request['body']['dapp_address']
-
-                        var uuid
-                        if(request['body']['uuid'] !== undefined && request['body']['uuid'] !== ''){
-                            uuid = request['body']['uuid']
-
-                            var metadata = 'END'
-
-                            var dataToWrite = '*!*' + uuid + '*=>' + metadata + '*!*'
-                            console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO INVALIDATE ' + uuid)
-                            
-                            let txid = ''
-                            var i = 0
-                            var totalfees = 0
-                            var error = false
-                            while(txid.length !== 64 && error === false){
-                                var fees = 0.001 + (i / 1000)
-                                txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees)
-                                console.log('SEND SUCCESS, TXID IS: ' + txid  + '. FEES ARE: ' + fees + 'LYRA')
-                                if(txid.length === 64){
-                                    totalfees += fees
-                                }
-                                i++;
-                                if(i > 20){
-                                    error = true
-                                }
+                        let txid = ''
+                        var i = 0
+                        var totalfees = 0
+                        var error = false
+                        while(txid.length !== 64 && error === false){
+                            var fees = 0.001 + (i / 1000)
+                            txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees)
+                            console.log('SEND SUCCESS, TXID IS: ' + txid  + '. FEES ARE: ' + fees + 'LYRA')
+                            if(txid.length === 64){
+                                totalfees += fees
                             }
-                            if(error === false){
-                                res.json({
-                                    uuid: uuid,
-                                    address: wallet,
-                                    fees: totalfees,
-                                    success: true,
-                                    txs: [txid]
-                                })
-                            }else{
-                                res.json({
-                                    data: 'Can\'t write data.',
-                                    status: 501
-                                })
+                            i++;
+                            if(i > 20){
+                                error = true
                             }
+                        }
+                        if(error === false){
+                            res.json({
+                                uuid: uuid,
+                                address: wallet,
+                                fees: totalfees,
+                                success: true,
+                                txs: [txid]
+                            })
                         }else{
                             res.json({
-                                data: 'Provide UUID first.',
-                                status: 402,
-                                result: info['result']
+                                data: 'Can\'t write data.',
+                                status: 501
                             })
                         }
                     }else{
                         res.json({
-                            data: 'Address isn\'t valid.',
+                            data: 'Provide UUID first.',
                             status: 402,
                             result: info['result']
                         })
                     }
-                })
-            }else{
-                res.json({
-                    data: 'Provide Data or file first.',
-                    status: 402
-                })
-            }
+                }else{
+                    res.json({
+                        data: 'Address isn\'t valid.',
+                        status: 402,
+                        result: info['result']
+                    })
+                }
+            })
         }else{
             res.json({
                 data: 'Provide Address, Private Key first.',
