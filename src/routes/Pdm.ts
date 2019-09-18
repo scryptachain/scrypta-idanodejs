@@ -275,9 +275,25 @@ export async function read(req: express.Request, res: express.Response) {
                 })
             })
         }else{
-            res.json({
-                data: 'Provide UUID or Address first.',
-                status: 402
+            let limit = 100
+            if(request['body']['limit'] !== undefined){
+                limit = parseInt(request['body']['limit'])
+            }
+            r.table('written').orderBy(r.desc('block')).limit(limit).run(conn, function(err, cursor) {
+                if(err) {
+                    console.log(err)
+                }
+            
+                cursor.toArray(async function(err, result) {
+                    if(err) {
+                        console.log(err)
+                    }
+                    let data = await parseDB(result, filters, history)
+                    res.json({
+                        data: data,
+                        status: 200
+                    })
+                })
             })
         }
     }else{
@@ -297,11 +313,11 @@ async function parseDB(DB, filters = {}, history = false){
             if(written['data'] !== undefined){
                 if(written['data'] !== 'END'){
                     if(ended.indexOf(written['uuid']) === -1){
-                        if(written['data'].indexOf('ipfs:') !== -1){
+                        if(JSON.stringify(written['data']).indexOf('ipfs:') !== -1){
                             written['is_file'] = true
                             written['data'] = written['data'].replace('ipfs:','')
                             let check = written['data'].split('***')
-                            if(check[1] !== undefined){
+                            if(check[1] !== undefined && check[1] !== 'undefined'){
                                 written['data'] = check[0]
                                 written['title'] = check[1]
                             }
