@@ -17,9 +17,25 @@ export function info(req: express.Request, res: express.Response) {
 
 export function add(req: express.Request, res: express.Response) {
     var form = new formidable.IncomingForm();
+    form.maxFileSize = global['limit'] * 1024 * 1024
+    form.maxFieldsSize = global['limit'] * 1024 * 1024
     form.multiples = true
     form.parse(req, function(err, fields, files) {
-      if(files.files !== undefined){
+      if(fields.buffer !== undefined){
+        let buf = Buffer.from(fields.buffer, 'hex')
+        global['ipfs'].add(buf).then(results => {
+          res.send({
+            data: results,
+            status: 200
+          })
+        }).catch(error => {
+          console.log(error)
+          res.send({
+            data: error,
+            status: 501
+          })
+        })
+      }else if(files.files !== undefined){
         if(fields.folder !== undefined){
           var ipfscontents = new Array()
           for(var k in files.files){
@@ -139,6 +155,26 @@ export function getfolder(req: express.Request, res: express.Response) {
       }
       res.end(file)
     })
+};
+
+export function getfilebuffer(req: express.Request, res: express.Response) {
+  const hash = req.params.hash
+  global['ipfs'].get(hash, function (err, file) {
+    if (err) {
+      console.log(err)
+      res.send({
+        data: {
+          error: "Can't read file"
+        },
+        status: 422
+      })
+    }else{
+      res.send({
+        data: file,
+        status: 200
+      })
+    }
+  })
 };
 
 export function getfile(req: express.Request, res: express.Response) {

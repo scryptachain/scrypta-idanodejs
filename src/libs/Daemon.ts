@@ -93,7 +93,7 @@ module Daemon {
                 let input = block['inputs'][i]
                 await task.redeemunspent(input['txid'], input['vout'])
             }
-            console.log('CLEANING UXTO CACHE')
+            console.log('CLEANING UTXO CACHE')
             global['utxocache'] = []
             global['txidcache'] = []
             for(var address in block['data_written']){

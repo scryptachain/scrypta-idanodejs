@@ -12,6 +12,7 @@ const IPFS = require('ipfs')
 global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
 global['txidcache'] = []
 global['utxocache'] = []
+global['limit'] = 200
 
 //TODO: Implement a cache system so data can be parsed through different blocks
 global['writtencache'] = [] 
@@ -25,7 +26,7 @@ class App {
     const app = this
     app.express = express()
 
-    app.express.use(bodyParser.urlencoded({extended: true, limit: '20mb'}))
+    app.express.use(bodyParser.urlencoded({extended: true, limit: global['limit'] + 'mb'}))
     app.express.use(bodyParser.json())
     app.express.use(express.static('public'))
 
@@ -67,6 +68,7 @@ class App {
     app.express.get('/ipfs/type/:hash', ipfs.filetype)
     app.express.get('/ipfs/ls/:hash', ipfs.ls)
     app.express.get('/ipfs/pins', ipfs.pins)
+    app.express.get('/ipfs/buffer/:hash', ipfs.getfilebuffer)
     app.express.get('/ipfs/:hash/:folder', ipfs.getfolder)
     app.express.get('/ipfs/:hash', ipfs.getfile)
 
