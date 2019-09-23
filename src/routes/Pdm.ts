@@ -326,6 +326,7 @@ async function parseDB(DB, filters = {}, history = false){
                             written['is_file'] = false
                         }
                         if(uuids.indexOf(written['uuid']) === -1){
+                            uuids.push(written['uuid'])
                             data.push(written)
                         }
                     }
