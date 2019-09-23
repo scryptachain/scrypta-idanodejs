@@ -459,6 +459,7 @@ module Crypto {
                                     blockhash: block['result']['hash'],
                                     time: block['result']['time']
                                 }
+                                singledata = ''
                                 block['result']['data_written'][addressdata].push(parsed)
                             }
 
