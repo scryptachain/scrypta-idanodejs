@@ -308,6 +308,7 @@ async function parseDB(DB, filters = {}, history = false){
     return new Promise(async response => {
         let data = []
         let ended = []
+        let uuids = []
         for(let x in DB){
             let written = DB[x]
             if(written['data'] !== undefined){
@@ -324,7 +325,9 @@ async function parseDB(DB, filters = {}, history = false){
                         }else{
                             written['is_file'] = false
                         }
-                        data.push(written)
+                        if(uuids.indexOf(written['uuid']) === -1){
+                            data.push(written)
+                        }
                     }
                 }else{
                     if(history === false){
