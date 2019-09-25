@@ -28,7 +28,7 @@ export function analyzeblock(req: express.Request, res: express.Response) {
     wallet.request('getblockhash', [parseInt(block)]).then(function(blockhash){
         wallet.analyzeBlock(blockhash['result']).then(analyzed => {
             var daemon = new Daemon.Sync
-            daemon.analyze(block)
+            daemon.analyze(parseInt(block))
             res.json({
                 data: analyzed,
                 status: 200
