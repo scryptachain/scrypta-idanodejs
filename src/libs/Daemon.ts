@@ -124,10 +124,8 @@ module Daemon {
             console.log('\x1b[33m%s\x1b[0m', 'FINISHED IN '+ elapsed +'s. ' + remains + ' BLOCKS UNTIL END. ' + estimated.toFixed(2) + 'h ESTIMATED.')
             r.table("settings").filter({setting: "sync"}).update({value: block['height']}).run(conn, result =>{
                 setTimeout(function(){
-                    if(toAnalyze === null){
-                        var task = new Daemon.Sync
-                        task.process()
-                    }
+                    var task = new Daemon.Sync
+                    task.process()
                 },10)
             })
         }else{
