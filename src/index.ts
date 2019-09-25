@@ -10,6 +10,7 @@ var publicIp = require('public-ip')
 let {nextAvailable} = require('node-port-check')
 require('dotenv').config()
 var server
+global['state'] = 'OFF'
 
 const nodeprocess = async () => {
   let port = await nextAvailable(3001, '0.0.0.0')
@@ -24,7 +25,7 @@ const nodeprocess = async () => {
     if (err) {
       return console.log(err)
     }
-    runIdaNode()
+    checkConnections()
     return console.log(`Scrypta IdaNode listening at port ${port}. Public IP is: ${ip}`)  
   })
 
@@ -80,50 +81,61 @@ function sleep (time) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
 
-async function runIdaNode(){
+async function checkConnections(){
   var wallet = new Crypto.Wallet;
-    wallet.request('getinfo').then( async function(info){
-      if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
-        console.log(process.env.COIN + ' wallet successfully connected.')
-        var dbconnected = false
-        while(dbconnected === false){
-          var conn = await r.connect({ host: process.env.DB_HOST, port: process.env.DB_PORT }).catch(async err => {
-            console.log('Can\'t communicate with database, running process now.')
-            exec.spawn('rethinkdb',{
-              stdio: 'ignore',
-              detached: true
-            }).unref()
-            console.log('Waiting 5 seconds, then try again.')
-            await sleep(5000)
-          })
-          if(conn !== undefined){
-            dbconnected = true
-            console.log('Starting database and tables check.')
-            var DB = new Database.Management
-            var result = await DB.check()
-            console.log(result)
-            var sync = (process.env.SYNC === 'true')
-            if(sync === true){
-              console.log('Starting block synchronization.')
-              var task
-              task = new Daemon.Sync
-              task.init()
-            }else{
-              console.log('Automatic sync is turned off.')
-            }
+  wallet.request('getinfo').then( async function(info){
+    if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
+      console.log(process.env.COIN + ' wallet successfully connected.')
+      var dbconnected = false
+      while(dbconnected === false){
+        var conn = await r.connect({ host: process.env.DB_HOST, port: process.env.DB_PORT }).catch(async err => {
+          console.log('Can\'t communicate with database, running process now.')
+          exec.spawn('rethinkdb',{
+            stdio: 'ignore',
+            detached: true
+          }).unref()
+          console.log('Waiting 5 seconds, then try again.')
+          await sleep(5000)
+        })
+        if(conn !== undefined){
+          console.log('Database connected successfully.')
+          dbconnected = true
+          if(global['state'] === 'OFF'){
+            runIdaNode()
+            setInterval(function(){
+              checkConnections()
+            },10000)
           }
         }
-      }else{
-        console.log('Can\'t communicate with wallet, running process now.')
-        exec.spawn(process.env.LYRAPATH + '/lyrad',{
-          stdio: 'ignore',
-          detached: true
-        }).unref()
-        console.log('Waiting 5 seconds, then restart IdaNode.')
-        await sleep(5000)
-        runIdaNode()
       }
-    })
+    }else{
+      console.log('Can\'t communicate with wallet, running process now.')
+      exec.spawn(process.env.LYRAPATH + '/lyrad',{
+        stdio: 'ignore',
+        detached: true
+      }).unref()
+      console.log('Waiting 5 seconds, then check again.')
+      await sleep(5000)
+      checkConnections()
+    }
+  })
+}
+
+async function runIdaNode(){
+  console.log('Starting database check.')
+  var DB = new Database.Management
+  var result = await DB.check()
+  console.log(result)
+  var sync = (process.env.SYNC === 'true')
+  if(sync === true){
+    console.log('Starting block synchronization.')
+    var task
+    task = new Daemon.Sync
+    task.init()
+    global['state'] = 'ON'
+  }else{
+    console.log('Automatic sync is turned off.')
+  }
 }
 
 nodeprocess()
