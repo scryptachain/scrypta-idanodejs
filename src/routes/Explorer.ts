@@ -1,5 +1,6 @@
 import express = require("express")
 import * as Utilities from '../libs/Utilities'
+import * as Daemon from '../libs/Daemon'
 import * as Crypto from '../libs/Crypto'
 const r = require('rethinkdb')
 var watchlist = []
@@ -20,6 +21,22 @@ export function getblock(req: express.Request, res: express.Response) {
         })
     })
 };
+
+export function analyzeblock(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+    var block = req.params.block
+    wallet.request('getblockhash', [parseInt(block)]).then(function(blockhash){
+        wallet.analyzeBlock(blockhash['result']).then(analyzed => {
+            var daemon = new Daemon.Sync
+            daemon.analyze(block)
+            res.json({
+                data: analyzed,
+                status: 200
+            })
+        })
+    })
+};
+
 
 export function getlastblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;

@@ -66,7 +66,10 @@ module Daemon {
         })
     }
 
-    public async analyze(){
+    public async analyze(toAnalyze = null){
+        if(toAnalyze !== null){
+            analyze = toAnalyze
+        }
         if(analyze > 0){
             var start = Date.now()
             console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
