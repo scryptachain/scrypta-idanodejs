@@ -89,7 +89,18 @@ module Daemon {
 
             for(var i in block['outputs']){
                 let unspent = block['outputs'][i]
-                await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
+                var found = false
+                for(var i in block['inputs']){
+                    let input = block['inputs'][i]
+                    if(input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']){
+                        found = true
+                    }
+                }
+                if(found === false){
+                    await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
+                }else{
+                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                }
             }
 
             for(var i in block['inputs']){
