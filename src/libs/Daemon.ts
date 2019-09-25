@@ -124,8 +124,10 @@ module Daemon {
             console.log('\x1b[33m%s\x1b[0m', 'FINISHED IN '+ elapsed +'s. ' + remains + ' BLOCKS UNTIL END. ' + estimated.toFixed(2) + 'h ESTIMATED.')
             r.table("settings").filter({setting: "sync"}).update({value: block['height']}).run(conn, result =>{
                 setTimeout(function(){
-                    var task = new Daemon.Sync
-                    task.process()
+                    if(toAnalyze === null){
+                        var task = new Daemon.Sync
+                        task.process()
+                    }
                 },10)
             })
         }else{
@@ -214,9 +216,11 @@ module Daemon {
                     if(err) {
                         console.log(err)
                     }
-                    if(result[0] !== undefined){
-                        console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT NOW!')
-                        await r.table("unspent").get(result[0]['id']).delete().run(conn)
+                    if(result.length > 0){
+                        for(let x in result){
+                            console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT NOW!')
+                            await r.table("unspent").get(result[x]['id']).delete().run(conn)
+                        }
                     }
                     response(true)
                 })
