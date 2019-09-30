@@ -3,7 +3,6 @@ import express = require("express")
 import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
 require('dotenv').config()
-const r = require('rethinkdb')
 
 export async function init(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;

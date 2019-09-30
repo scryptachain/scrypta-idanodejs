@@ -4,7 +4,7 @@ import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
 import * as ipfs from '../routes/Ipfs'
 require('dotenv').config()
-const r = require('rethinkdb')
+const mongo = require('mongodb').MongoClient
 var fs = require('fs')
 const _ = require("underscore")
 
@@ -221,7 +221,6 @@ export async function read(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request !== false){
-        var conn = await r.connect({db: 'idanodejs'})
         let filters = {}
         var history
         if(request['body']['protocol'] !== undefined){
@@ -240,38 +239,25 @@ export async function read(req: express.Request, res: express.Response) {
         }
 
         if(request['body']['address'] !== undefined){
-            r.table('written').getAll(request['body']['address'], {index: 'address'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
-                if(err) {
-                    console.log(err)
-                }
-            
-                cursor.toArray(async function(err, result) {
-                    if(err) {
-                        console.log(err)
-                    }
-
-                    let data = await parseDB(result, filters, history)
-                    res.json({
-                        data: data,
-                        status: 200
-                    })
+            mongo.connect(global['db_url'], async function(err, client) {
+                const db = client.db(global['db_name'])
+                let result = await db.collection('written').find({address: request['body']['address']}).sort({block: -1}).toArray()
+                client.close()
+                let data = await parseDB(result, filters, history)
+                res.json({
+                    data: data,
+                    status: 200
                 })
             })
         }else if(request['body']['uuid'] !== undefined){
-            r.table('written').getAll(request['body']['uuid'], {index: 'uuid'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
-                if(err) {
-                    console.log(err)
-                }
-            
-                cursor.toArray(async function(err, result) {
-                    if(err) {
-                        console.log(err)
-                    }
-                    let data = await parseDB(result, filters, history)
-                    res.json({
-                        data: data,
-                        status: 200
-                    })
+            mongo.connect(global['db_url'], async function(err, client) {
+                const db = client.db(global['db_name'])
+                let result = await db.collection('written').find({uuid: request['body']['uuid']}).sort({block: -1}).toArray()
+                client.close()
+                let data = await parseDB(result, filters, history)
+                res.json({
+                    data: data,
+                    status: 200
                 })
             })
         }else{
@@ -279,20 +265,14 @@ export async function read(req: express.Request, res: express.Response) {
             if(request['body']['limit'] !== undefined){
                 limit = parseInt(request['body']['limit'])
             }
-            r.table('written').orderBy(r.desc('block')).limit(limit).run(conn, function(err, cursor) {
-                if(err) {
-                    console.log(err)
-                }
-            
-                cursor.toArray(async function(err, result) {
-                    if(err) {
-                        console.log(err)
-                    }
-                    let data = await parseDB(result, filters, history)
-                    res.json({
-                        data: data,
-                        status: 200
-                    })
+            mongo.connect(global['db_url'], async function(err, client) {
+                const db = client.db(global['db_name'])
+                let result = await db.collection('written').limit(limit).sort({block: -1}).toArray()
+                client.close()
+                let data = await parseDB(result, filters, history)
+                res.json({
+                    data: data,
+                    status: 200
                 })
             })
         }
@@ -349,7 +329,6 @@ export async function received(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request['body']['address'] !== undefined){
-        var conn = await r.connect({db: 'idanodejs'})
         let filters = {}
         var history
         if(request['body']['protocol'] !== undefined){
@@ -366,21 +345,14 @@ export async function received(req: express.Request, res: express.Response) {
         }else{
             history = false
         }
-
-        r.table('received').getAll(request['body']['address'], {index: 'address'}).orderBy(r.desc('block')).run(conn, function(err, cursor) {
-            if(err) {
-                console.log(err)
-            }
-        
-            cursor.toArray(async function(err, result) {
-                if(err) {
-                    console.log(err)
-                }
-                let data = await parseDB(result, filters, history)
-                res.json({
-                    data: data,
-                    status: 200
-                })
+        mongo.connect(global['db_url'], async function(err, client) {
+            const db = client.db(global['db_name'])
+            let result = await db.collection('received').find({address: request['body']['address']}).sort({block: -1}).toArray()
+            client.close()
+            let data = await parseDB(result, filters, history)
+            res.json({
+                data: data,
+                status: 200
             })
         })
     }else{

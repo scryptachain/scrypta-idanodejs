@@ -4,13 +4,15 @@ import * as Daemon from "./libs/Daemon"
 import * as Database from "./libs/Database"
 import SysTray from 'systray'
 const open = require('opn')
-const r = require('rethinkdb')
+const mongo = require('mongodb').MongoClient
 const exec = require('child_process')
 var publicIp = require('public-ip')
 let {nextAvailable} = require('node-port-check')
 require('dotenv').config()
 var server
 global['state'] = 'OFF'
+global['db_url'] = 'mongodb://localhost:27017'
+global['db_name'] = 'idanodejs'
 
 const nodeprocess = async () => {
   let port = await nextAvailable(3001, '0.0.0.0')
@@ -62,7 +64,7 @@ const nodeprocess = async () => {
             console.log(stderr);
             return;
           }
-          exec.exec('pkill rethinkdb', (err, stdout, stderr) => {
+          exec.exec('pkill mongod', (err, stdout, stderr) => {
             if (err) {
               console.log(stderr);
               return;
@@ -86,28 +88,30 @@ async function checkConnections(){
   wallet.request('getinfo').then( async function(info){
     if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
       console.log(process.env.COIN + ' wallet successfully connected.')
-      var dbconnected = false
-      while(dbconnected === false){
-        var conn = await r.connect({ host: process.env.DB_HOST, port: process.env.DB_PORT }).catch(async err => {
-          console.log('Can\'t communicate with database, running process now.')
-          exec.spawn('rethinkdb',{
-            stdio: 'ignore',
-            detached: true
-          }).unref()
-          console.log('Waiting 5 seconds, then try again.')
-          await sleep(5000)
-        })
-        if(conn !== undefined){
+      mongo.connect(global['db_url'], async function(err, client) {
+        if(err){
+          console.log('Database not connected, starting process now.')
+          try{
+            exec.exec('mongod --dbpath=./mongodb_data',{
+              stdio: 'ignore',
+              detached: true
+            }).unref()
+            console.log('Waiting 5 seconds, then try again.')
+            await sleep(5000)
+            checkConnections()
+          }catch(err){
+            console.log(err)
+          }
+        }else{
           console.log('Database connected successfully.')
-          dbconnected = true
           if(global['state'] === 'OFF'){
             runIdaNode()
             setInterval(function(){
-              checkConnections()
+              //checkConnections()
             },10000)
           }
         }
-      }
+      });
     }else{
       console.log('Can\'t communicate with wallet, running process now.')
       exec.spawn(process.env.LYRAPATH + '/lyrad',{

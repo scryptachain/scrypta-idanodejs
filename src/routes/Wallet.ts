@@ -1,33 +1,24 @@
 import express = require("express")
 import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
-const {promisify} = require('util')
-const r = require('rethinkdb')
-var conn
+const mongo = require('mongodb').MongoClient
 
 export async function getinfo(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
-    conn = await r.connect({ host: process.env.DB_HOST, port: process.env.DB_PORT, db: 'idanodejs'})
-
-    r.table("settings").filter({setting: "sync"}).run(conn, async function(err, cursor) {
-        if(err) {
-            console.log(err)
+    mongo.connect(global['db_url'], async function(err, client) {
+        const db = client.db(global['db_name'])
+        let result = await db.collection('settings').find({setting: 'sync'}).toArray()
+        client.close()
+        var lastindexed = "0"
+        if(result[0].value !== undefined){
+            lastindexed = result[0].value
         }
-        cursor.toArray(async function(err, result) {
-            if(err) {
-                console.log(err)
-            }
-            
-            var lastindexed = "0"
-            if(result[0].value !== undefined){
-                lastindexed = result[0].value
-            }
 
-            wallet.request('getinfo').then(function(info){
-                info['result']['indexed'] = parseInt(lastindexed)
-                var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
-                res.json(info['result'])
-            })
+        wallet.request('getinfo').then(function(info){
+            info['result']['indexed'] = parseInt(lastindexed)
+            var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
+            info['result']['toindex'] = toindex
+            res.json(info['result'])
         })
     })
 };

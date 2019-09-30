@@ -1,7 +1,7 @@
 "use strict";
 import * as Utilities from './Utilities'
 import Trx from '../libs/trx/trx.js'
-const r = require('rethinkdb')
+const mongo = require('mongodb').MongoClient
 let request = require("request")
 var watchinglist = []
 
@@ -45,29 +45,12 @@ module Crypto {
 
     public async listunpent(address){
         return new Promise <any> (async response => {
-            var conn = await r.connect({db: 'idanodejs'})
-            r.table('unspent').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
-                if(err) {
-                    console.log(err)
-                }
-
-                cursor.toArray(function(err, result) {
-                    if(err) {
-                        console.log(err)
-                    }
-
-                    var list = result
-                    var unspent = []
-
-                    for(var index in list){
-                        var tx = list[index]
-                        unspent.push(tx)
-                    }
-
-                    unspent.sort((a, b) => Number(b.block) - Number(a.block))
-                    response(unspent)
-                });
-            });
+            mongo.connect(global['db_url'], async function(err, client) {
+                const db = client.db(global['db_name'])
+                let unspent = await db.collection('unspent').find({address: address}).sort({block: 1}).toArray()
+                client.close()
+                response(unspent)
+            })
         });
     }
 

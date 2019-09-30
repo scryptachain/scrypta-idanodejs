@@ -2,7 +2,7 @@ import express = require("express")
 import * as Utilities from '../libs/Utilities'
 import * as Daemon from '../libs/Daemon'
 import * as Crypto from '../libs/Crypto'
-const r = require('rethinkdb')
+const mongo = require('mongodb').MongoClient
 var watchlist = []
 
 export function info(req: express.Request, res: express.Response) {
@@ -56,33 +56,15 @@ export function getlastblock(req: express.Request, res: express.Response) {
 
 export async function transactions(req: express.Request, res: express.Response) {
     var address = req.params.address
-    var conn = await r.connect({db: 'idanodejs'})
-    r.table('transactions').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
-        if(err) {
-            console.log(err)
-        }
-
-        cursor.toArray(function(err, result) {
-            if(err) {
-                console.log(err)
-            }
-
-            var list = result
-            var transactions = []
-
-            for(var index in list){
-                var tx = list[index]
-                transactions.push(tx)
-            }
-
-            transactions.sort((a, b) => Number(b.time) - Number(a.time))
-
-            res.json({
-                data: transactions,
-                status: 200
-            })
-        });
-    });
+    mongo.connect(global['db_url'], async function(err, client) {
+        const db = client.db(global['db_name'])
+        let transactions = await db.collection('transactions').find({address: address}).sort({block: -1}).toArray()
+        client.close()
+        res.json({
+            data: transactions,
+            status: 200
+        })
+    })
 };
 
 export async function unspent(req: express.Request, res: express.Response) {
@@ -109,29 +91,19 @@ export async function unspent(req: express.Request, res: express.Response) {
 export async function balance(req: express.Request, res: express.Response) {
     var address = req.params.address
     var balance = 0
-    var conn = await r.connect({db: 'idanodejs'})
-    r.table('transactions').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
-        if(err) {
-            console.log(err)
+    mongo.connect(global['db_url'], async function(err, client) {
+        const db = client.db(global['db_name'])
+        let transactions = await db.collection('transactions').find({address: address}).sort({block: -1}).toArray()
+        for(var index in transactions){
+            var tx = transactions[index]
+            balance += parseFloat(tx.value.toFixed(8))
         }
-
-        cursor.toArray(function(err, result) {
-            if(err) {
-                console.log(err)
-            }
-
-            var list = result
-            for(var index in list){
-                var tx = list[index]
-                balance += parseFloat(tx.value.toFixed(8))
-            }
-
-            res.json({
-                balance: parseFloat(balance.toFixed(8)),
-                status: 200
-            })
-        });
-    });
+        client.close()
+        res.json({
+            balance: parseFloat(balance.toFixed(8)),
+            status: 200
+        })
+    })
 };
 
 export async function stats(req: express.Request, res: express.Response) {
@@ -154,73 +126,57 @@ export async function stats(req: express.Request, res: express.Response) {
                 txns: []
             }
         }
-        var conn = await r.connect({db: 'idanodejs'})
-        r.table('transactions').getAll(address, {index: 'address'}).run(conn, function(err, cursor) {
-            if(err) {
-                console.log(err)
+        mongo.connect(global['db_url'], async function(err, client) {
+            const db = client.db(global['db_name'])
+            let transactions = await db.collection('transactions').find({address: address}).sort({block: -1}).toArray()
+            for(var index in transactions){
+                var tx = transactions[index]
+
+                if(tx.value > 0){
+                    received += tx.value
+                }else{
+                    sent += tx.value
+                }
+                balance += tx.value
+                var datetime = new Date(tx.time * 1000);
+                var date = datetime.getFullYear()+ '-' + ('0' + (datetime.getMonth()+1)).slice(-2) + '-' + ('0' + datetime.getDate()).slice(-2);
+
+
+                if(tx.type === 'STAKE'){
+                    stats.stake.count++
+                    stats.stake.amount += tx.value
+                    stats.stake.txns.push(tx)
+
+                    if(stats.stake.stats[date] === undefined){
+                        stats.stake.stats[date] = 0
+                    }
+                    stats.stake.stats[date] += tx.value
+                }
+
+                if(tx.type === 'REWARD'){
+                    stats.rewards.count++
+                    stats.rewards.amount += tx.value
+                    stats.rewards.txns.push(tx)
+
+                    if(stats.rewards.stats[date] === undefined){
+                        stats.rewards.stats[date] = 0
+                    }
+                    stats.rewards.stats[date] += tx.value
+                }
             }
 
-            cursor.toArray(function(err, result) {
-                if(err) {
-                    console.log(err)
-                }
+            sent = sent * -1
 
-                var list = result
-                var transactions = []
-                for(var index in list){
-                    var unordered = list[index]
-                    transactions.push(unordered)
-                }
-                transactions.sort((a, b) => Number(a.time) - Number(b.time));
-                for(var index in transactions){
-                    var tx = transactions[index]
-
-                    if(tx.value > 0){
-                        received += tx.value
-                    }else{
-                        sent += tx.value
-                    }
-                    balance += tx.value
-                    var datetime = new Date(tx.time * 1000);
-                    var date = datetime.getFullYear()+ '-' + ('0' + (datetime.getMonth()+1)).slice(-2) + '-' + ('0' + datetime.getDate()).slice(-2);
-
-
-                    if(tx.type === 'STAKE'){
-                        stats.stake.count++
-                        stats.stake.amount += tx.value
-                        stats.stake.txns.push(tx)
-
-                        if(stats.stake.stats[date] === undefined){
-                            stats.stake.stats[date] = 0
-                        }
-                        stats.stake.stats[date] += tx.value
-                    }
-
-                    if(tx.type === 'REWARD'){
-                        stats.rewards.count++
-                        stats.rewards.amount += tx.value
-                        stats.rewards.txns.push(tx)
-
-                        if(stats.rewards.stats[date] === undefined){
-                            stats.rewards.stats[date] = 0
-                        }
-                        stats.rewards.stats[date] += tx.value
-                    }
-                }
-
-                sent = sent * -1
-
-                res.json({
-                    balance: balance,
-                    received: received,
-                    sent: sent,
-                    rewards: stats.rewards,
-                    stake: stats.stake,
-                    status: 200
-                })
-            });
-        });
-
+            client.close()
+            res.json({
+                balance: balance,
+                received: received,
+                sent: sent,
+                rewards: stats.rewards,
+                stake: stats.stake,
+                status: 200
+            })
+        })
     }else{
         res.json({
             data: 'Missing parameter: address',

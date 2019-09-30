@@ -2,11 +2,11 @@
 import express = require("express")
 import * as Crypto from './Crypto'
 require('dotenv').config()
-const r = require('rethinkdb')
+const mongo = require('mongodb').MongoClient
 
 var blocks = 0
 var analyze = 0
-var conn
+var db
 var analyzed = 0
 const fs = require('fs')
 
@@ -15,55 +15,48 @@ module Daemon {
   export class Sync {
     
     public async init() {
-        conn = await r.connect({ host: process.env.DB_HOST, port: process.env.DB_PORT, db: 'idanodejs'})
-        var wallet = new Crypto.Wallet
-        wallet.request('getinfo').then(info => {
-            blocks = info['result'].blocks
-            console.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
-            var task = new Daemon.Sync
-            task.process()
+        mongo.connect(global['db_url'], async function(err, client) {
+            db = client.db(global['db_name'])
+            var wallet = new Crypto.Wallet
+            wallet.request('getinfo').then(info => {
+                blocks = info['result'].blocks
+                console.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
+                var task = new Daemon.Sync
+                task.process()
+            })
         })
     }
 
     public async process(){
         var reset = '' //CHECK FOR RESET VALUE
-        r.table("settings").filter({setting: "sync"}).run(conn, async function(err, cursor) {
-            if(err) {
-                console.log(err)
+        const sync = await db.collection('settings').find({setting:'sync'}).limit(1).toArray();
+        var last
+        if(sync[0] === undefined){
+            console.log('Sync lock not found, creating')
+            await db.collection('settings').insertOne({setting:'sync', value: 0});
+            last = 0
+        }else{
+            last = sync[0].value
+        }
+        if(reset !== undefined && reset === ''){
+            if(last !== null && last !== undefined){
+                analyze = parseInt(last) + 1
+            }else{
+                analyze = 1
             }
-            cursor.toArray(async function(err, result) {
-                if(err) {
-                    console.log(err)
-                }
-                var last
-                if(result[0] === undefined){
-                    console.log('Sync lock not found, creating')
-                    await r.table("settings").insert({setting: "sync", value: 0}).run(conn)
-                    last = 0
-                }else{
-                    last = result[0].value
-                }
-                if(reset !== undefined && reset === ''){
-                    if(last !== null && last !== undefined){
-                        analyze = parseInt(last) + 1
-                    }else{
-                        analyze = 1
-                    }
-                }else{
-                    analyze = 1
-                }
-                if(analyze <= blocks){
-                    var task = new Daemon.Sync
-                    task.analyze()
-                }else{
-                    console.log('SYNC FINISHED, RESTART IN 10 SECONDS')
-                    setTimeout(function(){
-                        var task = new Daemon.Sync
-                        task.init()
-                    },10000)
-                }
-            })
-        })
+        }else{
+            analyze = 1
+        }
+        if(analyze <= blocks){
+            var task = new Daemon.Sync
+            task.analyze()
+        }else{
+            console.log('SYNC FINISHED, RESTART IN 10 SECONDS')
+            setTimeout(function(){
+                var task = new Daemon.Sync
+                task.init()
+            },10000)
+        }
     }
 
     public async analyze(toAnalyze = null){
@@ -133,12 +126,11 @@ module Daemon {
             var remains = blocks - analyze
             var estimated = (elapsed * remains) / 60 / 60;
             console.log('\x1b[33m%s\x1b[0m', 'FINISHED IN '+ elapsed +'s. ' + remains + ' BLOCKS UNTIL END. ' + estimated.toFixed(2) + 'h ESTIMATED.')
-            r.table("settings").filter({setting: "sync"}).update({value: block['height']}).run(conn, result =>{
-                setTimeout(function(){
-                    var task = new Daemon.Sync
-                    task.process()
-                },10)
-            })
+            await db.collection('settings').updateOne({setting: "sync"}, {$set: {value: block['height']}})
+            setTimeout(function(){
+                var task = new Daemon.Sync
+                task.process()
+            },10)
         }else{
             console.log('\x1b[41m%s\x1b[0m', 'ANALYZED EVERYTHING REBOOTING PROCESS IN 30 SECONDS')
             setTimeout(function(){
@@ -150,150 +142,96 @@ module Daemon {
 
     private async store(address, block, txid, tx, movements){
         return new Promise (async response => {
-            r.table("transactions").getAll([address,txid], {index: "addresstxid"}).run(conn, async function(err, cursor) {
-                if(err) {
-                  console.log(err)
-                }
-                cursor.toArray(async function(err, result) {
-                    if(err) {
-                        console.log(err)
+            let check = await db.collection('transactions').find({address: address, txid: txid}).limit(1).toArray();
+            if(check[0] === undefined){
+                console.log('STORING TX NOW!')
+                await db.collection("transactions").insertOne(
+                    {
+                        address: address,
+                        txid: txid,
+                        type: tx.type,
+                        from: movements.from,
+                        to: movements.to,
+                        value: tx.value,
+                        blockhash: block['hash'],
+                        blockheight: block['height'],
+                        time: block['time']
                     }
-                    if(result[0] === undefined){
-                        console.log('STORING TX NOW!')
-                        await r.table("transactions").insert(
-                            {
-                                address: address,
-                                txid: txid,
-                                type: tx.type,
-                                from: movements.from,
-                                to: movements.to,
-                                value: tx.value,
-                                blockhash: block['hash'],
-                                blockheight: block['height'],
-                                time: block['time']
-                            }
-                        ).run(conn)
-                    }else{
-                        console.log('TX ALREADY STORED.')
-                    }
-                    response(block['height'])
-                })
-            })
+                )
+            }else{
+                console.log('TX ALREADY STORED.')
+            }
+            response(block['height'])
         })
     }
 
     private async storeunspent(address, vout, txid, amount, scriptPubKey, block){
         return new Promise (async response => {
-            r.table("unspent").getAll([txid,vout], {index: "txidvout"}).run(conn, async function(err, cursor) {
-                if(err) {
-                  console.log(err)
-                }
-                cursor.toArray(async function(err, result) {
-                    if(err) {
-                        console.log(err)
+            let check = await db.collection('unspent').find({txid: txid, vout: vout}).limit(1).toArray()
+            if(check[0] === undefined){
+                console.log('\x1b[36m%s\x1b[0m', 'STORING UNSPENT NOW!')
+                await db.collection("unspent").insertOne(
+                    {
+                        address: address,
+                        txid: txid,
+                        scriptPubKey: scriptPubKey,
+                        amount: amount,
+                        vout: vout,
+                        block: block
                     }
-                    if(result[0] === undefined){
-                        console.log('\x1b[36m%s\x1b[0m', 'STORING UNSPENT NOW!')
-                        await r.table("unspent").insert(
-                            {
-                                address: address,
-                                txid: txid,
-                                scriptPubKey: scriptPubKey,
-                                amount: amount,
-                                vout: vout,
-                                block: block
-                            }
-                        ).run(conn)
-                    }else{
-                        console.log('UNSPENT ALREADY STORED.')
-                    }
-                    response(true)
-                })
-            }).catch(error => {
-                console.log(error)
-            })
+                )
+            }else{
+                console.log('UNSPENT ALREADY STORED.')
+            }
+            response(true)
         })
     }
 
     private async redeemunspent(txid, vout){
         return new Promise (async response => {
-            r.table("unspent").getAll([txid,vout], {index: "txidvout"}).run(conn, async function(err, cursor) {
-                if(err) {
-                  console.log(err)
-                }
-                cursor.toArray(async function(err, result) {
-                    if(err) {
-                        console.log(err)
-                    }
-                    if(result.length > 0){
-                        for(let x in result){
-                            console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT NOW!')
-                            await r.table("unspent").get(result[x]['id']).delete().run(conn)
-                        }
-                    }
-                    response(true)
-                })
-            }).catch(error => {
-                console.log(error)
-            })
+            console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT NOW!')
+            await db.collection('unspent').deleteOne({txid: txid, vout: vout})
+            response(true)
         })
     }
 
     private async storewritten(datastore){
         return new Promise (async response => {
-            r.table("written").getAll([datastore.uuid,datastore.block], {index: "uuidblock"}).run(conn, async function(err, cursor) {
-                if(err) {
-                console.log(err)
-                }
-                cursor.toArray(async function(err, result) {
-                    if(err) {
-                        console.log(err)
-                    }
-                    if(result[0] === undefined){
-                        console.log('STORING DATA NOW!')
-                        if(JSON.stringify(datastore.data).indexOf('ipfs:') !== -1){
-                            let parsed = datastore.data.split('***')
-                            if(parsed[0] !== undefined){
-                                let parsehash = parsed[0].split(':')
-                                if(parsehash[1] !== undefined && parsehash[1] !== 'undefined'){
-                                    console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + parsehash[1])
-                                    global['ipfs'].pin.add(parsehash[1], function (err) {
-                                        if (err) {
-                                            throw err
-                                        }
-                                    })
+            let check = await db.collection('written').find({uuid: datastore.uuid, block: datastore.block}).limit(1).toArray()
+            if(check[0] === undefined){
+                console.log('STORING DATA NOW!')
+                if(JSON.stringify(datastore.data).indexOf('ipfs:') !== -1){
+                    let parsed = datastore.data.split('***')
+                    if(parsed[0] !== undefined){
+                        let parsehash = parsed[0].split(':')
+                        if(parsehash[1] !== undefined && parsehash[1] !== 'undefined'){
+                            console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + parsehash[1])
+                            global['ipfs'].pin.add(parsehash[1], function (err) {
+                                if (err) {
+                                    throw err
                                 }
-                            }
+                            })
                         }
-                        await r.table("written").insert(datastore).run(conn)
-                    }else{
-                        console.log('DATA ALREADY STORED.')
                     }
-                    response('STORED')
-                })
-            })
+                }
+                await db.collection("written").insertOne(datastore)
+            }else{
+                console.log('DATA ALREADY STORED.')
+            }
+            response('STORED')
         })
     }
 
     private async storereceived(datastore){
         return new Promise (async response => {
-            r.table("received").getAll([datastore.txid,datastore.address], {index: "txidaddress"}).run(conn, async function(err, cursor) {
-                if(err) {
-                console.log(err)
-                }
-                cursor.toArray(async function(err, result) {
-                    if(err) {
-                        console.log(err)
-                    }
-                    if(result[0] === undefined){
-                        console.log('STORING DATA NOW!')
-                        await r.table("received").insert(datastore).run(conn)
-                    }else{
-                        console.log('DATA ALREADY STORED.')
-                    }
-                    response('STORED')
-                })
-            })
+            let check = await db.collection('received').find({txid: datastore.txid, address: datastore.address}).limit(1).toArray()
+            if(check[0] === undefined){
+                console.log('STORING DATA NOW!')
+                await db.collection("received").insertOne(datastore)
+            }else{
+                console.log('DATA ALREADY STORED.')
+            }
+            response('STORED')
         })
     }
   }
