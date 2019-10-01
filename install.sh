@@ -40,12 +40,21 @@ curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
 sudo apt-get install -y nodejs
 npm install pm2 -g
 
-#TODO: INSTALL MONGODB: https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/
+#INSTALL MONGODB
 wget -qO - https://www.mongodb.org/static/pgp/server-4.2.asc | sudo apt-key add -
 echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/4.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.2.list
 sudo apt-get update
 sudo apt-get install -y mongodb-org
+mkdir mongodb_data
 
+#RESTORE MONGODB BOOTSTRAP
+wget https://scrypta.sfo2.digitaloceanspaces.com/mongo_bootstrap_191001.tar.gz
+mongod --dbpath=./mongodb_data &
+sleep 20s
+tar -xvzf mongo_bootstrap_191001.tar.gz
+sudo mongorestore --db idanodejs --drop idanodejs
+rm -rf idanodejs
+pkill mongod
 
 #DOWNLOADING NODE MODULES
 npm install
