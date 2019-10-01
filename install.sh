@@ -66,6 +66,7 @@ npm install -g npm
 #SETTING UP FIREWALL
 ufw allow 22
 ufw deny 42223
+ufw deny 27017
 ufw allow 42222
 ufw enable y
 
