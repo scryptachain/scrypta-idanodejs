@@ -67,7 +67,7 @@ npm install -g npm
 ufw allow 22
 ufw deny 42223
 ufw allow 42222
-ufw enable -y
+ufw enable y
 
 #SETTING UP NGINX
 sudo apt update
