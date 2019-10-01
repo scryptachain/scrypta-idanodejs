@@ -267,7 +267,7 @@ export async function read(req: express.Request, res: express.Response) {
             }
             mongo.connect(global['db_url'], async function(err, client) {
                 const db = client.db(global['db_name'])
-                let result = await db.collection('written').limit(limit).sort({block: -1}).toArray()
+                let result = await db.collection('written').find().limit(limit).sort({block: -1}).toArray()
                 client.close()
                 let data = await parseDB(result, filters, history)
                 res.json({
