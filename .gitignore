@@ -5,3 +5,7 @@ dist/
 rethinkdb_data/
 ipfs_data/
 mongodb_data/
+lyrad
+lyra-cli
+mongo_*
+idanodejs/
