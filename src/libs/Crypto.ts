@@ -45,7 +45,7 @@ module Crypto {
 
     public async listunpent(address){
         return new Promise <any> (async response => {
-            mongo.connect(global['db_url'], async function(err, client) {
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
                 let unspent = await db.collection('unspent').find({address: address}).sort({block: 1}).toArray()
                 client.close()

@@ -5,7 +5,7 @@ const mongo = require('mongodb').MongoClient
 
 export async function getinfo(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
-    mongo.connect(global['db_url'], async function(err, client) {
+    mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         let result = await db.collection('settings').find({setting: 'sync'}).toArray()
         client.close()

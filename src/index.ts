@@ -12,6 +12,7 @@ require('dotenv').config()
 var server
 global['state'] = 'OFF'
 global['db_url'] = 'mongodb://localhost:27017'
+global['db_options'] = {useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
 
 const nodeprocess = async () => {
@@ -88,7 +89,7 @@ async function checkConnections(){
   wallet.request('getinfo').then( async function(info){
     if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
       console.log(process.env.COIN + ' wallet successfully connected.')
-      mongo.connect(global['db_url'], async function(err, client) {
+      mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         if(err){
           console.log('Database not connected, starting process now.')
           try{

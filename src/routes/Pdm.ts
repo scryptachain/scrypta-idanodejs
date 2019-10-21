@@ -239,7 +239,7 @@ export async function read(req: express.Request, res: express.Response) {
         }
 
         if(request['body']['address'] !== undefined){
-            mongo.connect(global['db_url'], async function(err, client) {
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
                 let result = await db.collection('written').find({address: request['body']['address']}).sort({block: -1}).toArray()
                 client.close()
@@ -250,7 +250,7 @@ export async function read(req: express.Request, res: express.Response) {
                 })
             })
         }else if(request['body']['uuid'] !== undefined){
-            mongo.connect(global['db_url'], async function(err, client) {
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
                 let result = await db.collection('written').find({uuid: request['body']['uuid']}).sort({block: -1}).toArray()
                 client.close()
@@ -265,7 +265,7 @@ export async function read(req: express.Request, res: express.Response) {
             if(request['body']['limit'] !== undefined){
                 limit = parseInt(request['body']['limit'])
             }
-            mongo.connect(global['db_url'], async function(err, client) {
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
                 let result = await db.collection('written').find().limit(limit).sort({block: -1}).toArray()
                 client.close()
@@ -345,7 +345,7 @@ export async function received(req: express.Request, res: express.Response) {
         }else{
             history = false
         }
-        mongo.connect(global['db_url'], async function(err, client) {
+        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
             const db = client.db(global['db_name'])
             let result = await db.collection('received').find({address: request['body']['address']}).sort({block: -1}).toArray()
             client.close()

@@ -15,7 +15,7 @@ module Daemon {
   export class Sync {
     
     public async init() {
-        mongo.connect(global['db_url'], async function(err, client) {
+        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
             db = client.db(global['db_name'])
             var wallet = new Crypto.Wallet
             wallet.request('getinfo').then(info => {
