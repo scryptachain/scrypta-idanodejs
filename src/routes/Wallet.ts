@@ -2,6 +2,12 @@ import express = require("express")
 import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
 const mongo = require('mongodb').MongoClient
+var CoinKey = require('coinkey')
+const lyraInfo = {
+    private: 0xae,
+    public: 0x30,
+    scripthash: 0x0d
+};
 
 export async function getinfo(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
@@ -59,30 +65,60 @@ export async function decoderawtransaction(req: express.Request, res: express.Re
     }
 };
 
+export async function getnewaddress(req: express.Request, res: express.Response) {
+    var ck = new CoinKey.createRandom(lyraInfo)
+        
+    var lyrapub = ck.publicAddress;
+    var lyraprv = ck.privateWif;
+    var lyrakey = ck.publicKey.toString('hex');
+    
+    res.json({
+        address: lyrapub,
+        private_key: lyraprv,
+        pub_key: lyrakey,
+        status: 200
+    })
+};
+
 export async function init(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request['body']['address'] !== undefined){
         var txid
-        var airdrop = (request['body']['airdrop'] === 'true' || request['body']['airdrop'] === true)
-        if(request['body']['airdrop'] !== undefined && airdrop === true){
-            var wallet = new Crypto.Wallet;
-            var balance = await wallet.request('getbalance')
-            var airdrop_value = parseFloat(process.env.AIRDROP)
-            if(balance['result'] > airdrop_value){
-                var airdrop_tx = await wallet.request('sendtoaddress',[request['body']['address'],airdrop_value])
-                txid = airdrop_tx['result']
+        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+            const db = client.db(global['db_name'])
+            let check = await db.collection('initialized').find({address: request['body']['address']}).toArray()
+            
+            if(check[0] === undefined){
+                var wallet = new Crypto.Wallet;
+                var balance = await wallet.request('getbalance')
+                var airdrop_value = parseFloat(process.env.AIRDROP)
+                if(balance['result'] > airdrop_value){
+                    var airdrop_tx = await wallet.request('sendtoaddress',[request['body']['address'],airdrop_value])
+                    txid = airdrop_tx['result']
+                    if(txid !== null){
+                        await db.collection('initialized').insertOne({address: request['body']['address'], txid: txid})
+                    }
+                }else{
+                    console.log('Balance insufficient for airdrop')
+                    txid = false
+                }
+                
             }else{
-                console.log('Balance insufficient for airdrop')
+                txid = false
             }
-        }
-        res.json({
-            data: {
-                dapp_address: request['body']['address'],
-                airdrop_tx: txid
-            },
-            status: 200
+            
+            client.close()
+
+            res.json({
+                data: {
+                    dapp_address: request['body']['address'],
+                    airdrop_tx: txid
+                },
+                status: 200
+            })
+
         })
     }else{
         res.json({

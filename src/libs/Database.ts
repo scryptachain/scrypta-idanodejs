@@ -36,7 +36,11 @@ module Database {
                         indexes: ["address", "txid"],
                         compound: [["txid","vout"]]
                     },
-
+                    {
+                        name: "initialized",
+                        indexes: ["address", "txid"],
+                        compound: []
+                    },
                 ]
                 //CHECKING COLLECTIONS
                 for(let tdk in collections){
