@@ -47,6 +47,7 @@ class App {
 
     //WALLET
     app.express.get('/wallet/getinfo',wallet.getinfo)
+    app.express.get('/wallet/getnewaddress/:internal',wallet.getnewaddress)
     app.express.get('/wallet/getnewaddress',wallet.getnewaddress)
     app.express.get('/wallet/masternodelist',wallet.getmasternodelist)
 

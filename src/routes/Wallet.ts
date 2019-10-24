@@ -66,22 +66,40 @@ export async function decoderawtransaction(req: express.Request, res: express.Re
 };
 
 export async function getnewaddress(req: express.Request, res: express.Response) {
-    var ck = new CoinKey.createRandom(lyraInfo)
-        
-    var lyrapub = ck.publicAddress;
-    var lyraprv = ck.privateWif;
-    var lyrakey = ck.publicKey.toString('hex');
     
-    res.json({
-        address: lyrapub,
-        private_key: lyraprv,
-        pub_key: lyrakey,
-        status: 200
-    })
+    var internal = req.params.internal
+    if(internal === undefined){
+        
+        var ck = new CoinKey.createRandom(lyraInfo)   
+        var lyrapub = ck.publicAddress;
+        var lyraprv = ck.privateWif;
+        var lyrakey = ck.publicKey.toString('hex');
+        
+        res.json({
+            address: lyrapub,
+            private_key: lyraprv,
+            pub_key: lyrakey,
+            status: 200
+        })
+
+    }else{
+
+        var wallet = new Crypto.Wallet;
+        var address = await wallet.request('getnewaddress')
+        var privkey = await wallet.request('dumpprivkey', [address['result']])
+        var validate = await wallet.request('validateaddress', [address['result']])
+
+        res.json({
+            address: address['result'],
+            private_key: privkey['result'],
+            pub_key: validate['result']['pubkey'],
+            status: 200
+        })
+
+    }
 };
 
 export async function init(req: express.Request, res: express.Response) {
-    var wallet = new Crypto.Wallet;
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request['body']['address'] !== undefined){
