@@ -1,7 +1,10 @@
 #!/bin/bash
 
 #INSTALL WALLET DEPENDENCIES
-sudo add-apt-repository -y ppa:bitcoin/bitcoin
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C70EF1F0305A1ADB9986DBD8D46F45428842CE5E
+echo 'deb http://ppa.launchpad.net/bitcoin/bitcoin/ubuntu bionic main' >> /etc/apt/sources.list
+echo 'deb-src http://ppa.launchpad.net/bitcoin/bitcoin/ubuntu bionic main' >> /etc/apt/sources.list
+echo 'deb http://security.debian.org/debian-security stretch/updates main' >> /etc/apt/sources.list
 sudo apt-get install -y software-properties-common python-software-properties
 sudo apt-get update
 sudo apt-get install libdb4.8-dev libdb4.8++-dev -y
@@ -12,15 +15,14 @@ sudo apt-get install -y libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools
 sudo apt-get install -y libqrencode-dev
 
 #DOWNLOADING WALLET
-wget https://github.com/scryptachain/scrypta/releases/download/v1.0.0/lyra-1.0.0-linux-VPS.tar.gz
-tar -xvzf lyra-1.0.0-linux-VPS.tar.gz -C ./
-mv lyra-1.0.0-linux-VPS/lyrad ./lyrad
-mv lyra-1.0.0-linux-VPS/lyra-cli ./lyra-cli
-rm -rf lyra-1.0.0-linux-VPS
-rm lyra-1.0.0-linux-VPS.tar.gz
+git clone https://github.com/scryptachain/scrypta
+cd scrypta
+./autogen.sh
+./configure
+make
 
 #RUNNING WALLET FOR THE FIRST TIME
-./lyrad &
+./src/lyrad &
 sleep 10s
 pkill lyrad
 
