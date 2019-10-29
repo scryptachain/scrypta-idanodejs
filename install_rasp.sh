@@ -13,6 +13,7 @@ sudo apt-get install -y curl g++ git-core pkg-config libtool faketime bsdmainuti
 sudo apt-get install -y libzmq3-dev
 sudo apt-get install -y libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler
 sudo apt-get install -y libqrencode-dev
+apt-get install libssl1.0-dev
 
 #DOWNLOADING WALLET
 git clone https://github.com/scryptachain/scrypta
