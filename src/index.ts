@@ -115,10 +115,17 @@ async function checkConnections(){
       });
     }else{
       console.log('Can\'t communicate with wallet, running process now.')
-      exec.spawn(process.env.LYRAPATH + '/lyrad',{
-        stdio: 'ignore',
-        detached: true
-      }).unref()
+      if(process.env.LYRAFOLDER !== undefined){
+        exec.spawn(process.env.LYRAPATH + '/lyrad -datadir=' + process.env.LYRAFOLDER,{
+          stdio: 'ignore',
+          detached: true
+        }).unref()
+      }else{
+        exec.spawn(process.env.LYRAPATH + '/lyrad',{
+          stdio: 'ignore',
+          detached: true
+        }).unref()
+      }
       console.log('Waiting 5 seconds, then check again.')
       await sleep(5000)
       checkConnections()
