@@ -58,7 +58,7 @@ export async function transactions(req: express.Request, res: express.Response) 
     var address = req.params.address
     mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
-        let transactions = await db.collection('transactions').find({address: address}).sort({block: -1}).toArray()
+        let transactions = await db.collection('transactions').find({address: address}).sort({blockheight: -1}).toArray()
         client.close()
         res.json({
             data: transactions,
@@ -93,7 +93,7 @@ export async function balance(req: express.Request, res: express.Response) {
     var balance = 0
     mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
-        let transactions = await db.collection('transactions').find({address: address}).sort({block: -1}).toArray()
+        let transactions = await db.collection('transactions').find({address: address}).sort({blockheight: -1}).toArray()
         for(var index in transactions){
             var tx = transactions[index]
             balance += parseFloat(tx.value.toFixed(8))
@@ -128,7 +128,7 @@ export async function stats(req: express.Request, res: express.Response) {
         }
         mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
             const db = client.db(global['db_name'])
-            let transactions = await db.collection('transactions').find({address: address}).sort({block: -1}).toArray()
+            let transactions = await db.collection('transactions').find({address: address}).sort({blockheight: -1}).toArray()
             for(var index in transactions){
                 var tx = transactions[index]
 
