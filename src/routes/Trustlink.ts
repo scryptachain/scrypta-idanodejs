@@ -12,6 +12,7 @@ export async function init(req: express.Request, res: express.Response) {
     if(request['body']['addresses'] !== undefined){
         var addresses = request['body']['addresses'].split(',')
         if(addresses.length > 0){
+            addresses.sort()
             wallet.request('createmultisig',[addresses.length, addresses]).then(async function(init){
                 var trustlink = init['result'].address
                 var txid
@@ -270,37 +271,53 @@ export async function send(req: express.Request, res: express.Response) {
     var request = await parser.body(req)
     if(request['body']['trustlink'] !== undefined && request['body']['to'] !== undefined && request['body']['private_keys'] !== undefined && request['body']['redeemScript'] !== undefined){
         var to = request['body']['to']
-        var amount = request['body']['amount']
+        var amount = parseFloat(request['body']['amount'])
         var private_keys = request['body']['private_keys']
         var trustlink = request['body']['trustlink']
         var redeemScript = request['body']['redeemScript']
 
-        var metadata
+        var dataToWrite
         if(request['body']['message'] !== undefined){
-            metadata = request['body']['message']
+            dataToWrite = request['body']['message']
         }
 
-        wallet.request('validateaddress',[from]).then(async response => {
+        wallet.request('validateaddress',[trustlink]).then(async response => {
             var validation = response['result']
             if(validation.isvalid === true){
                 wallet.request('validateaddress',[to]).then(async response => {
                     var validation = response['result']
                     if(validation.isvalid === true){
                         if(parseFloat(amount) > 0){
-                            var txid = <string> await wallet.sendmultisig(private_key,trustlink,to,amount,metadata,true)
-                            if(txid !== 'false'){
+                            var i = 0
+                            var totalfees = 0
+                            var error = false
+                            var txid = ''
+                            while(txid.length !== 64 && error == false){
+                                var fees = 0.001 + (i / 1000)
+                                txid = <string> await wallet.sendmultisig(private_keys,trustlink,to,amount,dataToWrite,redeemScript,fees,true)
+
+                                if(txid !== null && txid.length === 64){
+                                    console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
+                                    totalfees += fees
+                                }else{
+                                  console.log('TX FAILED.')
+                                }
+
+                                i++;
+                                if(i > 20){
+                                    error = true
+                                    txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                                }
+                            }
+                            if(error === false){
                                 res.json({
-                                    data: {
-                                        success: true,
-                                        txid: txid
-                                    },
-                                    status: 200
+                                    success: true,
+                                    fees: totalfees,
+                                    txid: txid
                                 })
                             }else{
                                 res.json({
-                                    data: {
-                                        success: false
-                                    },
+                                    data: 'Can\'t send coins.',
                                     status: 501
                                 })
                             }

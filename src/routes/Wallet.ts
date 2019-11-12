@@ -153,7 +153,7 @@ export async function send(req: express.Request, res: express.Response) {
     if(request['body']['from'] !== undefined && request['body']['to'] !== undefined && request['body']['amount'] !== undefined && request['body']['private_key'] !== undefined){
         var from = request['body']['from']
         var to = request['body']['to']
-        var amount = request['body']['amount']
+        var amount = parseFloat(request['body']['amount'])
         var private_key = request['body']['private_key']
 
         var metadata

@@ -196,12 +196,12 @@ module Crypto {
                     private_keys = private_keys.split(',')
                     let serialized = <string> await wallet.request('createrawtransaction',[inputs, outputs])
                     let serialized_decoded = <string> await wallet.request('decoderawtransaction',[serialized['result']])
-
+                    
                     let hex = serialized_decoded['result']['vout'][voutchange]['scriptPubKey']['hex']
                     let raw = middle.replace('1976a91444e547eda60eb55127aae6392b84098b30af361088ac', '17' + hex)
                     var sign = <string> await wallet.request('signrawtransaction',[raw, inputs, private_keys])
                     var signed = sign['result']['hex']
-                    
+
                     if(send === true){
                         var txid = <string> await wallet.request('sendrawtransaction',[signed])
 
