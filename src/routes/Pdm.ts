@@ -17,7 +17,7 @@ export async function write(req: express.Request, res: express.Response) {
                 var wallet = new Crypto.Wallet;
                 wallet.request('validateaddress', [request['body']['dapp_address']]).then(async function(info){
                     if(info['result']['isvalid'] === true){
-                        
+
                         var private_key = request['body']['private_key']
                         var dapp_address = request['body']['dapp_address']
 
@@ -28,7 +28,7 @@ export async function write(req: express.Request, res: express.Response) {
                             var Uuid = require('uuid/v4')
                             uuid = Uuid().replace(new RegExp('-', 'g'), '.')
                         }
-                        
+
                         var collection
                         if(request['body']['collection'] !== undefined && request['body']['collection'] !== '' && request['body']['collection'] !== 'undefined'){
                             collection = '!*!' + request['body']['collection']
@@ -49,7 +49,7 @@ export async function write(req: express.Request, res: express.Response) {
                         }else{
                             protocol = '!*!'
                         }
-                        
+
                         var metadata
                         //TODO: ADD FOLDER, NOT ONLY SINGLE FILES
                         if(request['files']['file'] !== undefined){
@@ -75,7 +75,7 @@ export async function write(req: express.Request, res: express.Response) {
                             var error = false
                             while(txid.length !== 64 && error == false){
                                 var fees = 0.001 + (i / 1000)
-                                
+
                                 txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees,true)
                                 if(txid !== null && txid.length === 64){
                                     console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
@@ -108,7 +108,7 @@ export async function write(req: express.Request, res: express.Response) {
                                 })
                             }
                         }else{
-                            
+
                             var txs = []
                             var dataToWriteLength = dataToWrite.length
                             var nchunks = Math.ceil(dataToWriteLength / 74)
@@ -154,14 +154,14 @@ export async function write(req: express.Request, res: express.Response) {
                                 var rawtransaction
                                 while(txid !== null && txid !== undefined && txid.length !== 64){
                                     var fees = 0.001 + (i / 1000)
-                                    
+
                                     txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees,true)
                                     if(txid !== null && txid.length === 64){
                                         console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                                         totalfees += fees
                                         txs.push(txid)
                                     }
-                                    
+
                                     i++;
                                     if(i > 20){
                                         error = true
@@ -371,7 +371,7 @@ export async function invalidate(req: express.Request, res: express.Response) {
             var wallet = new Crypto.Wallet;
             wallet.request('validateaddress', [request['body']['dapp_address']]).then(async function(info){
                 if(info['result']['isvalid'] === true){
-                    
+
                     var private_key = request['body']['private_key']
                     var dapp_address = request['body']['dapp_address']
 
@@ -383,7 +383,7 @@ export async function invalidate(req: express.Request, res: express.Response) {
 
                         var dataToWrite = '*!*' + uuid + '*=>' + metadata + '*!*'
                         console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO INVALIDATE ' + uuid)
-                        
+
                         let txid = ''
                         var i = 0
                         var totalfees = 0
@@ -403,10 +403,9 @@ export async function invalidate(req: express.Request, res: express.Response) {
                         if(error === false){
                             res.json({
                                 uuid: uuid,
-                                address: wallet,
                                 fees: totalfees,
                                 success: true,
-                                txs: [txid]
+                                txid: txid
                             })
                         }else{
                             res.json({
@@ -442,5 +441,3 @@ export async function invalidate(req: express.Request, res: express.Response) {
         })
     }
 }
-
-

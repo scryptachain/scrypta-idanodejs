@@ -390,10 +390,9 @@ export async function invalidate(req: express.Request, res: express.Response) {
                         if(error === false){
                             res.json({
                                 uuid: uuid,
-                                address: wallet,
                                 fees: totalfees,
                                 success: true,
-                                txs: [txid]
+                                txid: txid
                             })
                         }else{
                             res.json({
