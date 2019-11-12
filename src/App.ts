@@ -15,7 +15,7 @@ global['utxocache'] = []
 global['limit'] = 200
 
 //TODO: Implement a cache system so data can be parsed through different blocks
-global['writtencache'] = [] 
+global['writtencache'] = []
 
 class App {
   public express
@@ -59,6 +59,9 @@ class App {
 
     //TRUSTLINK
     app.express.post('/trustlink/init', trustlink.init)
+    app.express.post('/trustlink/write', trustlink.write)
+    app.express.post('/trustlink/send', trustlink.send)
+    app.express.post('/trustlink/invalidate', trustlink.invalidate)
 
     //DAPPS
     app.express.post('/dapps/upload', dapps.upload)

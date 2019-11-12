@@ -57,7 +57,7 @@ module Crypto {
     public async send(private_key, from, to, amount, metadata = '', fees = 0.001, send = true){
         return new Promise (async response => {
             var wallet = new Crypto.Wallet;
-            
+
             var unspent = []
             for(let x in global['utxocache']){
                 unspent.push(global['utxocache'][x])
@@ -86,7 +86,7 @@ module Crypto {
                 var voutchange = 0
                 if(inputamount >= amountneed){
                     var change = inputamount - amountneed;
-                    
+
                     if(amount > 0.00001){
                         trx.addoutput(to,amount);
                         voutchange++
@@ -113,7 +113,109 @@ module Crypto {
                             if(decoded.vout[0].scriptPubKey.addresses !== undefined){
                                 let unspent = {
                                     txid: decoded.txid,
-                                    vout: voutchange, 
+                                    vout: voutchange,
+                                    address: decoded.vout[voutchange].scriptPubKey.addresses[0],
+                                    scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
+                                    amount: decoded.vout[voutchange].value
+                                }
+                                global['utxocache'][decoded.txid] = unspent
+                            }
+                        }
+                        response(txid['result'])
+                    }else{
+                        response(signed)
+                    }
+                }else{
+                    console.log('NOT ENOUGH FUNDS, NEEDED ' + amountneed + ' LYRA vs ' + inputamount + ' LYRA')
+                    response(false)
+                }
+            }else{
+                response(false)
+            }
+        })
+    }
+
+    public async sendmultisig(private_keys, from, to, amount, metadata = '', redeemScript, fees = 0.001, send = true){
+        return new Promise (async response => {
+            var wallet = new Crypto.Wallet;
+
+            var unspent = []
+            for(let x in global['utxocache']){
+                unspent.push(global['utxocache'][x])
+            }
+            let blockchainunspent = await wallet.listunpent(from)
+            for(let y in blockchainunspent){
+                unspent.push(blockchainunspent[y])
+            }
+            var usedtx = []
+            var inputs = []
+            var outputs = {}
+            if(unspent.length > 0){
+                var inputamount = 0;
+                var trx = Trx.transaction();
+                for (let i in unspent){
+                    var amountneed = parseFloat(amount) + fees;
+                    if(inputamount <= amountneed){
+                        var txin = unspent[i]['txid'];
+                        var index = unspent[i]['vout'];
+                        var script = unspent[i]['scriptPubKey'];
+                        if(global['txidcache'].indexOf(txin) === -1){
+                            trx.addinput(txin,index,script);
+                            usedtx.push(txin)
+                            inputamount += unspent[i]['amount']
+
+                            inputs.push({
+                              txid: txin,
+                              vout: index,
+                              scriptPubKey: script,
+                              redeemScript: redeemScript
+                            })
+                        }
+                    }
+                }
+                var voutchange = 0
+                if(inputamount >= amountneed){
+                    var change = inputamount - amountneed;
+
+                    if(amount > 0.00001){
+                        trx.addoutput(to,amount);
+                        outputs[to] = amount
+                        voutchange++
+                    }
+
+                    if(change > 0.00001){
+                        trx.addoutput('LRWEsyi8WPECZGu8XsVgMrz5ah93wkwd5H',change); //Adding dummy address output
+                        outputs[from] = change
+                    }
+
+                    if(metadata !== '' && metadata.length <= 80){
+                        trx.addmetadata(metadata);
+                    }
+                    let middle = trx.serialize()
+
+                    private_keys = private_keys.split(',')
+                    let serialized = <string> await wallet.request('createrawtransaction',[inputs, outputs])
+                    let serialized_decoded = <string> await wallet.request('decoderawtransaction',[serialized['result']])
+
+                    let hex = serialized_decoded['result']['vout'][voutchange]['scriptPubKey']['hex']
+                    let raw = middle.replace('1976a91444e547eda60eb55127aae6392b84098b30af361088ac', '17' + hex)
+                    var sign = <string> await wallet.request('signrawtransaction',[raw, inputs, private_keys])
+                    var signed = sign['result']['hex']
+                    
+                    if(send === true){
+                        var txid = <string> await wallet.request('sendrawtransaction',[signed])
+
+                        if(txid['result'] !== null && txid['result'].length === 64){
+                            for(let x in usedtx){
+                                global['txidcache'].push(usedtx[x])
+                                delete global['utxocache'][usedtx[x]]
+                            }
+                            let decoderawtransaction = await wallet.request('decoderawtransaction', [signed])
+                            let decoded = decoderawtransaction['result']
+                            if(decoded.vout[0].scriptPubKey.addresses !== undefined){
+                                let unspent = {
+                                    txid: decoded.txid,
+                                    vout: voutchange,
                                     address: decoded.vout[voutchange].scriptPubKey.addresses[0],
                                     scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
                                     amount: decoded.vout[voutchange].value
@@ -139,7 +241,7 @@ module Crypto {
         return new Promise (response => {
             var wallet = new Crypto.Wallet
             wallet.request('getblock', [block]).then(function(block){
-                
+
                 block['result']['totvin'] = 0
                 block['result']['totvout'] = 0
                 block['result']['fees'] = 0
@@ -149,23 +251,23 @@ module Crypto {
                 block['result']['raw_written'] = {}
                 block['result']['data_written'] = {}
                 block['result']['data_received'] = {}
-                
+
                 //PARSING ALL TRANSACTIONS
                 new Promise (async resolve => {
                     for(var i = 0; i < block['result']['tx'].length; i++){
                         var txid = block['result']['tx'][i]
-                        
+
                         var rawtx = await wallet.request('getrawtransaction', [txid])
                         var tx = await wallet.request('decoderawtransaction', [rawtx['result']])
                         block['result']['tx'][i] = tx['result']
-                        
+
                         var txtotvin = 0
                         var txtotvout = 0
                         block['result']['analysis'][txid] = {}
                         block['result']['analysis'][txid]['vin'] = 0
                         block['result']['analysis'][txid]['vout'] = 0
                         block['result']['analysis'][txid]['balances'] = {}
-                        
+
                         //FETCHING ALL VIN
                         for(var vinx = 0; vinx < block['result']['tx'][i]['vin'].length; vinx++){
                             var vout = block['result']['tx'][i]['vin'][vinx]['vout']
@@ -223,7 +325,7 @@ module Crypto {
 
                                         let outputs = {
                                             txid: txid,
-                                            vout: voutx, 
+                                            vout: voutx,
                                             address: address,
                                             scriptPubKey: block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'],
                                             amount: block['result']['tx'][i]['vout'][voutx]['value']
@@ -236,7 +338,7 @@ module Crypto {
                                     //console.log('CHECKING OP_RETURN')
                                     var parser = new Utilities.Parser
                                     var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
-                                    var addressdata 
+                                    var addressdata
                                     var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
                                     if(addresswrite === receivingaddress){
                                         addressdata = addresswrite
@@ -266,14 +368,14 @@ module Crypto {
                         var generated = 0
                         if(txtotvin < txtotvout){
                             generated = txtotvout - txtotvin
-                            block['result']['generated'] = generated 
+                            block['result']['generated'] = generated
                         }
                     }
 
                     //CALCULATING FEES
                     var blocktotvalue = block['result']['totvin'] + block['result']['generated']
                     block['result']['fees'] = (block['result']['totvout'] - blocktotvalue ) * -1
-                    
+
                     //CHECKING TRANSACTION TYPE
                     for(let txid in block['result']['analysis']){
                         block['result']['analysis'][txid]['movements'] = {}
@@ -297,7 +399,7 @@ module Crypto {
                                 block['result']['analysis'][txid]['movements']['to'].push(address)
                             }
                         }
-                        
+
                     }
 
                     //COMPACTING DATA AGAIN
@@ -370,7 +472,7 @@ module Crypto {
                                                             console.log('NEED TO FIND ' + chunkcontrol)
                                                             idc = 0
                                                         }
-                                                        idc ++ 
+                                                        idc ++
                                                     }else{
                                                         idc = 0
                                                         endofdata = 'Y'
@@ -395,7 +497,7 @@ module Crypto {
 
                             checkhead = singledata.substr(0,3)
                             checkfoot = singledata.substr(-3)
-                            
+
                             if(endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*'){
                                 console.log('COMPLETED DATA ' + singledata)
                                 if(block['result']['data_written'][addressdata] === undefined){
@@ -452,7 +554,7 @@ module Crypto {
 
                     delete block['result']['tx']
                     response(block['result'])
-                })   
+                })
             })
         })
     }
@@ -461,4 +563,4 @@ module Crypto {
 
 }
 
-export = Crypto; 
+export = Crypto;

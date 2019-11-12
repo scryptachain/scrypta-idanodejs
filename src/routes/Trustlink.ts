@@ -49,13 +49,366 @@ export async function init(req: express.Request, res: express.Response) {
 }
 
 export async function write(req: express.Request, res: express.Response) {
-    //TODO: Write a trustlink data
+  var wallet = new Crypto.Wallet;
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if(request !== false){
+    if(request['body']['trustlink'] !== undefined && request['body']['private_keys'] !== undefined && request['body']['redeemScript'] !== undefined){
+      if(request['body']['data'] !== undefined || request['files']['file'] !== undefined){
+        wallet.request('validateaddress', [request['body']['trustlink']]).then(async function(info){
+            if(info['result']['isvalid'] === true){
+              var private_keys = request['body']['private_keys']
+              var trustlink = request['body']['trustlink']
+              var redeemScript = request['body']['redeemScript']
+
+              var uuid
+              if(request['body']['uuid'] !== undefined && request['body']['uuid'] !== ''){
+                  uuid = request['body']['uuid']
+              }else{
+                  var Uuid = require('uuid/v4')
+                  uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+              }
+
+              var collection
+              if(request['body']['collection'] !== undefined && request['body']['collection'] !== '' && request['body']['collection'] !== 'undefined'){
+                  collection = '!*!' + request['body']['collection']
+              }else{
+                  collection = '!*!'
+              }
+
+              var refID
+              if(request['body']['refID'] !== undefined && request['body']['refID'] !== '' && request['body']['refID'] !== 'undefined'){
+                  refID = '!*!' + request['body']['refID']
+              }else{
+                  refID = '!*!'
+              }
+
+              var protocol
+              if(request['body']['protocol'] !== undefined && request['body']['protocol'] !== '' && request['body']['protocol'] !== 'undefined'){
+                  protocol = '!*!' + request['body']['protocol']
+              }else{
+                  protocol = '!*!'
+              }
+
+              var metadata
+              //TODO: ADD FOLDER, NOT ONLY SINGLE FILES
+              if(request['files']['file'] !== undefined){
+                  metadata = 'ipfs:'
+                  var path = request['files']['file'].path
+                  var hash = await ipfs.addfile(path).catch(err =>{
+                      console.log(err)
+                  })
+                  metadata += hash
+                  if(request['body']['data'] !== undefined && request['body']['data'].length > 0){
+                      metadata += '***' + request['body']['data']
+                  }
+              }else{
+                  metadata = request['body']['data']
+              }
+
+              var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + metadata + '*!*'
+              console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
+
+              if(dataToWrite.length <= 80){
+                  let txid = ''
+                  var i = 0
+                  var totalfees = 0
+                  var error = false
+                  while(txid.length !== 64 && error == false){
+                      var fees = 0.001 + (i / 1000)
+                      txid = <string> await wallet.sendmultisig(private_keys,trustlink,trustlink,0,dataToWrite,redeemScript,fees,true)
+
+                      if(txid !== null && txid.length === 64){
+                          console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
+                          totalfees += fees
+                      }else{
+                        console.log('TX FAILED.')
+                      }
+
+                      i++;
+                      if(i > 20){
+                          error = true
+                          txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                      }
+                  }
+                  if(error === false){
+                      res.json({
+                          uuid: uuid,
+                          address: wallet,
+                          fees: totalfees,
+                          collection: collection.replace('!*!',''),
+                          refID: refID.replace('!*!',''),
+                          protocol: protocol.replace('!*!',''),
+                          dimension: dataToWrite.length,
+                          chunks: 1,
+                          stored: dataToWrite,
+                          txs: [txid]
+                      })
+                  }else{
+                      res.json({
+                          data: 'Can\'t write data.',
+                          status: 501
+                      })
+                  }
+
+              }else{
+
+                  var txs = []
+                  var dataToWriteLength = dataToWrite.length
+                  var nchunks = Math.ceil(dataToWriteLength / 74)
+                  var last = nchunks - 1
+                  var chunks = []
+
+                  for (var i=0; i<nchunks; i++){
+                      var start = i * 74
+                      var end = start + 74
+                      var chunk = dataToWrite.substring(start,end)
+
+                      if(i === 0){
+                          var startnext = (i + 1) * 74
+                          var endnext = startnext + 74
+                          var prevref = ''
+                          var nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
+                      } else if(i === last){
+                          var startprev = (i - 1) * 74
+                          var endprev = startprev + 74
+                          var nextref = ''
+                          var prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                      } else {
+                          var sni = i + 1
+                          var startnext = sni * 74
+                          var endnext = startnext + 74
+                          var nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
+                          var spi = i - 1
+                          var startprev = spi * 74
+                          var endprev = startprev + 74
+                          var prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                      }
+                      chunk = prevref + chunk + nextref
+                      chunks.push(chunk)
+                  }
+
+                  var totalfees = 0
+                  var error = false
+                  var decoded
+
+                  for(var cix=0; cix<chunks.length; cix++){
+                      var txid = ''
+                      var i = 0
+                      var rawtransaction
+                      while(txid !== null && txid !== undefined && txid.length !== 64){
+                          var fees = 0.001 + (i / 1000)
+
+                          txid = <string> await wallet.sendmultisig(private_keys,trustlink,trustlink,0,chunks[cix],redeemScript,fees,true)
+                          if(txid !== null && txid.length === 64){
+                              console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
+                              totalfees += fees
+                              txs.push(txid)
+                          }else{
+                            console.log('TX FAILED.')
+                          }
+
+                          i++;
+                          if(i > 20){
+                              error = true
+                              txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                          }
+                      }
+                  }
+                  if(error === false){
+                      res.json({
+                          uuid: uuid,
+                          address: wallet,
+                          fees: totalfees,
+                          collection: collection.replace('!*!',''),
+                          refID: refID.replace('!*!',''),
+                          protocol: protocol.replace('!*!',''),
+                          dimension: dataToWrite.length,
+                          chunks: nchunks,
+                          stored: dataToWrite,
+                          txs: txs
+                      })
+                  }else{
+                      res.json({
+                          data: 'Can\'t write data.',
+                          status: 501
+                      })
+                  }
+              }
+
+            }else{
+              res.json({
+                  data: 'Trustlink isn\'t valid.',
+                  status: 402,
+                  result: info['result']
+              })
+            }
+        })
+      }else{
+        res.json({
+            data: 'Provide Data or file first.',
+            status: 402
+        })
+      }
+    }else{
+      res.json({
+          data: 'Provide Trustlink, Private Keys and ReedemScript first.',
+          status: 402
+      })
+    }
+  }else{
+    res.json({
+        data: 'Make a request first.',
+        status: 402
+    })
+  }
 }
 
 export async function send(req: express.Request, res: express.Response) {
-    //TODO: Send funds from trustlink
+    var wallet = new Crypto.Wallet
+    var parser = new Utilities.Parser
+    var request = await parser.body(req)
+    if(request['body']['trustlink'] !== undefined && request['body']['to'] !== undefined && request['body']['private_keys'] !== undefined && request['body']['redeemScript'] !== undefined){
+        var to = request['body']['to']
+        var amount = request['body']['amount']
+        var private_keys = request['body']['private_keys']
+        var trustlink = request['body']['trustlink']
+        var redeemScript = request['body']['redeemScript']
+
+        var metadata
+        if(request['body']['message'] !== undefined){
+            metadata = request['body']['message']
+        }
+
+        wallet.request('validateaddress',[from]).then(async response => {
+            var validation = response['result']
+            if(validation.isvalid === true){
+                wallet.request('validateaddress',[to]).then(async response => {
+                    var validation = response['result']
+                    if(validation.isvalid === true){
+                        if(parseFloat(amount) > 0){
+                            var txid = <string> await wallet.sendmultisig(private_key,trustlink,to,amount,metadata,true)
+                            if(txid !== 'false'){
+                                res.json({
+                                    data: {
+                                        success: true,
+                                        txid: txid
+                                    },
+                                    status: 200
+                                })
+                            }else{
+                                res.json({
+                                    data: {
+                                        success: false
+                                    },
+                                    status: 501
+                                })
+                            }
+                        }else{
+                            res.json({
+                                data: 'Amount must be grater than zero.',
+                                status: 402
+                            })
+                        }
+                    }else{
+                        res.json({
+                            data: 'Receiving address is invalid.',
+                            status: 402
+                        })
+                    }
+                })
+            }else{
+                res.json({
+                    data: 'Sending address is invalid.',
+                    status: 402
+                })
+            }
+        })
+    }else{
+        res.json({
+            data: 'Provide from, to, amount and private key first.',
+            status: 402
+        })
+    }
 }
 
 export async function invalidate(req: express.Request, res: express.Response) {
-    //TODO: Invalidate trustlink data
+    var parser = new Utilities.Parser
+    var request = await parser.body(req)
+    if(request !== false){
+        if(request['body']['trustlink'] !== undefined && request['body']['private_keys'] !== undefined && request['body']['redeemScript'] !== undefined){
+            var wallet = new Crypto.Wallet;
+            wallet.request('validateaddress', [request['body']['trustlink']]).then(async function(info){
+                if(info['result']['isvalid'] === true){
+
+                    var private_keys = request['body']['private_keys']
+                    var trustlink = request['body']['trustlink']
+                    var redeemScript = request['body']['redeemScript']
+
+                    var uuid
+                    if(request['body']['uuid'] !== undefined && request['body']['uuid'] !== ''){
+                        uuid = request['body']['uuid']
+
+                        var metadata = 'END'
+
+                        var dataToWrite = '*!*' + uuid + '*=>' + metadata + '*!*'
+                        console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO INVALIDATE ' + uuid)
+
+                        let txid = ''
+                        var i = 0
+                        var totalfees = 0
+                        var error = false
+                        while(txid.length !== 64 && error === false){
+                            var fees = 0.001 + (i / 1000)
+                            txid = <string> await wallet.sendmultisig(private_keys,trustlink,trustlink,0,dataToWrite,redeemScript,fees,true)
+                            console.log('SEND SUCCESS, TXID IS: ' + txid  + '. FEES ARE: ' + fees + 'LYRA')
+                            if(txid.length === 64){
+                                totalfees += fees
+                            }
+                            i++;
+                            if(i > 20){
+                                error = true
+                            }
+                        }
+                        if(error === false){
+                            res.json({
+                                uuid: uuid,
+                                address: wallet,
+                                fees: totalfees,
+                                success: true,
+                                txs: [txid]
+                            })
+                        }else{
+                            res.json({
+                                data: 'Can\'t write data.',
+                                status: 501
+                            })
+                        }
+                    }else{
+                        res.json({
+                            data: 'Provide UUID first.',
+                            status: 402,
+                            result: info['result']
+                        })
+                    }
+                }else{
+                    res.json({
+                        data: 'Address isn\'t valid.',
+                        status: 402,
+                        result: info['result']
+                    })
+                }
+            })
+        }else{
+            res.json({
+                data: 'Provide Address, Private Key first.',
+                status: 402
+            })
+        }
+    }else{
+        res.json({
+            data: 'Make a request first.',
+            status: 402
+        })
+    }
 }

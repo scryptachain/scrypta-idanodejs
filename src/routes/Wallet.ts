@@ -66,15 +66,15 @@ export async function decoderawtransaction(req: express.Request, res: express.Re
 };
 
 export async function getnewaddress(req: express.Request, res: express.Response) {
-    
+
     var internal = req.params.internal
     if(internal === undefined){
-        
-        var ck = new CoinKey.createRandom(lyraInfo)   
+
+        var ck = new CoinKey.createRandom(lyraInfo)
         var lyrapub = ck.publicAddress;
         var lyraprv = ck.privateWif;
         var lyrakey = ck.publicKey.toString('hex');
-        
+
         res.json({
             address: lyrapub,
             private_key: lyraprv,
@@ -107,7 +107,7 @@ export async function init(req: express.Request, res: express.Response) {
         mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
             const db = client.db(global['db_name'])
             let check = await db.collection('initialized').find({address: request['body']['address']}).toArray()
-            
+
             if(check[0] === undefined){
                 var wallet = new Crypto.Wallet;
                 var balance = await wallet.request('getbalance')
@@ -122,11 +122,11 @@ export async function init(req: express.Request, res: express.Response) {
                     console.log('Balance insufficient for airdrop')
                     txid = false
                 }
-                
+
             }else{
                 txid = false
             }
-            
+
             client.close()
 
             res.json({
@@ -147,7 +147,7 @@ export async function init(req: express.Request, res: express.Response) {
 };
 
 export async function send(req: express.Request, res: express.Response) {
-    var wallet = new Crypto.Wallet;
+    var wallet = new Crypto.Wallet
     var parser = new Utilities.Parser
     var request = await parser.body(req)
     if(request['body']['from'] !== undefined && request['body']['to'] !== undefined && request['body']['amount'] !== undefined && request['body']['private_key'] !== undefined){
@@ -155,7 +155,7 @@ export async function send(req: express.Request, res: express.Response) {
         var to = request['body']['to']
         var amount = request['body']['amount']
         var private_key = request['body']['private_key']
-        
+
         var metadata
         if(request['body']['message'] !== undefined){
             metadata = request['body']['message']
@@ -168,7 +168,7 @@ export async function send(req: express.Request, res: express.Response) {
                     var validation = response['result']
                     if(validation.isvalid === true){
                         if(parseFloat(amount) > 0){
-                            var txid = <string> await wallet.send(private_key,from,to,amount,metadata) 
+                            var txid = <string> await wallet.send(private_key,from,to,amount,metadata)
                             if(txid !== 'false'){
                                 res.json({
                                     data: {
@@ -229,5 +229,5 @@ export async function sendrawtransaction(req: express.Request, res: express.Resp
             data: 'Provide raw transaction first.',
             status: 402
         })
-    }    
+    }
 };

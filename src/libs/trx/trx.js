@@ -59,7 +59,7 @@ export default class BitJS {
 		this.priv = 0xae;
 		this.compressed = true;
 	}
-	
+
 	static hexToBytes(b){for(var a=[],c=0;c<b.length;c+=2)a.push(parseInt(b.substr(c,2),16));return a}
 	static bytesToHex(b){for(var a=[],c=0;c<b.length;c++)a.push((b[c]>>>4).toString(16)),a.push((b[c]&15).toString(16));return a.join("")}
 
@@ -105,7 +105,7 @@ export default class BitJS {
 		var r = this.wif2pubkey(wif);
 		return {'address':this.pubkey2address(r['pubkey']), 'compressed':r['compressed']};
 	}
-	
+
 	/* generate a public key from a private key */
 	static newPubkey(hash){
 		var privateKeyBigInt = BigInteger.fromByteArrayUnsigned(BitJS.hexToBytes(hash));
@@ -140,7 +140,7 @@ export default class BitJS {
 		var checksum = hash.slice(0, 4);
 		return B58.encode(r.concat(checksum));
 	}
-    
+
 	static transaction() {
 		var btrx = {};
 		btrx.version = 1;
@@ -155,12 +155,12 @@ export default class BitJS {
 			o.script = BitJS.hexToBytes(script); //push previous output pubkey script
 			o.sequence = sequence || ((btrx.locktime==0) ? 4294967295 : 0);
 			return this.inputs.push(o);
-		} 
+		}
 
 		btrx.addoutput = function(address, value) {
 			var o = {};
 			var buf = [];
-			var addrDecoded = btrx.addressDecode(address);
+			var addrDecoded = btrx.addressDecode(address)
 			o.value = new BigInteger('' + Math.round((value*1) * 1e8), 10);
 			buf.push(118); //OP_DUP
 			buf.push(169);  //OP_HASH160
@@ -399,7 +399,7 @@ export default class BitJS {
 
 			return KBigInt;
 		};
-		
+
     	/* sign a "standard" input */
 		btrx.signinput = function(index, wif, sigHashType){
 			var key = BitJS.wif2pubkey(wif);
@@ -409,7 +409,7 @@ export default class BitJS {
 			var sigBytes = BitJS.hexToBytes(signature);
 			buf.push(sigBytes.length);
 			buf = buf.concat(sigBytes);
-	        var pubKeyBytes = BitJS.hexToBytes(key['pubkey']);
+	    var pubKeyBytes = BitJS.hexToBytes(key['pubkey']);
 			buf.push(pubKeyBytes.length);
 			buf = buf.concat(pubKeyBytes);
 			this.inputs[index].script = buf;
@@ -421,10 +421,10 @@ export default class BitJS {
 			var shType = sigHashType || 1;
 			for (var i = 0; i < this.inputs.length; i++) {
 				this.signinput(i, wif, shType);
-			}	
+			}
 			return this.serialize();
 		}
-			
+
 
 		/* serialize a transaction */
 		btrx.serialize = function() {
@@ -452,17 +452,17 @@ export default class BitJS {
 			}
 
 			buffer = buffer.concat(BitJS.numToBytes(parseInt(this.locktime),4));
-			return BitJS.bytesToHex(buffer);		
+			return BitJS.bytesToHex(buffer);
 		}
-				
-		
+
+
 		return btrx;
-		
+
 	}
-	
+
 	static numToBytes(num,bytes) {
 		if (typeof bytes === "undefined") bytes = 8;
-		if (bytes == 0) { 
+		if (bytes == 0) {
 			return [];
 		} else if (num == -1){
 			return BitJS.hexToBytes("ffffffffffffffff");
@@ -472,7 +472,7 @@ export default class BitJS {
 	}
 
 	static numToByteArray(num) {
-		if (num <= 256) { 
+		if (num <= 256) {
 			return [num];
 		} else {
 			return [num % 256].concat(this.numToByteArray(Math.floor(num / 256)));
@@ -508,6 +508,6 @@ export default class BitJS {
 		}
 		return temp;
 	}
-	
-	
+
+
 }
