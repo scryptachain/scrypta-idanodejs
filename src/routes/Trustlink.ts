@@ -2,6 +2,7 @@
 import express = require("express")
 import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
+import * as ipfs from '../routes/Ipfs'
 require('dotenv').config()
 
 export async function init(req: express.Request, res: express.Response) {
