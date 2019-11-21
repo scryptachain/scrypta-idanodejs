@@ -243,7 +243,10 @@ module Daemon {
                                 valid = false
                             }
                         }
+                        
                         // TODO: CHECKOUTPUTS
+                        // TODO: PUBKEYCHECK
+
                         if(valid === true){
                             await db.collection("sc_transactions").insertOne(datastore.data)
                             for(let x in datastore.data.transaction.inputs){

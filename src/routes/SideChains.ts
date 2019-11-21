@@ -163,15 +163,12 @@ export function send(req: express.Request, res: express.Response) {
                 delete unspent[i]._id
                 let checkinput = await db.collection('sc_transactions').find({sxid: unspent[i].sxid}).limit(1).toArray()
                 if(checkinput[0] !== undefined){
-                  let checksig = await wallet.signmessage(fields.private_key, JSON.stringify(checkinput[0].transaction))
-                  if(checksig.signature === checkinput[0].signature && checksig.id === checkinput[0].sxid){
-                    inputs.push(unspent[i])
-                    amountinput += unspent[i].amount
-                  }
+                  inputs.push(unspent[i])
+                  amountinput += unspent[i].amount
                 }
               }
             }
-
+            
             if(amountinput >= fields.amount){
 
               let change = amountinput - amount
@@ -202,6 +199,7 @@ export function send(req: express.Request, res: express.Response) {
               let write = await wallet.write(fields.private_key,fields.from,dataToWrite,uuid,collection,refID,protocol)
               if(write !== false){
                 res.send(write)
+                // TODO: Send to P2P Network to speed up the transaction.
               }else{
                 res.send({
                   error: true,
@@ -243,29 +241,7 @@ export function send(req: express.Request, res: express.Response) {
       })
     }
   })
-  /*
-    To send the funds you've to use a similar approach to the normal transactions, for simplicity let's assume this is the very first transaction of the SideChain. The owner will move these tokens from his account to another account. 
-
-    So it have to write a TX that's something like this:
-    {
-      "transaction":
-      {
-        "inputs": [
-          "signatureOfTheInput": "VoutOfTheInput"
-        ],
-        "outputs": {
-          "receiverAddress": amount,
-          "senderAddress": change
-        }
-      },
-      "pubkey": "SenderPubKey",
-      "id": "SHA256(SignatureOfTheTransactionByTheOwner)"
-    }
-
-    This will create a transaction that's pretty similar to the legacy one. This transaction it's verified first by the IdaNode which will check that the output is <= inputs and both the receiver and the sender are valid. After it is verified it will be marked by the IdaNode with another security hash and then written on the blockchain. To speed up all the process we can even sent it to the P2P network just to create a "unconfirmed" style feature.
-
-    When both the accounts will receive the information (by reading the IdaNode) they will check the signatures and, again, the inputs and the outputs. Just to minimize the risk of hacking of the entire system by malicious Idanodes or malicious clients.
-  */
+  
 };
 
 export function reissue(req: express.Request, res: express.Response) {
