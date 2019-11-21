@@ -205,7 +205,7 @@ export function send(req: express.Request, res: express.Response) {
               }else{
                 res.send({
                   error: true,
-                  description: "Can\' send transaction",
+                  description: "Can\'t send transaction",
                   status: 422
                 })
               }
