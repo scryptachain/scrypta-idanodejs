@@ -5,6 +5,8 @@ const mongo = require('mongodb').MongoClient
 let request = require("request")
 let CoinKey = require("coinkey")
 const CryptoJS = require('crypto-js')
+var cs = require('coinstring')
+var crypto = require('crypto')
 const secp256k1 = require('secp256k1')
 
 const lyraInfo = {
@@ -68,6 +70,41 @@ module Crypto {
                 pubkey: pubKey.toString('hex'),
                 address: ck.publicAddress
             })
+        })
+    }
+
+    public async getAddressFromPubKey(pubKey){
+        return new Promise(response => {
+            let pubkeybuffer = new Buffer(pubKey,'hex')
+            var sha = crypto.createHash('sha256').update(pubkeybuffer).digest()
+            let pubKeyHash = crypto.createHash('rmd160').update(sha).digest()
+            var hash160Buf = new Buffer(pubKeyHash, 'hex')
+            response(cs.encode(hash160Buf, lyraInfo.public)) 
+        })
+    }
+
+    public async verifymessage(pubkey, signature, message){
+        return new Promise(async response => {
+            //CREATE HASH FROM MESSAGE
+            const wallet = new Crypto.Wallet
+            let hash = CryptoJS.SHA256(message);
+            let msg = Buffer.from(hash.toString(CryptoJS.enc.Hex), 'hex')
+            //VERIFY MESSAGE
+            let buf = Buffer.from(signature,'hex')
+            let pubKey = Buffer.from(pubkey,'hex')
+            let verified = secp256k1.verify(msg, buf, pubKey)
+            let address = await wallet.getAddressFromPubKey(pubkey)
+            if(verified === true){
+                response({
+                    address: address,
+                    pubkey: pubkey,
+                    signature: signature,
+                    hash: hash.toString(CryptoJS.enc.Hex),
+                    message: message,
+                })
+            }else{
+                response(false)
+            }
         })
     }
 
