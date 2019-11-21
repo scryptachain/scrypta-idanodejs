@@ -1,17 +1,6 @@
 "use strict";
-import * as Utilities from './Utilities'
-import Trx from '../libs/trx/trx.js'
 const mongo = require('mongodb').MongoClient
-let request = require("request")
-let CoinKey = require("coinkey")
-const CryptoJS = require('crypto-js')
-const secp256k1 = require('secp256k1')
 
-const lyraInfo = {
-    private: 0xae,
-    public: 0x30,
-    scripthash: 0x0d
-};
 
 module SideChain {
 
