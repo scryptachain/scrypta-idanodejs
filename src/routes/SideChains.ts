@@ -5,9 +5,9 @@ import * as Sidechain from '../libs/Sidechain'
 let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 const lyraInfo = {
-    private: 0xae,
-    public: 0x30,
-    scripthash: 0x0d
+  private: 0xae,
+  public: 0x30,
+  scripthash: 0x0d
 }
 
 export function issue(req: express.Request, res: express.Response) {
@@ -32,10 +32,10 @@ export function issue(req: express.Request, res: express.Response) {
         }
 
         let sign = await wallet.signmessage(fields.private_key, JSON.stringify(genesis))
-        if(sign.address === fields.dapp_address && sign.pubkey === fields.pubkey){
+        if (sign.address === fields.dapp_address && sign.pubkey === fields.pubkey) {
           let signature = sign.signature
           let sxid = sign.id
-          let issue =  {
+          let issue = {
             genesis: genesis,
             signature: signature,
             sxid: sxid
@@ -46,12 +46,12 @@ export function issue(req: express.Request, res: express.Response) {
           var lyrakey = ck.publicKey.toString('hex')
           let addresses = [sign.pubkey, lyrakey]
           var txid = ''
-          wallet.request('createmultisig',[addresses.length, addresses]).then(async function(init){
+          wallet.request('createmultisig', [addresses.length, addresses]).then(async function (init) {
             var trustlink = init['result'].address
-            txid = <string> await wallet.send2multisig(fields.private_key, fields.dapp_address, trustlink, 1, '', 0.001, true)
+            txid = <string>await wallet.send2multisig(fields.private_key, fields.dapp_address, trustlink, 1, '', 0.001, true)
 
-            if(txid !== null && txid.length === 64){
-              
+            if (txid !== null && txid.length === 64) {
+
               // WRITING SIDECHAIN TO BLOCKCHAIN
               var private_keys = fields.private_key + "," + lyraprv
               var redeemScript = init['result']['redeemScript']
@@ -60,32 +60,32 @@ export function issue(req: express.Request, res: express.Response) {
               var collection = '!*!'
               var refID = '!*!'
               var protocol = '!*!chain://'
-              var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + JSON.stringify(issue) + '*!*'
+              var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(issue) + '*!*'
 
               let write = await wallet.writemultisig(private_keys, trustlink, redeemScript, dataToWrite, uuid, collection, refID, protocol)
 
               // MOVE ALL FUNDS FROM SIDECHAIN ADDRESS TO OWNER ADDRESS
               var UuidTx = require('uuid/v4')
               var uuidtx = UuidTx().replace(new RegExp('-', 'g'), '.')
-              
+
               let transaction = {}
               transaction["sidechain"] = trustlink
-              transaction["inputs"] = [{sxid: sxid, vout: "genesis"}]
+              transaction["inputs"] = [{ sxid: sxid, vout: "genesis" }]
               transaction["outputs"] = {}
               transaction["outputs"][fields.dapp_address] = supply
 
               let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
-              let genesistx =  {
+              let genesistx = {
                 transaction: transaction,
                 pubkey: fields.pubkey,
                 signature: signtx.signature,
                 sxid: signtx.id
               }
-              var genesisTxToWrite = '*!*' + uuidtx+collection+refID+protocol+ '*=>' + JSON.stringify(genesistx) + '*!*'
+              var genesisTxToWrite = '*!*' + uuidtx + collection + refID + protocol + '*=>' + JSON.stringify(genesistx) + '*!*'
 
               let sendToOwner = await wallet.writemultisig(private_keys, trustlink, redeemScript, genesisTxToWrite, uuidtx, collection, refID, protocol)
 
-              if(sendToOwner !== false){
+              if (sendToOwner !== false) {
                 res.send({
                   issue: issue,
                   funds_txid: txid,
@@ -93,13 +93,13 @@ export function issue(req: express.Request, res: express.Response) {
                   genesis: sendToOwner,
                   issued: true
                 })
-              }else{
+              } else {
                 res.send({
                   error: 'Error while sending init funds, sidechain can\'t be issued on the main chain.',
                   issued: false
                 })
               }
-            }else{
+            } else {
               console.log('Balance insufficient for airdrop, sidechain can\'t be issued on the main chain.')
               res.send({
                 error: 'Balance insufficient for airdrop, sidechain can\'t be issued on the main chain.',
@@ -107,7 +107,7 @@ export function issue(req: express.Request, res: express.Response) {
               })
             }
           })
-        }else{
+        } else {
           res.send({
             data: {
               error: "Ownership not confirmed, calculated pubkey or address are not valid."
@@ -142,38 +142,38 @@ export function send(req: express.Request, res: express.Response) {
   form.multiples = true
   form.parse(req, async function (err, fields, files) {
 
-    if(fields.from !== undefined && fields.sidechain_address !== undefined && fields.to !== undefined && fields.amount !== undefined && fields.private_key !== undefined) {
-      mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+    if (fields.from !== undefined && fields.sidechain_address !== undefined && fields.to !== undefined && fields.amount !== undefined && fields.private_key !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
-        let check_sidechain = await db.collection('written').find({address: fields.sidechain_address}).sort({block: 1}).limit(1).toArray()
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
         let decimals = parseInt(check_sidechain[0].data.genesis.decimals)
         let checkto = await wallet.request('validateaddress', [fields.to])
 
-        if(checkto['result'].isvalid === true){
-          if(check_sidechain[0] !== undefined && check_sidechain[0].address === fields.sidechain_address){
+        if (checkto['result'].isvalid === true) {
+          if (check_sidechain[0] !== undefined && check_sidechain[0].address === fields.sidechain_address) {
             var scwallet = new Sidechain.Wallet;
             let unspent = await scwallet.listunpent(fields.from, fields.sidechain_address)
             let inputs = []
             let outputs = {}
             let amountinput = 0
             let amount = parseFloat(parseFloat(fields.amount).toFixed(decimals))
-            
-            for(let i in unspent){
-              if(amountinput < amount){
+
+            for (let i in unspent) {
+              if (amountinput < amount) {
                 delete unspent[i]._id
-                let checkinput = await db.collection('sc_transactions').find({sxid: unspent[i].sxid}).limit(1).toArray()
-                if(checkinput[0] !== undefined){
+                let checkinput = await db.collection('sc_transactions').find({ sxid: unspent[i].sxid }).limit(1).toArray()
+                if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
                   inputs.push(unspent[i])
                   amountinput += unspent[i].amount
                 }
               }
             }
-            
-            if(amountinput >= fields.amount){
+
+            if (amountinput >= fields.amount) {
 
               let change = amountinput - amount
               outputs[fields.to] = amount
-              if(change > 0){
+              if (change > 0) {
                 outputs[fields.from] = change
               }
 
@@ -194,13 +194,13 @@ export function send(req: express.Request, res: express.Response) {
               var collection = '!*!'
               var refID = '!*!'
               var protocol = '!*!chain://'
-              var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + JSON.stringify(tx) + '*!*'
+              var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(tx) + '*!*'
 
-              let write = await wallet.write(fields.private_key,fields.from,dataToWrite,uuid,collection,refID,protocol)
-              if(write !== false){
+              let write = await wallet.write(fields.private_key, fields.from, dataToWrite, uuid, collection, refID, protocol)
+              if (write !== false) {
                 res.send(write)
                 // TODO: Send to P2P Network to speed up the transaction.
-              }else{
+              } else {
                 res.send({
                   error: true,
                   description: "Can\'t send transaction",
@@ -208,14 +208,14 @@ export function send(req: express.Request, res: express.Response) {
                 })
               }
 
-            }else{
+            } else {
               res.send({
                 error: true,
                 description: "Insufficient balance",
                 status: 422
               })
             }
-          }else{
+          } else {
             res.send({
               data: {
                 error: "Receiving address is invalid."
@@ -223,7 +223,7 @@ export function send(req: express.Request, res: express.Response) {
               status: 422
             })
           }
-        }else{
+        } else {
           res.send({
             data: {
               error: "Sidechain not found."
@@ -232,7 +232,7 @@ export function send(req: express.Request, res: express.Response) {
           })
         }
       })
-    }else{
+    } else {
       res.send({
         data: {
           error: "Specify all required fields first."
@@ -241,7 +241,7 @@ export function send(req: express.Request, res: express.Response) {
       })
     }
   })
-  
+
 };
 
 export function reissue(req: express.Request, res: express.Response) {
@@ -251,11 +251,43 @@ export function reissue(req: express.Request, res: express.Response) {
 };
 
 export function balance(req: express.Request, res: express.Response) {
-  /*
-    To calculate the balance the node will in effect validate all the transactions, validating every single input and every single output.
-    The sum will give us the balance of the user. Maybe this operation must be written inside the database to increase performance, but let assume it's fast enough. Maybe all the previous checks will in effect write only the valid transactions into the database.
-    Everytime a transaction is invalid it should be deleted by the IdaNode.
-  */
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.dapp_address !== undefined && fields.sidechain_address) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
+        var scwallet = new Sidechain.Wallet;
+        let unspent = await scwallet.listunpent(fields.dapp_address, fields.sidechain_address)
+        if (check_sidechain[0] !== undefined) {
+          let balance = 0
+          for (let x in unspent) {
+            balance += unspent[x].amount
+          }
+
+          res.json({
+            balance: balance,
+            symbol: check_sidechain[0].data.genesis.symbol,
+            sidechain: check_sidechain[0].address
+          })
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  })
 };
 
 export function verify(req: express.Request, res: express.Response) {

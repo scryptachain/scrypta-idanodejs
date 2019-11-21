@@ -13,6 +13,7 @@ var cors = require('cors')
 const IPFS = require('ipfs')
 global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
 global['txidcache'] = []
+global['sxidcache'] = []
 global['utxocache'] = []
 global['limit'] = 200
 
@@ -68,6 +69,7 @@ class App {
     //SIDECHAINS
     app.express.post('/sidechain/issue', sidechains.issue)
     app.express.post('/sidechain/send', sidechains.send)
+    app.express.post('/sidechain/balance', sidechains.balance)
     
     //DAPPS
     app.express.post('/dapps/upload', dapps.upload)
