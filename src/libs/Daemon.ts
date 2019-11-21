@@ -1,6 +1,7 @@
 "use strict";
 import express = require("express")
 import * as Crypto from './Crypto'
+import * as Sidechain from './Sidechain'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 
@@ -199,7 +200,7 @@ module Daemon {
         return new Promise (async response => {
             let check = await db.collection('written').find({uuid: datastore.uuid, block: datastore.block}).limit(1).toArray()
             if(check[0] === undefined){
-                console.log('STORING DATA NOW!')
+                console.log('STORING DATA NOW!', datastore.data)
                 if(JSON.stringify(datastore.data).indexOf('ipfs:') !== -1){
                     let parsed = datastore.data.split('***')
                     if(parsed[0] !== undefined){
@@ -217,6 +218,60 @@ module Daemon {
                 await db.collection("written").insertOne(datastore)
             }else{
                 console.log('DATA ALREADY STORED.')
+            }
+            if(datastore.protocol === 'chain://'){
+                if(datastore.data.genesis !== undefined){
+                    let check = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                    if(check[0] === undefined){
+                        console.log('STORING GENESIS SXID NOW!')
+                        await db.collection("sc_transactions").insertOne(datastore.data)
+                    }else{
+                        console.log('GENESIS SXID ALREAY STORED.')
+                    }
+                }
+                if(datastore.data.transaction !== undefined){
+                    var scwallet = new Sidechain.Wallet;
+                    console.log('SC TRANSACTION FOUND.', JSON.stringify(datastore.data))
+                    let check = await db.collection('sc_unspent').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                    if(check[0] === undefined){
+                        let valid = true
+                        for(let x in datastore.data.transaction.inputs){
+                            let sxid = datastore.data.transaction.inputs[x].sxid
+                            let vout = datastore.data.transaction.inputs[x].vout
+                            let validatesxid = await scwallet.validatesxid(sxid, vout)
+                            if(validatesxid === false){
+                                valid = false
+                            }
+                        }
+                        // TODO: CHECKOUTPUTS
+                        if(valid === true){
+                            await db.collection("sc_transactions").insertOne(datastore.data)
+                            for(let x in datastore.data.transaction.inputs){
+                                let sxid = datastore.data.transaction.inputs[x].sxid
+                                let vout = datastore.data.transaction.inputs[x].vout
+                                await db.collection('sc_unspent').deleteOne({sxid: sxid, vout: vout})
+                            }
+                            let vout = 0
+                            for(let x in datastore.data.transaction.outputs){
+                                let amount = datastore.data.transaction.outputs[x]
+                                let unspent = {
+                                    sxid: datastore.data.sxid,
+                                    vout: vout,
+                                    address: x,
+                                    amount: amount,
+                                    sidechain: datastore.data.transaction.sidechain
+                                }
+                                await db.collection("sc_unspent").insertOne(unspent)
+                                vout++
+                            }
+                            console.log('SIDECHAIN TRANSACTION IS VALID')
+                        }else{
+                            console.log('SIDECHAIN TRANSACTION IS INVALID')
+                        }
+                    }else{
+                        console.log('SIDECHAIN UNSPENT ALREADY STORED.')
+                    }
+                }
             }
             response('STORED')
         })

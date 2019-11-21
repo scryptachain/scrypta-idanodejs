@@ -67,6 +67,7 @@ class App {
 
     //SIDECHAINS
     app.express.post('/sidechain/issue', sidechains.issue)
+    app.express.post('/sidechain/send', sidechains.send)
     
     //DAPPS
     app.express.post('/dapps/upload', dapps.upload)

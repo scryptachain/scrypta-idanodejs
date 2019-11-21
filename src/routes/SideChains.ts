@@ -1,7 +1,9 @@
 import express = require("express")
 var formidable = require('formidable')
 import * as Crypto from '../libs/Crypto'
+import * as Sidechain from '../libs/Sidechain'
 let CoinKey = require("coinkey")
+const mongo = require('mongodb').MongoClient
 const lyraInfo = {
     private: 0xae,
     public: 0x30,
@@ -14,7 +16,7 @@ export function issue(req: express.Request, res: express.Response) {
   form.multiples = true
   form.parse(req, async function (err, fields, files) {
 
-    if (fields.name !== undefined && fields.supply !== undefined && fields.symbol !== undefined && fields.reissuable !== undefined && fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.version !== undefined && fields.private_key !== undefined) {
+    if (fields.name !== undefined && fields.supply !== undefined && fields.symbol !== undefined && fields.reissuable !== undefined && fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.version !== undefined && fields.private_key !== undefined && fields.decimals !== undefined) {
       let supply = parseFloat(fields.supply)
       if (supply > 0) {
 
@@ -22,6 +24,7 @@ export function issue(req: express.Request, res: express.Response) {
           "name": fields.name,
           "supply": supply,
           "symbol": fields.symbol,
+          "decimals": fields.decimals,
           "reissuable": fields.reissuable,
           "owner": fields.dapp_address,
           "pubkey": fields.pubkey,
@@ -31,29 +34,25 @@ export function issue(req: express.Request, res: express.Response) {
         let sign = await wallet.signmessage(fields.private_key, JSON.stringify(genesis))
         if(sign.address === fields.dapp_address && sign.pubkey === fields.pubkey){
           let signature = sign.signature
-          let id = sign.id
+          let sxid = sign.id
           let issue =  {
             genesis: genesis,
             signature: signature,
-            id: id
+            sxid: sxid
           }
 
           var ck = new CoinKey.createRandom(lyraInfo)
-          var lyrapub = ck.publicAddress;
           var lyraprv = ck.privateWif;
           var lyrakey = ck.publicKey.toString('hex')
-          // WARNING!! FOR TEST ONLY
-          lyrapub = "LMwgDcs9XK6yP54uBRLwdw8Nu1d8WJZzrG"
-          lyraprv = "Skr7ocYWN4A6VK37WrKBgdM8eZNRpyMLKZM942mV7PSoeHZu4SZ9"
-          lyrakey = "0399c0cc5c62f84959854e0f571e9929249282d56f22559f5947e30eeee087ebb4"
           let addresses = [sign.pubkey, lyrakey]
           var txid = ''
           wallet.request('createmultisig',[addresses.length, addresses]).then(async function(init){
             var trustlink = init['result'].address
-            txid = <string> await wallet.send2multisig(fields.private_key, fields.dapp_address, trustlink, 0.01, '', 0.001, true)
+            txid = <string> await wallet.send2multisig(fields.private_key, fields.dapp_address, trustlink, 1, '', 0.001, true)
 
             if(txid !== null && txid.length === 64){
               
+              // WRITING SIDECHAIN TO BLOCKCHAIN
               var private_keys = fields.private_key + "," + lyraprv
               var redeemScript = init['result']['redeemScript']
               var Uuid = require('uuid/v4')
@@ -63,93 +62,47 @@ export function issue(req: express.Request, res: express.Response) {
               var protocol = '!*!chain://'
               var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + JSON.stringify(issue) + '*!*'
 
-              var txs = []
-                  var dataToWriteLength = dataToWrite.length
-                  var nchunks = Math.ceil(dataToWriteLength / 74)
-                  var last = nchunks - 1
-                  var chunks = []
+              let write = await wallet.writemultisig(private_keys, trustlink, redeemScript, dataToWrite, uuid, collection, refID, protocol)
 
-                  for (var i=0; i<nchunks; i++){
-                      var start = i * 74
-                      var end = start + 74
-                      var chunk = dataToWrite.substring(start,end)
+              // MOVE ALL FUNDS FROM SIDECHAIN ADDRESS TO OWNER ADDRESS
+              var UuidTx = require('uuid/v4')
+              var uuidtx = UuidTx().replace(new RegExp('-', 'g'), '.')
+              
+              let transaction = {}
+              transaction["sidechain"] = trustlink
+              transaction["inputs"] = [{sxid: sxid, vout: "genesis"}]
+              transaction["outputs"] = {}
+              transaction["outputs"][fields.dapp_address] = supply
 
-                      if(i === 0){
-                          var startnext = (i + 1) * 74
-                          var endnext = startnext + 74
-                          var prevref = ''
-                          var nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
-                      } else if(i === last){
-                          var startprev = (i - 1) * 74
-                          var endprev = startprev + 74
-                          var nextref = ''
-                          var prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
-                      } else {
-                          var sni = i + 1
-                          var startnext = sni * 74
-                          var endnext = startnext + 74
-                          var nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
-                          var spi = i - 1
-                          var startprev = spi * 74
-                          var endprev = startprev + 74
-                          var prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
-                      }
-                      chunk = prevref + chunk + nextref
-                      chunks.push(chunk)
-                  }
+              let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
+              let genesistx =  {
+                transaction: transaction,
+                pubkey: fields.pubkey,
+                signature: signtx.signature,
+                sxid: signtx.id
+              }
+              var genesisTxToWrite = '*!*' + uuidtx+collection+refID+protocol+ '*=>' + JSON.stringify(genesistx) + '*!*'
 
-                  var totalfees = 0
-                  var error = false
-                  var decoded
+              let sendToOwner = await wallet.writemultisig(private_keys, trustlink, redeemScript, genesisTxToWrite, uuidtx, collection, refID, protocol)
 
-                  for(var cix=0; cix<chunks.length; cix++){
-                      var txid = ''
-                      var i = 0
-                      while(txid !== null && txid !== undefined && txid.length !== 64){
-                          var fees = 0.001 + (i / 1000)
-
-                          txid = <string> await wallet.sendmultisig(private_keys,trustlink,trustlink,0,chunks[cix],redeemScript,fees,true)
-                          if(txid !== null && txid.length === 64){
-                              console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
-                              totalfees += fees
-                              txs.push(txid)
-                          }else{
-                            console.log('TX FAILED.')
-                          }
-
-                          i++;
-                          if(i > 20){
-                              error = true
-                              txid = '0000000000000000000000000000000000000000000000000000000000000000'
-                          }
-                      }
-                  }
-              if(error === false){
+              if(sendToOwner !== false){
                 res.send({
-                  token: issue,
+                  issue: issue,
                   funds_txid: txid,
-                  sidechain: {
-                    uuid: uuid,
-                    address: trustlink,
-                    fees: totalfees,
-                    collection: collection.replace('!*!',''),
-                    refID: refID.replace('!*!',''),
-                    protocol: protocol.replace('!*!',''),
-                    dimension: dataToWrite.length,
-                    chunks: nchunks,
-                    stored: dataToWrite,
-                    txs: txs
-                  },
+                  sidechain: write,
+                  genesis: sendToOwner,
                   issued: true
                 })
               }else{
-
+                res.send({
+                  error: 'Error while sending init funds, sidechain can\'t be issued on the main chain.',
+                  issued: false
+                })
               }
             }else{
-              console.log('Balance insufficient for airdrop, token can\'t be issued on the chain.')
+              console.log('Balance insufficient for airdrop, sidechain can\'t be issued on the main chain.')
               res.send({
-                token: issue,
-                funds_txid: txid,
+                error: 'Balance insufficient for airdrop, sidechain can\'t be issued on the main chain.',
                 issued: false
               })
             }
@@ -180,38 +133,116 @@ export function issue(req: express.Request, res: express.Response) {
         status: 422
       })
     }
-
-    /*
-      Defining sidechain protocol:
-
-      User want to create a sidechain, the IdaNode will create a new address and merges that address with the user's one to create a Trustlink.
-      The IdaNode's address it's destroyed after the first operation and it's not stored inside the IdaNode. 
-      The SideChain must start with at least 5 LYRA inside to write all the first informations.
-      These LYRA in effect will be burned if no-one store the second address.
-      
-      First operation is just about the issuing of the token, which have to contain these informations:
-      {
-        "genesis": {
-          "name": "MYTOKEN",
-          "symbol": "MTT",
-          "supply": 1000,
-          "reissuable": true,
-          "owner": "MyAddress",
-          "pubkey": "OwnerPubKey"
-          "version": 1
-        },
-        "signature": "SignatureOfTheGenesisByOwner"
-        "id": "SHA256(SignatureOfTheGenesisByOwner)"
-      }
-      
-      After writing this informations the IdaNode will read all the information inside the block and will create the first sub-block of information, with the genesis and the signature, which will act as TXID in normal transactions. Because all the operations will require more than 1 writing i think it's better to create something parallel. 
-
-      The user can now spend these Tokens by invoking the other endpoint.
-    */
   })
 };
 
 export function send(req: express.Request, res: express.Response) {
+  var form = new formidable.IncomingForm();
+  var wallet = new Crypto.Wallet;
+  form.multiples = true
+  form.parse(req, async function (err, fields, files) {
+
+    if(fields.from !== undefined && fields.sidechain_address !== undefined && fields.to !== undefined && fields.amount !== undefined && fields.private_key !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({address: fields.sidechain_address}).sort({block: 1}).limit(1).toArray()
+        let decimals = parseInt(check_sidechain[0].data.genesis.decimals)
+        let checkto = await wallet.request('validateaddress', [fields.to])
+
+        if(checkto['result'].isvalid === true){
+          if(check_sidechain[0] !== undefined && check_sidechain[0].address === fields.sidechain_address){
+            var scwallet = new Sidechain.Wallet;
+            let unspent = await scwallet.listunpent(fields.from, fields.sidechain_address)
+            let inputs = []
+            let outputs = {}
+            let amountinput = 0
+            let amount = parseFloat(parseFloat(fields.amount).toFixed(decimals))
+            
+            for(let i in unspent){
+              if(amountinput < amount){
+                delete unspent[i]._id
+                let checkinput = await db.collection('sc_transactions').find({sxid: unspent[i].sxid}).limit(1).toArray()
+                if(checkinput[0] !== undefined){
+                  let checksig = await wallet.signmessage(fields.private_key, JSON.stringify(checkinput[0].transaction))
+                  if(checksig.signature === checkinput[0].signature && checksig.id === checkinput[0].sxid){
+                    inputs.push(unspent[i])
+                    amountinput += unspent[i].amount
+                  }
+                }
+              }
+            }
+
+            if(amountinput >= fields.amount){
+
+              let change = amountinput - amount
+              outputs[fields.to] = amount
+              if(change > 0){
+                outputs[fields.from] = change
+              }
+
+              let transaction = {}
+              transaction["sidechain"] = fields.sidechain_address
+              transaction["inputs"] = inputs
+              transaction["outputs"] = outputs
+              let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
+
+              let tx = {
+                transaction: transaction,
+                signature: signtx.signature,
+                pubkey: fields.pubkey,
+                sxid: signtx.id
+              }
+              var Uuid = require('uuid/v4')
+              var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+              var collection = '!*!'
+              var refID = '!*!'
+              var protocol = '!*!chain://'
+              var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + JSON.stringify(tx) + '*!*'
+
+              let write = await wallet.write(fields.private_key,fields.from,dataToWrite,uuid,collection,refID,protocol)
+              if(write !== false){
+                res.send(write)
+              }else{
+                res.send({
+                  error: true,
+                  description: "Can\' send transaction",
+                  status: 422
+                })
+              }
+
+            }else{
+              res.send({
+                error: true,
+                description: "Insufficient balance",
+                status: 422
+              })
+            }
+          }else{
+            res.send({
+              data: {
+                error: "Receiving address is invalid."
+              },
+              status: 422
+            })
+          }
+        }else{
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    }else{
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  })
   /*
     To send the funds you've to use a similar approach to the normal transactions, for simplicity let's assume this is the very first transaction of the SideChain. The owner will move these tokens from his account to another account. 
 

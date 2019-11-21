@@ -358,6 +358,257 @@ module Crypto {
         })
     }
 
+    public async writemultisig(private_keys, trustlink, redeemScript, dataToWrite, uuid, collection, refID, protocol){
+        return new Promise(async response => {
+            var wallet = new Crypto.Wallet;
+            if(dataToWrite.length <= 80){
+                let txid = ''
+                var i = 0
+                var totalfees = 0
+                var error = false
+                while(txid.length !== 64 && error == false){
+                    var fees = 0.001 + (i / 1000)
+                    txid = <string> await wallet.sendmultisig(private_keys,trustlink,trustlink,0,dataToWrite,redeemScript,fees,true)
+
+                    if(txid !== null && txid.length === 64){
+                        console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
+                        totalfees += fees
+                    }else{
+                      console.log('TX FAILED.')
+                    }
+
+                    i++;
+                    if(i > 20){
+                        error = true
+                        txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                    }
+                }
+                if(error === false){
+                    response({
+                        uuid: uuid,
+                        address: wallet,
+                        fees: totalfees,
+                        collection: collection.replace('!*!',''),
+                        refID: refID.replace('!*!',''),
+                        protocol: protocol.replace('!*!',''),
+                        dimension: dataToWrite.length,
+                        chunks: 1,
+                        stored: dataToWrite,
+                        txs: [txid]
+                    })
+                }else{
+                    response(false)
+                }
+
+            }else{
+
+                var txs = []
+                var dataToWriteLength = dataToWrite.length
+                var nchunks = Math.ceil(dataToWriteLength / 74)
+                var last = nchunks - 1
+                var chunks = []
+
+                for (var i=0; i<nchunks; i++){
+                    var start = i * 74
+                    var end = start + 74
+                    var chunk = dataToWrite.substring(start,end)
+                    var prevref
+                    var nextref
+                    if(i === 0){
+                        var startnext = (i + 1) * 74
+                        var endnext = startnext + 74
+                        prevref = ''
+                        nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
+                    } else if(i === last){
+                        var startprev = (i - 1) * 74
+                        var endprev = startprev + 74
+                        nextref = ''
+                        prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                    } else {
+                        var sni = i + 1
+                        var startnext = sni * 74
+                        var endnext = startnext + 74
+                        nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
+                        var spi = i - 1
+                        var startprev = spi * 74
+                        var endprev = startprev + 74
+                        prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                    }
+                    chunk = prevref + chunk + nextref
+                    chunks.push(chunk)
+                }
+
+                var totalfees = 0
+                var error = false
+
+                for(var cix=0; cix<chunks.length; cix++){
+                    var txid = ''
+                    var i = 0
+                    while(txid !== null && txid !== undefined && txid.length !== 64){
+                        var fees = 0.001 + (i / 1000)
+
+                        txid = <string> await wallet.sendmultisig(private_keys,trustlink,trustlink,0,chunks[cix],redeemScript,fees,true)
+                        if(txid !== null && txid.length === 64){
+                            console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
+                            totalfees += fees
+                            txs.push(txid)
+                        }else{
+                          console.log('TX FAILED.')
+                        }
+
+                        i++;
+                        if(i > 20){
+                            error = true
+                            txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                        }
+                    }
+                }
+
+                if(error === false){
+                    response({
+                        uuid: uuid,
+                        address: trustlink,
+                        fees: totalfees,
+                        collection: collection.replace('!*!',''),
+                        refID: refID.replace('!*!',''),
+                        protocol: protocol.replace('!*!',''),
+                        dimension: dataToWrite.length,
+                        chunks: nchunks,
+                        stored: dataToWrite,
+                        txs: txs
+                    })
+                }else{
+                    response(false)
+                }
+            }
+        })
+    }
+
+    public async write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol){
+        return new Promise(async response => {
+            var wallet = new Crypto.Wallet;
+            if(dataToWrite.length <= 80){
+                let txid = ''
+                var i = 0
+                var totalfees = 0
+                var error = false
+                while(txid.length !== 64 && error == false){
+                    var fees = 0.001 + (i / 1000)
+
+                    txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees,true)
+                    if(txid !== null && txid.length === 64){
+                        console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
+                        totalfees += fees
+                    }
+
+                    i++;
+                    if(i > 20){
+                        error = true
+                        txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                    }
+                }
+                if(error === false){
+                    response({
+                        uuid: uuid,
+                        address: wallet,
+                        fees: totalfees,
+                        collection: collection.replace('!*!',''),
+                        refID: refID.replace('!*!',''),
+                        protocol: protocol.replace('!*!',''),
+                        dimension: dataToWrite.length,
+                        chunks: 1,
+                        stored: dataToWrite,
+                        txs: [txid]
+                    })
+                }else{
+                    response(false)
+                }
+            }else{
+
+                var txs = []
+                var dataToWriteLength = dataToWrite.length
+                var nchunks = Math.ceil(dataToWriteLength / 74)
+                var last = nchunks - 1
+                var chunks = []
+
+                for (var i=0; i<nchunks; i++){
+                    var start = i * 74
+                    var end = start + 74
+                    var chunk = dataToWrite.substring(start,end)
+                    var nextref
+                    var prevref
+                    if(i === 0){
+                        var startnext = (i + 1) * 74
+                        var endnext = startnext + 74
+                        prevref = ''
+                        nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
+                    } else if(i === last){
+                        var startprev = (i - 1) * 74
+                        var endprev = startprev + 74
+                        nextref = ''
+                        prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                    } else {
+                        var sni = i + 1
+                        var startnext = sni * 74
+                        var endnext = startnext + 74
+                        nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
+                        var spi = i - 1
+                        var startprev = spi * 74
+                        var endprev = startprev + 74
+                        prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                    }
+                    chunk = prevref + chunk + nextref
+                    chunks.push(chunk)
+                }
+
+                var totalfees = 0
+                var error = false
+
+                for(var cix=0; cix<chunks.length; cix++){
+                    var txid = ''
+                    var i = 0
+                    var rawtransaction
+                    while(txid !== null && txid !== undefined && txid.length !== 64){
+                        var fees = 0.001 + (i / 1000)
+
+                        txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees,true)
+                        if(txid !== null && txid.length === 64){
+                            console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
+                            totalfees += fees
+                            txs.push(txid)
+                        }
+
+                        i++;
+                        if(i > 20){
+                            error = true
+                            txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                        }
+                    }
+                }
+                if(error === false){
+                    if(txs.length === chunks.length){
+                        response({
+                            uuid: uuid,
+                            address: dapp_address,
+                            fees: totalfees,
+                            collection: collection.replace('!*!',''),
+                            refID: refID.replace('!*!',''),
+                            protocol: protocol.replace('!*!',''),
+                            dimension: dataToWrite.length,
+                            chunks: nchunks,
+                            stored: dataToWrite,
+                            txs: txs
+                        })
+                    }else{
+                        response(false)
+                    }
+                }else{
+                    response(false)
+                }
+            }
+        })
+    }
+
     public async analyzeBlock (block) {
         return new Promise (response => {
             var wallet = new Crypto.Wallet

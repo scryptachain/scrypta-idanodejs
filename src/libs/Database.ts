@@ -37,6 +37,16 @@ module Database {
                         compound: [["txid","vout"]]
                     },
                     {
+                        name: "sc_unspent",
+                        indexes: ["address", "sxid"],
+                        compound: [["sxid","vout"]]
+                    },
+                    {
+                        name: "sc_transactions",
+                        indexes: ["address", "sxid", "time", "block"],
+                        compound: [["address","sxid"]]
+                    },
+                    {
                         name: "initialized",
                         indexes: ["address", "txid"],
                         compound: []
