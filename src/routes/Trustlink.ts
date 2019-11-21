@@ -197,7 +197,6 @@ export async function write(req: express.Request, res: express.Response) {
                   for(var cix=0; cix<chunks.length; cix++){
                       var txid = ''
                       var i = 0
-                      var rawtransaction
                       while(txid !== null && txid !== undefined && txid.length !== 64){
                           var fees = 0.001 + (i / 1000)
 
@@ -217,10 +216,11 @@ export async function write(req: express.Request, res: express.Response) {
                           }
                       }
                   }
+
                   if(error === false){
                       res.json({
                           uuid: uuid,
-                          address: wallet,
+                          address: trustlink,
                           fees: totalfees,
                           collection: collection.replace('!*!',''),
                           refID: refID.replace('!*!',''),
@@ -288,7 +288,7 @@ export async function send(req: express.Request, res: express.Response) {
                 wallet.request('validateaddress',[to]).then(async response => {
                     var validation = response['result']
                     if(validation.isvalid === true){
-                        if(parseFloat(amount) > 0){
+                        if(amount > 0){
                             var i = 0
                             var totalfees = 0
                             var error = false

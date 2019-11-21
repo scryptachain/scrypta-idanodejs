@@ -167,7 +167,7 @@ export async function send(req: express.Request, res: express.Response) {
                 wallet.request('validateaddress',[to]).then(async response => {
                     var validation = response['result']
                     if(validation.isvalid === true){
-                        if(parseFloat(amount) > 0){
+                        if(amount > 0){
                             var txid = <string> await wallet.send(private_key,from,to,amount,metadata)
                             if(txid !== 'false'){
                                 res.json({

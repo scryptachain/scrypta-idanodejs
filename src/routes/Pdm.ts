@@ -172,7 +172,7 @@ export async function write(req: express.Request, res: express.Response) {
                             if(error === false){
                                 res.json({
                                     uuid: uuid,
-                                    address: wallet,
+                                    address: dapp_address,
                                     fees: totalfees,
                                     collection: collection.replace('!*!',''),
                                     refID: refID.replace('!*!',''),

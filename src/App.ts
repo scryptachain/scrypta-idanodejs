@@ -5,7 +5,9 @@ import * as ipfs from "./routes/Ipfs"
 import * as trustlink from "./routes/Trustlink"
 import * as pdm from "./routes/Pdm"
 import * as dapps from "./routes/dApps"
+import * as sidechains from "./routes/SideChains"
 
+const fs = require('fs')
 var bodyParser = require('body-parser')
 var cors = require('cors')
 const IPFS = require('ipfs')
@@ -63,6 +65,9 @@ class App {
     app.express.post('/trustlink/send', trustlink.send)
     app.express.post('/trustlink/invalidate', trustlink.invalidate)
 
+    //SIDECHAINS
+    app.express.post('/sidechain/issue', sidechains.issue)
+    
     //DAPPS
     app.express.post('/dapps/upload', dapps.upload)
 
@@ -77,9 +82,8 @@ class App {
     app.express.get('/ipfs/:hash/:folder', ipfs.getfolder)
     app.express.get('/ipfs/pins', ipfs.pins)
 
-    //EXPLORER
-    app.express.get('/',explorer.info)
-    app.express.get('/lastblock',explorer.getlastblock)
+    //EXPLORER 
+    app.express.get('/block/last',explorer.getlastblock)
     app.express.get('/block/:block',explorer.getblock)
     app.express.get('/analyze/:block',explorer.analyzeblock)
     app.express.get('/transactions/:address', explorer.transactions)

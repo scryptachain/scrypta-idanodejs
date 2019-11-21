@@ -3,7 +3,15 @@ import * as Utilities from './Utilities'
 import Trx from '../libs/trx/trx.js'
 const mongo = require('mongodb').MongoClient
 let request = require("request")
-var watchinglist = []
+let CoinKey = require("coinkey")
+const CryptoJS = require('crypto-js')
+const secp256k1 = require('secp256k1')
+
+const lyraInfo = {
+    private: 0xae,
+    public: 0x30,
+    scripthash: 0x0d
+};
 
 module Crypto {
 
@@ -43,6 +51,26 @@ module Crypto {
         })
     }
 
+    public async signmessage(key, message){
+        return new Promise <any> (async response => {
+            var ck = CoinKey.fromWif(key, lyraInfo);
+            let hash = CryptoJS.SHA256(message);
+            let msg = Buffer.from(hash.toString(CryptoJS.enc.Hex), 'hex');
+            let privKey = ck.privateKey
+            const sigObj = secp256k1.sign(msg, privKey)
+            const pubKey = secp256k1.publicKeyCreate(privKey)
+            let id = CryptoJS.SHA256(sigObj.signature.toString('hex'));
+            response({
+                message: message,
+                hash: hash.toString(CryptoJS.enc.Hex),
+                signature: sigObj.signature.toString('hex'),
+                id: id.toString(CryptoJS.enc.Hex),
+                pubkey: pubKey.toString('hex'),
+                address: ck.publicAddress
+            })
+        })
+    }
+
     public async listunpent(address){
         return new Promise <any> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
@@ -60,7 +88,9 @@ module Crypto {
 
             var unspent = []
             for(let x in global['utxocache']){
-                unspent.push(global['utxocache'][x])
+                if(global['utxocache'][x]['address'] === from){
+                    unspent.push(global['utxocache'][x])
+                }
             }
             let blockchainunspent = await wallet.listunpent(from)
             for(let y in blockchainunspent){
@@ -118,7 +148,94 @@ module Crypto {
                                     scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
                                     amount: decoded.vout[voutchange].value
                                 }
+                                console.log("UNSPENT IS: ",unspent)
                                 global['utxocache'][decoded.txid] = unspent
+                            }
+                        }
+                        response(txid['result'])
+                    }else{
+                        response(signed)
+                    }
+                }else{
+                    console.log('NOT ENOUGH FUNDS, NEEDED ' + amountneed + ' LYRA vs ' + inputamount + ' LYRA')
+                    response(false)
+                }
+            }else{
+                response(false)
+            }
+        })
+    }
+
+    public async send2multisig(private_key, from, to, amount, metadata = '', fees = 0.001, send = true){
+        return new Promise (async response => {
+            var wallet = new Crypto.Wallet;
+
+            var unspent = []
+            for(let x in global['utxocache']){
+                if(global['utxocache'][x]['address'] === from){
+                    unspent.push(global['utxocache'][x])
+                }
+            }
+            let blockchainunspent = await wallet.listunpent(from)
+            for(let y in blockchainunspent){
+                unspent.push(blockchainunspent[y])
+            }
+            var inputs = []
+            var outputs = {}
+            if(unspent.length > 0){
+                var inputamount
+                inputamount = 0
+                for (let i in unspent){
+                    var amountneed = parseFloat(amount) + fees;
+                    if(inputamount <= amountneed){
+                        var txin = unspent[i]['txid'];
+                        var index = unspent[i]['vout'];
+                        var script = unspent[i]['scriptPubKey'];
+                        if(global['txidcache'].indexOf(txin) === -1){
+                            inputs.push({
+                                "txid": txin,
+                                "vout": index,
+                                "scriptPubKey": script
+                            })
+                            inputamount += parseFloat(unspent[i]['amount'])
+                        }
+                    }
+                }
+                var voutchange = 0
+                if(inputamount >= amountneed){
+                    let change = parseFloat(inputamount) - amountneed;
+
+                    if(amount > 0.00001){
+                        outputs[to] = parseFloat(amount)
+                        voutchange++
+                    }
+
+                    if(change > 0.00001){
+                        outputs[from] = change
+                    }
+
+                    var rawtx = <string> await wallet.request('createrawtransaction',[inputs,outputs])
+                    var sign = <string> await wallet.request('signrawtransaction',[rawtx['result'],inputs,[private_key]])
+                    var signed = sign['result']['hex']
+                    
+                    if(send === true){
+                        var txid = <string> await wallet.request('sendrawtransaction',[signed])
+                        if(txid['result'] !== null && txid['result'].length === 64){
+                            for(let x in inputs){
+                                global['txidcache'].push(inputs[x])
+                                delete global['utxocache'][inputs[x]]
+                            }
+                            let decoderawtransaction = await wallet.request('decoderawtransaction', [signed])
+                            let decoded = decoderawtransaction['result']
+                            for(let vox in decoded.vout){
+                                let unspent = {
+                                    txid: decoded.txid,
+                                    vout: vox,
+                                    address: decoded.vout[vox].scriptPubKey.addresses[0],
+                                    scriptPubKey: decoded.vout[vox].scriptPubKey.hex,
+                                    amount: decoded.vout[vox].value
+                                }
+                                global['utxocache'][decoded.txid + ':' + vox] = unspent
                             }
                         }
                         response(txid['result'])
@@ -141,7 +258,10 @@ module Crypto {
 
             var unspent = []
             for(let x in global['utxocache']){
-                unspent.push(global['utxocache'][x])
+                if(global['utxocache'][x]['address'] === from){
+                    global['utxocache'][x]['vout'] = parseInt(global['utxocache'][x]['vout'])
+                    unspent.push(global['utxocache'][x])
+                }
             }
             let blockchainunspent = await wallet.listunpent(from)
             for(let y in blockchainunspent){
@@ -221,6 +341,7 @@ module Crypto {
                                     amount: decoded.vout[voutchange].value
                                 }
                                 global['utxocache'][decoded.txid] = unspent
+                                console.log("UNSPENT IS",unspent)
                             }
                         }
                         response(txid['result'])
