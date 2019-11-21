@@ -43,7 +43,7 @@ module Database {
                     },
                     {
                         name: "sc_transactions",
-                        indexes: ["address", "sxid", "time", "block"],
+                        indexes: ["address", "sxid", "time", "block", "transaction.sidechain"],
                         compound: [["address","sxid"]]
                     },
                     {

@@ -262,11 +262,71 @@ export function balance(req: express.Request, res: express.Response) {
         if (check_sidechain[0] !== undefined) {
           let balance = 0
           for (let x in unspent) {
-            balance += unspent[x].amount
+            balance += parseFloat(unspent[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
           }
 
           res.json({
             balance: balance,
+            symbol: check_sidechain[0].data.genesis.symbol,
+            sidechain: check_sidechain[0].address
+          })
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  })
+};
+
+export function transactions(req: express.Request, res: express.Response) {
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.dapp_address !== undefined && fields.sidechain_address) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
+        if (check_sidechain[0] !== undefined) {
+          let transactions = []
+
+          let txs = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: -1 }).toArray()
+          for(let tx in txs){
+            if(txs[tx].transaction.inputs[0].address === fields.dapp_address || txs[tx].transaction.outputs[fields.dapp_address] !== undefined){
+              delete txs[tx]._id
+              let amount = 0
+              let recipient = 0
+              if(txs[tx].transaction.inputs[0].address === fields.dapp_address){
+                amount -= txs[tx].transaction.inputs[0].amount
+              }
+              if(txs[tx].transaction.outputs[fields.dapp_address] !== undefined){
+                amount += txs[tx].transaction.outputs[fields.dapp_address]
+              }
+              let to = []
+              for(let address in txs[tx].transaction.outputs){
+                to.push(address)
+              }
+              let analyzed = {
+                sxid: txs[tx].sxid,
+                from: txs[tx].transaction.inputs[0].address,
+                to: to,
+                amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals))
+              }
+              transactions.push(analyzed)
+            }
+          }
+          res.json({
+            transactions: transactions,
             symbol: check_sidechain[0].data.genesis.symbol,
             sidechain: check_sidechain[0].address
           })
