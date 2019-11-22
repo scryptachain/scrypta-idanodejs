@@ -245,15 +245,13 @@ module Daemon {
                             if(validatesxid === false){
                                 valid = false
                             }
-                            if(datastore.address !== datastore.data.transaction.inputs[x].address){
-                                valid = false
-                            }
                             amountinput += datastore.data.transaction.inputs[x].amount
                         }
-
+                        
                         for(let x in datastore.data.transaction.outputs){
                             amountoutput += datastore.data.transaction.outputs[x]
                         }
+                        
                         if(amountoutput > amountinput){
                             valid = false
                         }
@@ -264,6 +262,8 @@ module Daemon {
                             if(validatesign === false){
                                 valid = false
                             }
+                        }else{
+                            valid = false
                         }
 
                         if(valid === true){

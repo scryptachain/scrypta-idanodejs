@@ -38,6 +38,7 @@ export function issue(req: express.Request, res: express.Response) {
           let issue = {
             genesis: genesis,
             signature: signature,
+            pubkey: sign.pubkey,
             sxid: sxid
           }
 
