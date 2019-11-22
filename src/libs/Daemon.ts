@@ -264,12 +264,6 @@ module Daemon {
                             if(validatesign === false){
                                 valid = false
                             }
-                        }else{
-                            if(datastore.data.genesis === undefined){
-                                valid = false
-                            }else{
-                                valid = true
-                            }
                         }
 
                         if(valid === true){
