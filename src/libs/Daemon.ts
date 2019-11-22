@@ -242,10 +242,15 @@ module Daemon {
                             if(validatesxid === false){
                                 valid = false
                             }
+                            if(datastore.data.address !== datastore.data.transaction.inputs[x].address){
+                                valid = false
+                            }
                         }
-                        
-                        // TODO: CHECKOUTPUTS
-                        // TODO: PUBKEYCHECK
+                        var wallet = new Crypto.Wallet;
+                        let validatesign = await wallet.verifymessage(datastore.data.pubkey,datastore.data.signature,datastore.data.transaction)
+                        if(validatesign === false){
+                            valid = false
+                        }
 
                         if(valid === true){
                             await db.collection("sc_transactions").insertOne(datastore.data)

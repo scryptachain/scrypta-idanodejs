@@ -23,6 +23,7 @@ module SideChain {
                 const db = client.db(global['db_name'])
                 let unspent = await db.collection('sc_unspent').find({sxid: sxid, vout: vout}).sort({block: -1}).toArray()
                 if(unspent[0] !== undefined){
+                    // TODO: CHECKSIG
                     response(true)
                 }else{
                     let check_genesis = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()

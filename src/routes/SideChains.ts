@@ -157,14 +157,17 @@ export function send(req: express.Request, res: express.Response) {
             let outputs = {}
             let amountinput = 0
             let amount = parseFloat(parseFloat(fields.amount).toFixed(decimals))
-
+            let usedtx = []
             for (let i in unspent) {
               if (amountinput < amount) {
                 delete unspent[i]._id
                 let checkinput = await db.collection('sc_transactions').find({ sxid: unspent[i].sxid }).limit(1).toArray()
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
-                  inputs.push(unspent[i])
-                  amountinput += unspent[i].amount
+                  if(global['sxidcache'].indexOf(unspent[i].sxid) === -1){
+                    inputs.push(unspent[i])
+                    usedtx.push(unspent[i].sxid)
+                    amountinput += unspent[i].amount
+                  }
                 }
               }
             }
@@ -199,6 +202,21 @@ export function send(req: express.Request, res: express.Response) {
               let write = await wallet.write(fields.private_key, fields.from, dataToWrite, uuid, collection, refID, protocol)
               if (write !== false) {
                 res.send(write)
+                for(let x in usedtx){
+                  global['sxidcache'].push(usedtx[x])
+                }
+                let vout = 0
+                for(let x in outputs){
+                  let unspent = {
+                    sxid: tx.sxid,
+                    vout: vout,
+                    address: x,
+                    amount: outputs[x],
+                    sidechain: tx.transaction['sidechain']
+                  }
+                  global['usxocache'].push(unspent)
+                  vout++
+                }
                 // TODO: Send to P2P Network to speed up the transaction.
               } else {
                 res.send({

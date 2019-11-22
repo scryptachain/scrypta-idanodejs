@@ -13,8 +13,9 @@ var cors = require('cors')
 const IPFS = require('ipfs')
 global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
 global['txidcache'] = []
-global['sxidcache'] = []
 global['utxocache'] = []
+global['sxidcache'] = []
+global['usxocache'] = []
 global['limit'] = 200
 
 //TODO: Implement a cache system so data can be parsed through different blocks

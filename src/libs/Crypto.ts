@@ -87,7 +87,7 @@ module Crypto {
         return new Promise(async response => {
             //CREATE HASH FROM MESSAGE
             const wallet = new Crypto.Wallet
-            let hash = CryptoJS.SHA256(message);
+            let hash = CryptoJS.SHA256(message)
             let msg = Buffer.from(hash.toString(CryptoJS.enc.Hex), 'hex')
             //VERIFY MESSAGE
             let buf = Buffer.from(signature,'hex')
