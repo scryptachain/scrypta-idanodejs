@@ -235,6 +235,9 @@ module Daemon {
                     let check = await db.collection('sc_unspent').find({sxid: datastore.data.sxid}).limit(1).toArray()
                     if(check[0] === undefined){
                         let valid = true
+                        var amountinput = 0
+                        var amountoutput = 0
+
                         for(let x in datastore.data.transaction.inputs){
                             let sxid = datastore.data.transaction.inputs[x].sxid
                             let vout = datastore.data.transaction.inputs[x].vout
@@ -245,14 +248,22 @@ module Daemon {
                             if(datastore.address !== datastore.data.transaction.inputs[x].address){
                                 valid = false
                             }
+                            amountinput += datastore.data.transaction.inputs[x].amount
                         }
 
+                        for(let x in datastore.data.transaction.outputs){
+                            amountoutput += datastore.data.transaction.outputs[x]
+                        }
+                        if(amountoutput > amountinput){
+                            valid = false
+                        }
+                        
                         var wallet = new Crypto.Wallet;
                         let validatesign = await wallet.verifymessage(datastore.data.pubkey,datastore.data.signature,JSON.stringify(datastore.data.transaction))
                         if(validatesign === false){
                             valid = false
                         }
-                        
+
                         if(valid === true){
                             await db.collection("sc_transactions").insertOne(datastore.data)
                             for(let x in datastore.data.transaction.inputs){
