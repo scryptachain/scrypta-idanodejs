@@ -257,10 +257,14 @@ module Daemon {
                         if(amountoutput > amountinput){
                             valid = false
                         }
-                        
+
                         var wallet = new Crypto.Wallet;
-                        let validatesign = await wallet.verifymessage(datastore.data.pubkey,datastore.data.signature,JSON.stringify(datastore.data.transaction))
-                        if(validatesign === false){
+                        if(datastore.data.pubkey !== undefined && datastore.data.signature !== undefined && datastore.data.transaction !== undefined){
+                            let validatesign = await wallet.verifymessage(datastore.data.pubkey,datastore.data.signature,JSON.stringify(datastore.data.transaction))
+                            if(validatesign === false){
+                                valid = false
+                            }
+                        }else{
                             valid = false
                         }
 
