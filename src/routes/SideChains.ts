@@ -369,6 +369,40 @@ export function transactions(req: express.Request, res: express.Response) {
   })
 };
 
+export function listunspent(req: express.Request, res: express.Response){
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.dapp_address !== undefined && fields.sidechain_address) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
+        var scwallet = new Sidechain.Wallet;
+        let unspent = await scwallet.listunpent(fields.dapp_address, fields.sidechain_address)
+        if (check_sidechain[0] !== undefined) {
+          res.json({
+            unspent: unspent,
+            sidechain: check_sidechain[0].address
+          })
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  })
+}
+
 export function verify(req: express.Request, res: express.Response) {
   /*
     With this operation the IdaNode will check every side-transaction written on the blockchain, preventing to malicious, malformed or invalid transactions that will eventually pass the validation to be written on the main database. This is a secondary verification feature because, in effect, every client will check his own transactions and, if there's something strange, the transaction will be rejected by the client which in effect rejects the payment. The verification will be recursive so every new block if there's one or more sidechain transaction the Idanode will check the previous tx and write it into the database if it's valid. A full rescan can be performed to make sure that's all working but, again, if one hash is not working it will never be written so it's unspendable (even if it's written in the blockchain).
