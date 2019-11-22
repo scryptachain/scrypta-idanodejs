@@ -331,9 +331,11 @@ export function transactions(req: express.Request, res: express.Response) {
               if(txs[tx].transaction.outputs[fields.dapp_address] !== undefined){
                 amount += txs[tx].transaction.outputs[fields.dapp_address]
               }
-              let to = []
+              let to
               for(let address in txs[tx].transaction.outputs){
-                to.push(address)
+                if(address !== txs[tx].transaction.inputs[0].address){
+                  to = address
+                }
               }
               let analyzed = {
                 sxid: txs[tx].sxid,
