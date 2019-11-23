@@ -75,6 +75,7 @@ export function issue(req: express.Request, res: express.Response) {
               transaction["inputs"] = [{ sxid: sxid, vout: "genesis" }]
               transaction["outputs"] = {}
               transaction["outputs"][fields.dapp_address] = supply
+              transaction["time"] = new Date().getTime()
 
               let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
               let genesistx = {
@@ -186,6 +187,8 @@ export function send(req: express.Request, res: express.Response) {
               transaction["sidechain"] = fields.sidechain_address
               transaction["inputs"] = inputs
               transaction["outputs"] = outputs
+              transaction["time"] = new Date().getTime()
+              
               let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
 
               let tx = {
