@@ -28,7 +28,8 @@ export function issue(req: express.Request, res: express.Response) {
           "reissuable": fields.reissuable,
           "owner": fields.dapp_address,
           "pubkey": fields.pubkey,
-          "version": fields.version
+          "version": fields.version,
+          "time": new Date().getTime()
         }
 
         let sign = await wallet.signmessage(fields.private_key, JSON.stringify(genesis))
@@ -402,6 +403,133 @@ export function listunspent(req: express.Request, res: express.Response){
         status: 422
       })
     }
+  })
+}
+
+export function scanaddress(req: express.Request, res: express.Response){
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.dapp_address !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        var scwallet = new Sidechain.Wallet;
+        let sidechain_datas = await db.collection('written').find({ protocol: 'chain://' }).sort({ block: 1 }).toArray()
+        if (sidechain_datas[0] !== undefined) {
+          let sidechains = []
+          let scan = []
+          for(let x in sidechain_datas){
+            if(sidechain_datas[x].data.genesis !== undefined && sidechain_datas[x].data.genesis.time !== undefined){
+              sidechain_datas[x].data.address = sidechain_datas[x].address
+              sidechains.push(sidechain_datas[x].data)
+            }
+          }
+          for(let y in sidechains){
+              let balance = 0
+              let unspent = await scwallet.listunpent(fields.dapp_address, sidechains[y].address)
+              if(unspent.length > 0){
+                for(let z in unspent){
+                  balance += unspent[z].amount
+                }
+              }
+              if(balance > 0){
+                scan.push({
+                  sidechain: sidechains[y].address,
+                  symbol: sidechains[y].genesis.symbol,
+                  balance: balance
+                })
+              }
+          }
+          res.send({
+            data: scan,
+            status: 200
+          })
+
+        } else {
+          res.send({
+            data: {
+              error: "Sidechains not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  })
+}
+
+export function scanchain(req: express.Request, res: express.Response){
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.sidechain_address !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: -1 }).toArray()
+        
+        if (sidechain_datas[0] !== undefined) {
+          for(let x in sidechain_datas){
+            delete sidechain_datas[x]._id
+          }
+          res.send({
+            data: sidechain_datas,
+            status: 200
+          })
+
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  })
+}
+
+export function listchains(req: express.Request, res: express.Response){
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let sidechain_datas = await db.collection('written').find({ protocol: 'chain://' }).sort({ block: 1 }).toArray()
+        if (sidechain_datas[0] !== undefined) {
+          let sidechains = []
+          for(let x in sidechain_datas){
+            if(sidechain_datas[x].data.genesis !== undefined && sidechain_datas[x].data.genesis.time !== undefined){
+              sidechain_datas[x].data.address = sidechain_datas[x].address
+              sidechains.push(sidechain_datas[x].data)
+            }
+          }
+
+          res.send({
+            data: sidechains,
+            status: 200
+          })
+
+        } else {
+          res.send({
+            data: {
+              error: "Sidechains not found."
+            },
+            status: 422
+          })
+        }
+      })
   })
 }
 

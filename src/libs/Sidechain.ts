@@ -11,6 +11,9 @@ module SideChain {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
                 let unspent = await db.collection('sc_unspent').find({address: address, sidechain: sidechain}).sort({block: 1}).toArray()
+                for(let x in unspent){
+                    delete unspent[x]._id
+                }
                 client.close()
                 response(unspent)
             })
