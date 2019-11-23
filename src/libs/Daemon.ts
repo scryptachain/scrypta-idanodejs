@@ -267,6 +267,7 @@ module Daemon {
                         }
 
                         if(valid === true){
+                            datastore.data.block = datastore.block
                             await db.collection("sc_transactions").insertOne(datastore.data)
                             for(let x in datastore.data.transaction.inputs){
                                 let sxid = datastore.data.transaction.inputs[x].sxid
@@ -281,7 +282,8 @@ module Daemon {
                                     vout: vout,
                                     address: x,
                                     amount: amount,
-                                    sidechain: datastore.data.transaction.sidechain
+                                    sidechain: datastore.data.transaction.sidechain,
+                                    block: datastore.block
                                 }
                                 await db.collection("sc_unspent").insertOne(unspent)
                                 vout++
