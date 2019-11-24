@@ -371,7 +371,8 @@ export async function transactions(req: express.Request, res: express.Response) 
                 sxid: txs[tx].sxid,
                 from: txs[tx].transaction.inputs[0].address,
                 to: to,
-                amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals))
+                amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals)),
+                block: txs[tx].block
               }
               transactions.push(analyzed)
             }
