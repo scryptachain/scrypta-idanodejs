@@ -28,7 +28,7 @@ module Database {
                     },
                     {
                         name: "written",
-                        indexes: ["address", "block", "uuid", "collection", "protocol"],
+                        indexes: ["address", "block", "uuid", "collection", "protocol", "data.sxid"],
                         compound: [["uuid","block"]]
                     },
                     {

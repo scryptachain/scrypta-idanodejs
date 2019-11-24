@@ -564,6 +564,50 @@ export async function scanchain(req: express.Request, res: express.Response) {
   }
 }
 
+export async function transaction(req: express.Request, res: express.Response) {
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
+    if (fields.sidechain_address !== undefined && fields.sxid) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
+        if (check_sidechain[0] !== undefined) {
+          var written = await db.collection('written').find({ "data.sxid": fields.sxid }).sort({ block: 1 }).limit(1).toArray()
+          delete written[0]._id
+          res.json({
+            transaction: written[0],
+            symbol: check_sidechain[0].data.genesis.symbol,
+            sidechain: check_sidechain[0].address
+          })
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  } else {
+    res.send({
+      data: {
+        error: "Specify all required fields first."
+      },
+      status: 422
+    })
+  }
+};
+
 export function listchains(req: express.Request, res: express.Response) {
   var form = new formidable.IncomingForm();
   form.parse(req, async function (err, fields, files) {
