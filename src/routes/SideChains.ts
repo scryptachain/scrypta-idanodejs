@@ -532,14 +532,14 @@ export async function scanaddress(req: express.Request, res: express.Response) {
             let unspent = await scwallet.listunpent(fields.dapp_address, sidechains[y].address)
             if (unspent.length > 0) {
               for (let z in unspent) {
-                balance += unspent[z].amount
+                balance += parseFloat(unspent[z].amount.toFixed(sidechains[y].genesis.decimals))
               }
             }
             if (balance > 0) {
               scan.push({
                 sidechain: sidechains[y].address,
                 symbol: sidechains[y].genesis.symbol,
-                balance: balance
+                balance: parseFloat(balance.toFixed(sidechains[y].genesis.decimals))
               })
             }
           }
