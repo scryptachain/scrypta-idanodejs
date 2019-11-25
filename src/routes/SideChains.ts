@@ -183,55 +183,64 @@ export async function send(req: express.Request, res: express.Response) {
                 }
               }
             }
-
+            let totaloutputs = 0
             if (amountinput >= fields.amount) {
 
               let change = amountinput - amount
               outputs[fields.to] = amount
+              totaloutputs += amount
               if (change > 0) {
                 outputs[fields.from] = change
+                totaloutputs += change
               }
+              if (inputs.length > 0 && totaloutputs > 0) {
+                let transaction = {}
+                transaction["sidechain"] = fields.sidechain_address
+                transaction["inputs"] = inputs
+                transaction["outputs"] = outputs
+                transaction["time"] = new Date().getTime()
 
-              let transaction = {}
-              transaction["sidechain"] = fields.sidechain_address
-              transaction["inputs"] = inputs
-              transaction["outputs"] = outputs
-              transaction["time"] = new Date().getTime()
+                let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
 
-              let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
-
-              let tx = {
-                transaction: transaction,
-                signature: signtx.signature,
-                pubkey: fields.pubkey,
-                sxid: signtx.id
-              }
-              var Uuid = require('uuid/v4')
-              var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
-              var collection = '!*!'
-              var refID = '!*!'
-              var protocol = '!*!chain://'
-              var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(tx) + '*!*'
-
-              let write = await wallet.write(fields.private_key, fields.from, dataToWrite, uuid, collection, refID, protocol)
-              if (write !== false) {
-                res.send(write)
-                for (let x in usedtx) {
-                  global['sxidcache'].push(usedtx[x])
+                let tx = {
+                  transaction: transaction,
+                  signature: signtx.signature,
+                  pubkey: fields.pubkey,
+                  sxid: signtx.id
                 }
-                let vout = 0
-                for (let x in outputs) {
-                  let unspent = {
-                    sxid: tx.sxid,
-                    vout: vout,
-                    address: x,
-                    amount: outputs[x],
-                    sidechain: tx.transaction['sidechain']
+                var Uuid = require('uuid/v4')
+                var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+                var collection = '!*!'
+                var refID = '!*!'
+                var protocol = '!*!chain://'
+                var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(tx) + '*!*'
+
+                let write = await wallet.write(fields.private_key, fields.from, dataToWrite, uuid, collection, refID, protocol)
+                if (write !== false) {
+                  res.send(write)
+                  for (let x in usedtx) {
+                    global['sxidcache'].push(usedtx[x])
                   }
-                  global['usxocache'].push(unspent)
-                  vout++
+                  let vout = 0
+                  for (let x in outputs) {
+                    let unspent = {
+                      sxid: tx.sxid,
+                      vout: vout,
+                      address: x,
+                      amount: outputs[x],
+                      sidechain: tx.transaction['sidechain']
+                    }
+                    global['usxocache'].push(unspent)
+                    vout++
+                  }
+                  // TODO: Send to P2P Network to speed up the transaction.
+                } else {
+                  res.send({
+                    error: true,
+                    description: "Error creating transaction",
+                    status: 422
+                  })
                 }
-                // TODO: Send to P2P Network to speed up the transaction.
               } else {
                 res.send({
                   error: true,
