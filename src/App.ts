@@ -75,6 +75,7 @@ class App {
     app.express.post('/sidechain/transaction', sidechains.transaction)
     app.express.post('/sidechain/listunspent', sidechains.listunspent)
     app.express.get('/sidechain/list', sidechains.listchains)
+    app.express.post('/sidechain/get', sidechains.getsidechain)
     app.express.post('/sidechain/scan/address', sidechains.scanaddress)
     app.express.post('/sidechain/scan', sidechains.scanchain)
     

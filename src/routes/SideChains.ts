@@ -178,21 +178,26 @@ export async function send(req: express.Request, res: express.Response) {
                   if (global['sxidcache'].indexOf(unspent[i].sxid) === -1) {
                     inputs.push(unspent[i])
                     usedtx.push(unspent[i].sxid)
-                    amountinput += unspent[i].amount
+                    amountinput += parseFloat(unspent[i].amount.toFixed(check_sidechain[0].data.genesis.decimals))
                   }
                 }
               }
             }
             let totaloutputs = 0
+            amountinput = parseFloat(amountinput.toFixed(check_sidechain[0].data.genesis.decimals))
+            amount = parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals))
             if (amountinput >= fields.amount) {
 
               let change = amountinput - amount
+              change = parseFloat(change.toFixed(check_sidechain[0].data.genesis.decimals))
+
               outputs[fields.to] = amount
               totaloutputs += amount
               if (change > 0) {
                 outputs[fields.from] = change
                 totaloutputs += change
               }
+              totaloutputs = parseFloat(totaloutputs.toFixed(check_sidechain[0].data.genesis.decimals))
               if (inputs.length > 0 && totaloutputs > 0) {
                 let transaction = {}
                 transaction["sidechain"] = fields.sidechain_address
@@ -297,6 +302,48 @@ export function reissue(req: express.Request, res: express.Response) {
   */
 };
 
+export async function getsidechain(req: express.Request, res: express.Response) {
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
+    if (fields.sidechain_address !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
+        var scwallet = new Sidechain.Wallet;
+        let unspent = await scwallet.listunpent(fields.dapp_address, fields.sidechain_address)
+        if (check_sidechain[0] !== undefined) {
+          res.json({
+            sidechain: check_sidechain
+          })
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  } else {
+    res.send({
+      data: {
+        error: "Specify all required fields first."
+      },
+      status: 422
+    })
+  }
+};
+
 export async function balance(req: express.Request, res: express.Response) {
   var parser = new Utilities.Parser
   var request = await parser.body(req)
@@ -315,7 +362,7 @@ export async function balance(req: express.Request, res: express.Response) {
           }
 
           res.json({
-            balance: balance,
+            balance: parseFloat(balance.toFixed(check_sidechain[0].data.genesis.decimals)),
             symbol: check_sidechain[0].data.genesis.symbol,
             sidechain: check_sidechain[0].address
           })
