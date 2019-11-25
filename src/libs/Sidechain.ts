@@ -20,11 +20,11 @@ module SideChain {
         });
     }
 
-    public async validatesxid(sxid, vout){
+    public async validatesxid(sxid, vout, sidechain){
         return new Promise <boolean> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
-                let unspent = await db.collection('sc_unspent').find({sxid: sxid, vout: vout}).sort({block: -1}).toArray()
+                let unspent = await db.collection('sc_unspent').find({sxid: sxid, vout: vout, sidechain: sidechain}).sort({block: -1}).toArray()
                 if(unspent[0] !== undefined){
                     // TODO: CHECKSIG
                     response(true)
