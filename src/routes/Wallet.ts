@@ -21,10 +21,12 @@ export async function getinfo(req: express.Request, res: express.Response) {
         }
 
         wallet.request('getinfo').then(function(info){
-            info['result']['indexed'] = parseInt(lastindexed)
-            var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
-            info['result']['toindex'] = toindex
-            res.json(info['result'])
+            if(info['result'] !== undefined && info['result'] !== null){
+                info['result']['indexed'] = parseInt(lastindexed)
+                var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
+                info['result']['toindex'] = toindex
+                res.json(info['result'])
+            }
         })
     })
 };
