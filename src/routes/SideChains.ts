@@ -205,8 +205,8 @@ export async function send(req: express.Request, res: express.Response) {
                 burnable = check_sidechain[0].burnable
               }
               
-              if(fields.to === check_sidechain[0].address && burnable === false){
-
+              if(fields.to === check_sidechain[0].address && check_sidechain[0].data.burnable === false){
+                
                 res.send({
                   error: true,
                   description: "Can\'t burn asset.",
