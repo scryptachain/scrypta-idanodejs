@@ -38,7 +38,7 @@ module SideChain {
                         if(check_reissue[0] !== undefined){
                             let check_sidechain = await db.collection('written').find({ address: check_reissue[0].reissue.sidechain }).sort({ block: 1 }).limit(1).toArray()
                             console.log('CHECK_REISSUE', sxid)
-                            if(check_reissue !== undefined && check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined && check_reissue[0].sxid === sxid && check_reissue[0].reissue.owner === check_sidechain[0].data.genesis.owner){
+                            if(check_reissue !== undefined && check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined && check_reissue[0].sxid === sxid && check_reissue[0].reissue.owner === check_sidechain[0].data.genesis.owner && check_sidechain[0].data.genesis.reissuable === true){
                                 response(true)
                             }else{
                                 response(false)
