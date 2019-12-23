@@ -107,9 +107,6 @@ async function checkConnections(){
           console.log('Database connected successfully.')
           if(global['state'] === 'OFF'){
             runIdaNode()
-            setInterval(function(){
-              //checkConnections()
-            },10000)
           }
         }
       });
@@ -139,6 +136,9 @@ async function runIdaNode(){
   var result = await DB.check()
   console.log(result)
   var sync = (process.env.SYNC === 'true')
+  setInterval(function(){
+    checkConnections()
+  },10000)
   if(sync === true){
     console.log('Starting block synchronization.')
     var task

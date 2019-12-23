@@ -5,6 +5,7 @@ import * as Sidechain from '../libs/Sidechain'
 let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
+import { unspent } from "./Explorer"
 
 const lyraInfo = {
   private: 0xae,
@@ -18,18 +19,29 @@ export async function issue(req: express.Request, res: express.Response) {
   var request = await parser.body(req)
   if (request !== false) {
     let fields = request['body']
-    if (fields.name !== undefined && fields.supply !== undefined && fields.symbol !== undefined && fields.reissuable !== undefined && fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.version !== undefined && fields.private_key !== undefined && fields.decimals !== undefined) {
+    if (fields.name !== undefined && fields.burnable !== undefined && fields.supply !== undefined && fields.symbol !== undefined && fields.reissuable !== undefined && fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.version !== undefined && fields.private_key !== undefined && fields.decimals !== undefined) {
       let supply = parseFloat(fields.supply)
       if (supply > 0) {
+        
+        var burnable = true
+        if(fields.burnable === 'false' || fields.burnable === false){
+          burnable = false
+        }
+
+        var reissuable = true
+        if(fields.reissuable === 'false' || fields.reissuable === false){
+          reissuable = false
+        }
 
         let genesis = {
           "name": fields.name,
           "supply": supply,
           "symbol": fields.symbol,
           "decimals": fields.decimals,
-          "reissuable": fields.reissuable,
+          "reissuable": reissuable,
           "owner": fields.dapp_address,
           "pubkey": fields.pubkey,
+          "burnable": burnable,
           "version": fields.version,
           "time": new Date().getTime()
         }
@@ -188,72 +200,88 @@ export async function send(req: express.Request, res: express.Response) {
             amount = parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals))
             if (amountinput >= fields.amount) {
 
-              let change = amountinput - amount
-              change = parseFloat(change.toFixed(check_sidechain[0].data.genesis.decimals))
-
-              outputs[fields.to] = amount
-              totaloutputs += amount
-              if (change > 0) {
-                outputs[fields.from] = change
-                totaloutputs += change
+              var burnable = false
+              if(check_sidechain[0].burnable !== undefined){
+                burnable = check_sidechain[0].burnable
               }
-              totaloutputs = parseFloat(totaloutputs.toFixed(check_sidechain[0].data.genesis.decimals))
-              if (inputs.length > 0 && totaloutputs > 0) {
-                let transaction = {}
-                transaction["sidechain"] = fields.sidechain_address
-                transaction["inputs"] = inputs
-                transaction["outputs"] = outputs
-                transaction["time"] = new Date().getTime()
+              
+              if(fields.to === check_sidechain[0].address && burnable === false){
 
-                let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
+                res.send({
+                  error: true,
+                  description: "Can\'t burn asset.",
+                  status: 422
+                })
 
-                let tx = {
-                  transaction: transaction,
-                  signature: signtx.signature,
-                  pubkey: fields.pubkey,
-                  sxid: signtx.id
+              }else{
+
+                let change = amountinput - amount
+                change = parseFloat(change.toFixed(check_sidechain[0].data.genesis.decimals))
+
+                outputs[fields.to] = amount
+                totaloutputs += amount
+                if (change > 0) {
+                  outputs[fields.from] = change
+                  totaloutputs += change
                 }
-                var Uuid = require('uuid/v4')
-                var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
-                var collection = '!*!'
-                var refID = '!*!'
-                var protocol = '!*!chain://'
-                var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(tx) + '*!*'
+                totaloutputs = parseFloat(totaloutputs.toFixed(check_sidechain[0].data.genesis.decimals))
+                if (inputs.length > 0 && totaloutputs > 0) {
+                  let transaction = {}
+                  transaction["sidechain"] = fields.sidechain_address
+                  transaction["inputs"] = inputs
+                  transaction["outputs"] = outputs
+                  transaction["time"] = new Date().getTime()
 
-                let write = await wallet.write(fields.private_key, fields.from, dataToWrite, uuid, collection, refID, protocol)
-                if (write !== false) {
-                  res.send(write)
-                  for (let x in usedtx) {
-                    global['sxidcache'].push(usedtx[x])
+                  let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
+
+                  let tx = {
+                    transaction: transaction,
+                    signature: signtx.signature,
+                    pubkey: fields.pubkey,
+                    sxid: signtx.id
                   }
-                  let vout = 0
-                  for (let x in outputs) {
-                    let unspent = {
-                      sxid: tx.sxid,
-                      vout: vout,
-                      address: x,
-                      amount: outputs[x],
-                      sidechain: tx.transaction['sidechain']
+                  var Uuid = require('uuid/v4')
+                  var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+                  var collection = '!*!'
+                  var refID = '!*!'
+                  var protocol = '!*!chain://'
+                  var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(tx) + '*!*'
+
+                  let write = await wallet.write(fields.private_key, fields.from, dataToWrite, uuid, collection, refID, protocol)
+                  if (write !== false) {
+                    res.send(write)
+                    for (let x in usedtx) {
+                      global['sxidcache'].push(usedtx[x])
                     }
-                    global['usxocache'].push(unspent)
-                    vout++
+                    let vout = 0
+                    for (let x in outputs) {
+                      let unspent = {
+                        sxid: tx.sxid,
+                        vout: vout,
+                        address: x,
+                        amount: outputs[x],
+                        sidechain: tx.transaction['sidechain']
+                      }
+                      global['usxocache'].push(unspent)
+                      vout++
+                    }
+                    // TODO: Send to P2P Network to speed up the transaction.
+                    
+                  } else {
+                    res.send({
+                      error: true,
+                      description: "Error creating transaction",
+                      status: 422
+                    })
                   }
-                  // TODO: Send to P2P Network to speed up the transaction.
                 } else {
                   res.send({
                     error: true,
-                    description: "Error creating transaction",
+                    description: "Can\'t send transaction",
                     status: 422
                   })
                 }
-              } else {
-                res.send({
-                  error: true,
-                  description: "Can\'t send transaction",
-                  status: 422
-                })
               }
-
             } else {
               res.send({
                 error: true,
@@ -296,10 +324,124 @@ export async function send(req: express.Request, res: express.Response) {
   }
 };
 
-export function reissue(req: express.Request, res: express.Response) {
-  /*
-    This will write a transaction inside the SideChain adding in effect balance to the owner, only if in the genesis transaction the token have been flagged as "reissuable"
-  */
+export async function reissue(req: express.Request, res: express.Response) {
+ var parser = new Utilities.Parser
+ var wallet = new Crypto.Wallet
+ var request = await parser.body(req)
+ if (request !== false) {
+   let fields = request['body']
+   if (fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.sidechain_address !== undefined && fields.supply !== undefined && fields.private_key !== undefined) {
+     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+       const db = client.db(global['db_name'])
+
+       let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
+       if (check_sidechain[0] !== undefined) { 
+        if(check_sidechain[0].data.genesis.reissuable === true){      
+          let supply = parseFloat(fields.supply)
+          if(supply > 0){
+            // TODO: REISSUE
+            
+            let reissue = {
+              "sidechain": fields.sidechain_address,
+              "owner": fields.dapp_address,
+              "supply": supply,
+              "time": new Date().getTime()
+            }
+
+            let sign = await wallet.signmessage(fields.private_key, JSON.stringify(reissue))
+            if (sign.address === fields.dapp_address && sign.pubkey === fields.pubkey && sign.address === check_sidechain[0].data.genesis.owner) {
+              let signature = sign.signature
+              let sxid = sign.id
+              let signed = {
+                reissue: reissue,
+                signature: signature,
+                pubkey: sign.pubkey,
+                sxid: sxid
+              }
+
+              // WRITE REISSUE
+              var Uuid = require('uuid/v4')
+              var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+              var collection = '!*!'
+              var refID = '!*!'
+              var protocol = '!*!chain://'
+              var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
+              let write = await wallet.write(fields.private_key, fields.dapp_address, dataToWrite, uuid, collection, refID, protocol)
+
+              // CREATE REISSUE UNSPENT
+              var UuidTx = require('uuid/v4')
+              var uuidtx = UuidTx().replace(new RegExp('-', 'g'), '.')
+
+              let transaction = {}
+              transaction["sidechain"] = fields.sidechain_address
+              transaction["inputs"] = [{ sxid: sxid, vout: "reissue" }]
+              transaction["outputs"] = {}
+              transaction["outputs"][fields.dapp_address] = supply
+              transaction["time"] = new Date().getTime()
+
+              let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
+              let reissuetx = {
+                transaction: transaction,
+                pubkey: fields.pubkey,
+                signature: signtx.signature,
+                sxid: signtx.id
+              }
+              var reissuetxTxToWrite = '*!*' + uuidtx + collection + refID + protocol + '*=>' + JSON.stringify(reissuetx) + '*!*'
+              let unspent = await wallet.write(fields.private_key, fields.dapp_address, reissuetxTxToWrite, uuid, collection, refID, protocol)
+
+              res.send({
+                reissue: signed,
+                written: write,
+                unspent: unspent,
+                status: 200
+              })
+            }else{
+              res.send({
+                error: 'Sign don\'t match',
+                status: 402
+              })
+            }
+          }else{
+            res.send({
+              data: {
+                error: "Supply must be greater than 0."
+              },
+              status: 422
+            })
+          }
+        }else{
+          res.send({
+            data: {
+              error: "Sidechain not reissuable."
+            },
+            status: 422
+          })
+        }
+       } else {
+         res.send({
+           data: {
+             error: "Sidechain not found."
+           },
+           status: 422
+         })
+       }
+     })
+   } else {
+     res.send({
+       data: {
+         error: "Specify all required fields first."
+       },
+       status: 422
+     })
+   }
+ } else {
+   res.send({
+     data: {
+       error: "Specify all required fields first."
+     },
+     status: 422
+   })
+ }
 };
 
 export async function getsidechain(req: express.Request, res: express.Response) {
@@ -349,7 +491,7 @@ export async function balance(req: express.Request, res: express.Response) {
   var request = await parser.body(req)
   if (request !== false) {
     let fields = request['body']
-    if (fields.dapp_address !== undefined && fields.sidechain_address) {
+    if (fields.dapp_address !== undefined && fields.sidechain_address !== undefined) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
@@ -696,9 +838,3 @@ export function listchains(req: express.Request, res: express.Response) {
     })
   })
 }
-
-export function verify(req: express.Request, res: express.Response) {
-  /*
-    With this operation the IdaNode will check every side-transaction written on the blockchain, preventing to malicious, malformed or invalid transactions that will eventually pass the validation to be written on the main database. This is a secondary verification feature because, in effect, every client will check his own transactions and, if there's something strange, the transaction will be rejected by the client which in effect rejects the payment. The verification will be recursive so every new block if there's one or more sidechain transaction the Idanode will check the previous tx and write it into the database if it's valid. A full rescan can be performed to make sure that's all working but, again, if one hash is not working it will never be written so it's unspendable (even if it's written in the blockchain).
-  */
-};

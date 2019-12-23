@@ -65,7 +65,6 @@ module Daemon {
             analyze = toAnalyze
         }
         if(analyze > 0){
-            var start = Date.now()
             console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
             var wallet = new Crypto.Wallet
             var blockhash = await wallet.request('getblockhash',[analyze])
@@ -122,11 +121,8 @@ module Daemon {
                 }
             }
 
-            var end = Date.now()
-            var elapsed = (end - start) / 1000
             var remains = blocks - analyze
-            var estimated = (elapsed * remains) / 60 / 60;
-            console.log('\x1b[33m%s\x1b[0m', 'FINISHED IN '+ elapsed +'s. ' + remains + ' BLOCKS UNTIL END. ' + estimated.toFixed(2) + 'h ESTIMATED.')
+            console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
             await db.collection('settings').updateOne({setting: "sync"}, {$set: {value: block['height']}})
             setTimeout(function(){
                 var task = new Daemon.Sync
@@ -227,7 +223,16 @@ module Daemon {
                         console.log('STORING GENESIS SXID NOW!')
                         await db.collection("sc_transactions").insertOne(datastore.data)
                     }else{
-                        console.log('GENESIS SXID ALREAY STORED.')
+                        console.log('GENESIS SXID ALREADY STORED.')
+                    }
+                }
+                if(datastore.data.reissue !== undefined){
+                    let check = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                    if(check[0] === undefined){
+                        console.log('STORING REISSUE SXID NOW!')
+                        await db.collection("sc_transactions").insertOne(datastore.data)
+                    }else{
+                        console.log('REISSUE SXID ALREADY STORED.')
                     }
                 }
                 if(datastore.data.transaction !== undefined){
