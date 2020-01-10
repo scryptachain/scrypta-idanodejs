@@ -72,6 +72,7 @@ class App {
     app.express.post('/sidechain/reissue', sidechains.reissue)
     app.express.post('/sidechain/send', sidechains.send)
     app.express.post('/sidechain/balance', sidechains.balance)
+    app.express.post('/sidechain/shares', sidechains.shares)
     app.express.post('/sidechain/transactions', sidechains.transactions)
     app.express.post('/sidechain/transaction', sidechains.transaction)
     app.express.post('/sidechain/listunspent', sidechains.listunspent)

@@ -838,3 +838,74 @@ export function listchains(req: express.Request, res: express.Response) {
     })
   })
 }
+
+export async function shares(req: express.Request, res: express.Response) {
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
+    if (fields.sidechain_address !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
+        if (check_sidechain[0] !== undefined) {
+          let unspents = await db.collection('sc_unspent').find({sidechain: fields.sidechain_address}).sort({ block: 1 }).toArray()
+          let addresses = {}
+          let shares = {}
+          let percentages = {}
+          let cap = 0
+
+          for(let x in unspents){
+            let unspent = unspents[x]
+            if(addresses[unspent.address] === undefined){
+              addresses[unspent.address] = 0
+            }
+            addresses[unspent.address] += unspent.amount
+            cap += unspent.amount
+          }
+
+          for(let address in addresses){
+            let percentage = 100 / cap * addresses[address]
+            percentages[address] = percentage
+          }
+          
+          let keysSorted = Object.keys(addresses).sort(function(a,b){return addresses[b]-addresses[a]})
+          for(let x in keysSorted){
+            let k = keysSorted[x]
+            shares[k] = {
+              balance: addresses[k],
+              shares: percentages[k]
+            }
+          }
+          res.json({
+            shares: shares,
+            cap: cap,
+            sidechain: check_sidechain[0].address
+          })
+          
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  } else {
+    res.send({
+      data: {
+        error: "Specify all required fields first."
+      },
+      status: 422
+    })
+  }
+}
