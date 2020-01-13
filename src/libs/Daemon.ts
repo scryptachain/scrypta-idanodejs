@@ -49,11 +49,13 @@ module Daemon {
             analyze = 1
         }
         if(analyze <= blocks){
-            var task = new Daemon.Sync
-            task.analyze()
+            if(global['syncLock'] === false){
+                var task = new Daemon.Sync
+                task.analyze()
+            }
         }else{
             console.log('SYNC FINISHED, RESTART IN 10 SECONDS')
-            setTimeout(function(){
+            global['syncTimeout'] = setTimeout(function(){
                 var task = new Daemon.Sync
                 task.init()
             },10000)

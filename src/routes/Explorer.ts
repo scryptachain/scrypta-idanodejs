@@ -27,14 +27,29 @@ export function analyzeblock(req: express.Request, res: express.Response) {
     var block = req.params.block
     wallet.request('getblockhash', [parseInt(block)]).then(function(blockhash){
         wallet.analyzeBlock(blockhash['result']).then(analyzed => {
-            var daemon = new Daemon.Sync
-            daemon.analyze(parseInt(block))
             res.json({
                 data: analyzed,
                 status: 200
             })
         })
     })
+};
+
+export function resync(req: express.Request, res: express.Response) {
+    var block = req.params.block
+    global['syncLock'] = true 
+    clearTimeout(global['syncTimeout'])
+
+    setTimeout(function(){
+        global['syncLock'] = false
+        var daemon = new Daemon.Sync
+        daemon.analyze(parseInt(block))
+
+        res.json({
+            staus: 'Resync started from ' + parseInt(block),
+            status: 200
+        })
+    },200)
 };
 
 

@@ -813,9 +813,21 @@ module Crypto {
 
                     //COMPACTING DATA AGAIN
                     for(let addressdata in block['result']['raw_written']){
-                        var written = block['result']['raw_written'][addressdata]
+                        var written = []
+                        
+                        if(global['chunkcache'][addressdata] !== undefined){
+                            for(let y in global['chunkcache'][addressdata]){
+                                written.push(global['chunkcache'][addressdata][y])
+                            }
+                        }
+                        
+                        for(let y in block['result']['raw_written'][addressdata]){
+                            written.push(block['result']['raw_written'][addressdata][y])
+                        }
+
                         var singledata = ''
                         var readchunks = []
+                        console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata, written)
                         for(var wix in written){
                             var data = written[wix]
                             var checkhead = data.substr(0,3)
@@ -891,7 +903,7 @@ module Crypto {
                                                 idc++
                                             }
 
-                                            let max = 300 * written.length
+                                            let max = 5000 * written.length
                                             if(idctt > max){
                                                 endofdata = 'Y'
                                                 console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
@@ -909,6 +921,10 @@ module Crypto {
 
                             if(endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*'){
                                 console.log('COMPLETED DATA ' + singledata)
+                                if(global['chunkcache'][addressdata] !== undefined){
+                                    // RESETTING CACHE DATA
+                                    global['chunkcache'][addressdata] = []
+                                }
                                 if(block['result']['data_written'][addressdata] === undefined){
                                     block['result']['data_written'][addressdata] = []
                                 }
@@ -955,9 +971,17 @@ module Crypto {
                                 }
                                 singledata = ''
                                 block['result']['data_written'][addressdata].push(parsed)
+                            }else{
+                                if(global['chunkcache'][addressdata] === undefined){
+                                    global['chunkcache'][addressdata] = []
+                                }
+                                //PUSHING CHUNKS INTO CACHE
+                                for(let y in block['result']['raw_written'][addressdata]){
+                                    if(global['chunkcache'][addressdata].includes(block['result']['raw_written'][addressdata][y]) === false){
+                                        global['chunkcache'][addressdata].push(block['result']['raw_written'][addressdata][y])
+                                    }
+                                }
                             }
-
-
                         }
                     }
 

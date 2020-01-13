@@ -16,10 +16,10 @@ global['txidcache'] = []
 global['utxocache'] = []
 global['sxidcache'] = []
 global['usxocache'] = []
+global['chunkcache'] = []
+global['syncLock'] = false
+global['syncTimeout'] = null
 global['limit'] = 200
-
-//TODO: Implement a cache system so data can be parsed through different blocks
-global['writtencache'] = []
 
 class App {
   public express
@@ -99,6 +99,7 @@ class App {
     app.express.get('/block/last',explorer.getlastblock)
     app.express.get('/block/:block',explorer.getblock)
     app.express.get('/analyze/:block',explorer.analyzeblock)
+    app.express.get('/resync/:block',explorer.resync)
     app.express.get('/transactions/:address', explorer.transactions)
     app.express.get('/balance/:address', explorer.balance)
     app.express.get('/stats/:address', explorer.stats)
