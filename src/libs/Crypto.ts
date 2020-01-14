@@ -896,20 +896,23 @@ module Crypto {
                                                         idc ++
                                                     }else{
                                                         idc = 0
-                                                        endofdata = 'Y'
+                                                        console.log('RESTARTING')
+                                                        //endofdata = 'Y'
                                                     }
                                                 }
                                             }else{
                                                 idc++
                                             }
 
-                                            let max = 1000000000000 * written.length
+                                            let max = 10000 * written.length
                                             if(idctt > max){
                                                 endofdata = 'Y'
                                                 console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
                                             }
                                         }else{
-                                            endofdata = 'Y'
+                                            //endofdata = 'Y'
+                                            idc = 0
+                                            console.log('RESTARTING')
                                         }
                                     }
 
