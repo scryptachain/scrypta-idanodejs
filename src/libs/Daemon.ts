@@ -213,7 +213,9 @@ module Daemon {
                         }
                     }
                 }
-                await db.collection("written").insertOne(datastore)
+                if(datastore.uuid !== undefined && datastore.uuid !== ''){
+                    await db.collection("written").insertOne(datastore)
+                }
             }else{
                 console.log('DATA ALREADY STORED.')
             }

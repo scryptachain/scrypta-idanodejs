@@ -291,7 +291,7 @@ async function parseDB(DB, filters = {}, history = false){
         let uuids = []
         for(let x in DB){
             let written = DB[x]
-            if(written['data'] !== undefined){
+            if(written['data'] !== undefined && written['uuid'] !== undefined){
                 if(written['data'] !== 'END'){
                     if(ended.indexOf(written['uuid']) === -1){
                         if(JSON.stringify(written['data']).indexOf('ipfs:') !== -1){
