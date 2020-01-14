@@ -903,7 +903,7 @@ module Crypto {
                                                 idc++
                                             }
 
-                                            let max = 1000000 * written.length
+                                            let max = 1000000000000 * written.length
                                             if(idctt > max){
                                                 endofdata = 'Y'
                                                 console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
