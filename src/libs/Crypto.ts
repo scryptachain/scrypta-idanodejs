@@ -875,7 +875,7 @@ module Crypto {
                                                     endofdata = 'Y';
                                                 }else{
                                                     var chunk = '' 
-                                                    var datalm3
+                                                    var datalm3 = 0
                                                     if(data.indexOf('*!*') === 0 && singledata === '*!*'){
                                                         chunk = data.substr(3, data.length)
                                                         datalm3 = data.length - 3

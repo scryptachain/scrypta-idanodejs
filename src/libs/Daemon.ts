@@ -217,7 +217,7 @@ module Daemon {
                     await db.collection("written").insertOne(datastore)
                 }
             }else{
-                console.log('DATA ALREADY STORED.')
+                console.log('DATA ALREADY STORED AT BLOCK '+ datastore.block +'.')
             }
 
             if(datastore.protocol === 'chain://'){
