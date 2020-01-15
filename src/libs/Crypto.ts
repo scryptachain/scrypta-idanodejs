@@ -852,6 +852,7 @@ module Crypto {
                                     console.log('NEXT CONTROL IS ' + nextcontrol)
                                     var chunkcontrol = prevcontrol + nextcontrol
                                     singledata += '*!*'
+                                    console.log('SINGLEDATA IS', singledata)
                                     console.log('NEED TO FIND ' + chunkcontrol)
                                     var endofdata = 'N'
                                     var idc = 0
@@ -873,13 +874,15 @@ module Crypto {
                                                     console.log('END OF DATA')
                                                     endofdata = 'Y';
                                                 }else{
-                                                    var chunk = ''
-                                                    if(data.indexOf('*!*') === 0){
+                                                    var chunk = '' 
+                                                    var datalm3
+                                                    if(data.indexOf('*!*') === 0 && singledata === '*!*'){
                                                         chunk = data.substr(3, data.length)
+                                                        datalm3 = data.length - 3
                                                     }else{
                                                         chunk = data.substr(6, data.length)
+                                                        datalm3 = data.length - 6
                                                     }
-                                                    var datalm3 = data.length - 6
                                                     chunk = chunk.substr(0,datalm3)
                                                     singledata += chunk
                                                     console.log('CHUNKED DATA IS ' + chunk)
