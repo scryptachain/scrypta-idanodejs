@@ -873,7 +873,12 @@ module Crypto {
                                                     console.log('END OF DATA')
                                                     endofdata = 'Y';
                                                 }else{
-                                                    var chunk = data.substr(6, data.length)
+                                                    var chunk = ''
+                                                    if(data.indexOf('*!*') === 0){
+                                                        chunk = data.substr(3, data.length)
+                                                    }else{
+                                                        chunk = data.substr(6, data.length)
+                                                    }
                                                     var datalm3 = data.length - 6
                                                     chunk = chunk.substr(0,datalm3)
                                                     singledata += chunk
