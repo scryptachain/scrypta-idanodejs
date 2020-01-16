@@ -22,12 +22,14 @@ global['limit'] = 200
 
 if(process.env.TESTNET === 'true' || process.env.TESTNET === true){
   console.log('RUNNING IN TESTNET MODE!')
+  // TESTNET BLOCKCHAIN PARAMS
   global['lyraInfo'] = {
     private: 0xae,
     public: 0x7f,
     scripthash: 0x13
   }
 }else{
+  // MAINNET BLOCKCHAIN PARAMS
   global['lyraInfo'] = {
     private: 0xae,
     public: 0x30,

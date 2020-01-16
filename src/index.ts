@@ -1,6 +1,7 @@
 import app from './App'
 import * as Crypto from './libs/Crypto'
 import * as Daemon from "./libs/Daemon"
+import * as Bootstrap from "./libs/Bootstrap"
 import * as Database from "./libs/Database"
 import SysTray from 'systray'
 const open = require('opn')
@@ -136,9 +137,18 @@ async function runIdaNode(){
   var result = await DB.check()
   console.log(result)
   var sync = (process.env.SYNC === 'true')
+  // CHECKING CONNETIONS EVERY 10 SECONDS
   setInterval(function(){
     checkConnections()
   },10000)
+  // CREATING BOOTSTRAP AT STARTUP
+  let bootstrap = new Bootstrap.Bootstrap
+  bootstrap.create()
+  // CREATING BOOTSTRAP EVERY HOUR
+  setInterval(function(){
+    let bootstrap = new Bootstrap.Bootstrap
+    bootstrap.create()
+  },3600000)
   if(sync === true){
     console.log('Starting block synchronization.')
     var task
