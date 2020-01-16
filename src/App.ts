@@ -20,7 +20,7 @@ global['syncLock'] = false
 global['syncTimeout'] = null
 global['limit'] = 200
 
-if(process.env.TESTNET === 'true'){
+if(process.env.TESTNET === 'true' || process.env.TESTNET === true){
   console.log('RUNNING IN TESTNET MODE!')
   global['lyraInfo'] = {
     private: 0xae,
