@@ -35,7 +35,6 @@ module Bootstrap {
             
             archive.directory(dotlyrafolder + '/blocks/', 'blocks');
             archive.directory(dotlyrafolder + '/chainstate/', 'chainstate');
-            archive.file(dotlyrafolder + '/peers.dat', { name: 'peers.dat' });
 
             archive.finalize();
         })
