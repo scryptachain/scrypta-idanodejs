@@ -16,7 +16,8 @@
     <link rel="icon" href="logo.png" type="image.png" />
     <link rel="stylesheet" href="css/normalize.min.css">
     <link rel="stylesheet" href="css/main.css">
-    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+    <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.0"></script>
     <script src="js/vendor/modernizr-2.8.3-respond-1.4.2.min.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
@@ -37,98 +38,126 @@
     <!--[if lt IE 8]>
             <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
-
-    <div class="header-container">
-        <header class="wrapper clearfix">
-            <h1 class="title">Scrypta IdaNode</h1>
-            <!--<nav>
+    <div id="app">
+        <div class="header-container">
+            <header class="wrapper clearfix">
+                <h2 class="title">Scrypta IdaNode</h2>
+                <nav>
                     <ul>
-                        <li><a href="#">Explorer</a></li>
-                        <li><a href="#">Status</a></li>
+                        <li v-on:click="showExplorer"><a href="#">Explorer</a></li>
+                        <li v-on:click="showTools"><a href="#">Tools</a></li>
                     </ul>
-                </nav>-->
-        </header>
-    </div>
+                </nav>
+            </header>
+        </div>
 
-    <div class="main-container">
-        <div class="main wrapper clearfix" id="app">
-           <div class="row">
-               <div class="col-md-8">
-                <h3>Block #{{ height }}</h3>
-                <div style="border-bottom:1px solid #ddd; width:100; display:block;">
-                    <div class="row">
-                        <div class="col-sm-6"><strong>Number Of Transactions</strong></div>
-                        <div class="col-sm-6 text-right">{{ block.outputs.length }}</div>
-                    </div>
-                </div>
-
-                <div style="border-bottom:1px solid #ddd; width:100; display:block;">
-                    <div class="row">
-                        <div class="col-sm-6"><strong>Block height</strong></div>
-                        <div class="col-sm-6 text-right">{{ block.height }}</div>
-                    </div>
-                </div>
-
-                <div style="border-bottom:1px solid #ddd; width:100; display:block;">
-                    <div class="row">
-                        <div class="col-sm-6"><strong>Confirmations</strong></div>
-                        <div class="col-sm-6 text-right">{{ block.confirmations }}</div>
-                    </div>
-                </div>
-
-                <div style="border-bottom:1px solid #ddd; width:100; display:block;">
-                    <div class="row">
-                        <div class="col-sm-6"><strong>Block Reward</strong></div>
-                        <div class="col-sm-6 text-right">{{ block.generated }} LYRA</div>
-                    </div>
-                </div>
-
-                <div style="border-bottom:1px solid #ddd; width:100; display:block;">
-                    <div class="row">
-                        <div class="col-sm-6"><strong>Difficulty</strong></div>
-                        <div class="col-sm-6 text-right">{{ block.difficulty }}</div>
-                    </div>
-                </div>
-
-                <div style="border-bottom:1px solid #ddd; width:100; display:block;">
-                    <div class="row">
-                        <div class="col-sm-6"><strong>Previous Block</strong></div>
-                        <div class="col-sm-6 text-right" style="color:brown; cursor: pointer;" v-on:click="showBlock(last)">{{ last }}</div>
-                    </div>
-                </div>
-                <div v-for="(tx, index) in block.analysis">
-                    <div v-if="tx.vout > 0" style="background:#eee; border:1px solid #ddd; border-radius:5px; margin:10px 0; padding:10px;">
-                        <strong>TXID:</strong> {{ index }}<br>
-                        <strong>Total Inputs:</strong> {{ tx.vin }} LYRA<br>
-                        <strong>Total Outputs:</strong> {{ tx.vout }} LYRA<hr>
-                        <div v-for="(bal, index) in tx.balances">
-                            <h4>{{ index }}</h4>
-                            Input: {{ bal.vin }}<br>
-                            Output: {{ bal.vout }}<br>
-                            Balance: {{ bal.vout - bal.vin }}
+        <div class="main-container">
+            <div class="main wrapper clearfix">
+            <div class="row" v-if="show === 'explorer'">
+                <div class="col-md-8">
+                    <h3>
+                        Block #<input type="text" v-model="height" style="border:0; width:140px; text-align:center; border-bottom:2px solid #000; padding-bottom:5px">
+                        <button class="btn btn-primary" v-on:click="searchBlock"><i class="fa fa-search"></i></button>
+                    </h3>
+                    <div style="border-bottom:1px solid #ddd; width:100; display:block;">
+                        <div class="row">
+                            <div class="col-sm-6"><strong>Number Of Transactions</strong></div>
+                            <div class="col-sm-6 text-right">{{ block.outputs.length }}</div>
                         </div>
                     </div>
+
+                    <div style="border-bottom:1px solid #ddd; width:100; display:block;">
+                        <div class="row">
+                            <div class="col-sm-6"><strong>Block height</strong></div>
+                            <div class="col-sm-6 text-right">{{ block.height }}</div>
+                        </div>
+                    </div>
+
+                    <div style="border-bottom:1px solid #ddd; width:100; display:block;">
+                        <div class="row">
+                            <div class="col-sm-6"><strong>Confirmations</strong></div>
+                            <div class="col-sm-6 text-right">{{ block.confirmations }}</div>
+                        </div>
+                    </div>
+
+                    <div style="border-bottom:1px solid #ddd; width:100; display:block;">
+                        <div class="row">
+                            <div class="col-sm-6"><strong>Block Reward</strong></div>
+                            <div class="col-sm-6 text-right">{{ block.generated }} LYRA</div>
+                        </div>
+                    </div>
+
+                    <div style="border-bottom:1px solid #ddd; width:100; display:block;">
+                        <div class="row">
+                            <div class="col-sm-6"><strong>Difficulty</strong></div>
+                            <div class="col-sm-6 text-right">{{ block.difficulty }}</div>
+                        </div>
+                    </div>
+
+                    <div style="border-bottom:1px solid #ddd; width:100; display:block;">
+                        <div class="row">
+                            <div class="col-sm-6"><strong>Previous Block</strong></div>
+                            <div class="col-sm-6 text-right" style="color:brown; cursor: pointer;" v-on:click="showBlock(last)">{{ last }}</div>
+                        </div>
+                    </div>
+                    <br>
+                    <b>Transactions</b>
+                    <div v-for="(tx, index) in block.analysis">
+                        <div v-if="tx.vout > 0" style="background:#eee; border:1px solid #ddd; border-radius:5px; margin:10px 0; padding:10px;">
+                            <strong>TXID:</strong> {{ index }}<br>
+                            <strong>Total Inputs:</strong> {{ tx.vin }} LYRA<br>
+                            <strong>Total Outputs:</strong> {{ tx.vout }} LYRA<hr>
+                            <div v-for="(bal, index) in tx.balances">
+                                <h4>{{ index }}</h4>
+                                Input: {{ bal.vin }} LYRA<br>
+                                Output: {{ bal.vout }} LYRA<br>
+                                Balance: {{ bal.vout - bal.vin }} LYRA
+                            </div>
+                        </div>
+                    </div>
+
+                    <br>
+                    <div v-if="written">
+                        <strong>Data written</strong>
+                        <pre>{{ written }}</pre><br>
+                    </div>
+                    <div v-if="received">
+                        <strong>Data received</strong>
+                        <pre>{{ received }}</pre>
+                    </div>
+                    
+                    <pre v-if="showRaw">{{ block }}</pre>
                 </div>
+                <div class="col-md-4">
+                    <h3>Wallet Status</h3>
+                    <div v-for="(item, index) in status">
+                        <strong>{{ index }}</strong>: {{ item }}
+                    </div>
+                </div>
+            </div><!-- #explorer -->
+            <div class="row" v-if="show === 'tools'">
+                    <div class="col-md-12">
+                        <h3>Create new address</h3>
+                        The new address and the private key will not stored by the IdaNode.
+                        <pre>{{ newaddress }}</pre>
+                        <button class="btn btn-primary" v-on:click="createAddress">Create address</button>
+                        <hr>
+                        <h3>Init address</h3>
+                        The Idanode will send an amount of Lyra to the address. This tool can be used once for the same address.<br>
+                        <input type="text" v-model="address" placeholder="Write a valid Lyra Address" style="border:0; width:340px; border-bottom:2px solid #000; padding-bottom:5px">
+                        <button class="btn btn-primary" v-on:click="initAddress"><i class="fa fa-arrow-right"></i></button>
+                    </div>
+            </div>
+            </div> <!-- #main -->
+        </div> <!-- #main-container -->
 
-                <pre v-if="showRaw">{{ block }}</pre>
-               </div>
-               <div class="col-md-4">
-                   <h3>Wallet Status</h3>
-                   <div v-for="(item, index) in status">
-                    <strong>{{ index }}</strong>: {{ item }}
-                   </div>
-               </div>
-           </div>
-        </div> <!-- #main -->
-    </div> <!-- #main-container -->
-
-    <div class="footer-container">
-        <footer class="wrapper" style="text-align: center;">
-            <h3 style="font-size:12px">Open Source project by <a href="https://scrypta.foundation" style="color:#fff"
-                    target="_blank">Scrypta Foundation</a></h3>
-        </footer>
+        <div class="footer-container">
+            <footer class="wrapper" style="text-align: center;">
+                <h3 style="font-size:12px">Open Source project by <a href="https://scrypta.foundation" style="color:#fff"
+                        target="_blank">Scrypta Foundation</a></h3>
+            </footer>
+        </div>
     </div>
-
     <script src="js/main.js"></script>
 </body>
 

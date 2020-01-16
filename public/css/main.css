@@ -58,7 +58,9 @@ textarea {
    ========================================================================== */
 
 body {
-    font: 16px/26px 'Source Sans Pro';
+    font: 16px/26px;
+    font-family: 'IBM Plex Mono', monospace!important;
+
 }
 
 .wrapper {
