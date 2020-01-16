@@ -8,7 +8,6 @@ const CryptoJS = require('crypto-js')
 var cs = require('coinstring')
 var crypto = require('crypto')
 const secp256k1 = require('secp256k1')
-const lyraInfo = global['lyraInfo']
 
 module Crypto {
 
@@ -50,7 +49,7 @@ module Crypto {
 
     public async signmessage(key, message){
         return new Promise <any> (async response => {
-            var ck = CoinKey.fromWif(key, lyraInfo);
+            var ck = CoinKey.fromWif(key, global['lyraInfo']);
             let hash = CryptoJS.SHA256(message);
             let msg = Buffer.from(hash.toString(CryptoJS.enc.Hex), 'hex');
             let privKey = ck.privateKey
@@ -74,7 +73,7 @@ module Crypto {
             var sha = crypto.createHash('sha256').update(pubkeybuffer).digest()
             let pubKeyHash = crypto.createHash('rmd160').update(sha).digest()
             var hash160Buf = new Buffer(pubKeyHash, 'hex')
-            response(cs.encode(hash160Buf, lyraInfo.public)) 
+            response(cs.encode(hash160Buf, global['lyraInfo'].public)) 
         })
     }
 

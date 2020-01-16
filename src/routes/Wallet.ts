@@ -3,7 +3,6 @@ import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
 const mongo = require('mongodb').MongoClient
 var CoinKey = require('coinkey')
-const lyraInfo = global['lyraInfo']
 
 export async function getinfo(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
@@ -67,8 +66,7 @@ export async function getnewaddress(req: express.Request, res: express.Response)
 
     var internal = req.params.internal
     if(internal === undefined){
-
-        var ck = new CoinKey.createRandom(lyraInfo)
+        var ck = new CoinKey.createRandom(global['lyraInfo'])
         var lyrapub = ck.publicAddress;
         var lyraprv = ck.privateWif;
         var lyrakey = ck.publicKey.toString('hex');

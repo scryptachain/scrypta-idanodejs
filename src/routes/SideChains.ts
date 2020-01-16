@@ -5,7 +5,6 @@ import * as Sidechain from '../libs/Sidechain'
 let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
-const lyraInfo = global['lyraInfo']
 
 export async function issue(req: express.Request, res: express.Response) {
   var wallet = new Crypto.Wallet;
@@ -51,7 +50,7 @@ export async function issue(req: express.Request, res: express.Response) {
             sxid: sxid
           }
 
-          var ck = new CoinKey.createRandom(lyraInfo)
+          var ck = new CoinKey.createRandom(global['lyraInfo'])
           var lyraprv = ck.privateWif;
           var lyrakey = ck.publicKey.toString('hex')
           let addresses = [sign.pubkey, lyrakey]
