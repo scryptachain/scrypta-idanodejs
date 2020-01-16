@@ -3,11 +3,7 @@ import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
 const mongo = require('mongodb').MongoClient
 var CoinKey = require('coinkey')
-const lyraInfo = {
-    private: 0xae,
-    public: 0x30,
-    scripthash: 0x0d
-};
+const lyraInfo = global['lyraInfo']
 
 export async function getinfo(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;

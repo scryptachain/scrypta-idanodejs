@@ -5,13 +5,7 @@ import * as Sidechain from '../libs/Sidechain'
 let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
-import { unspent } from "./Explorer"
-
-const lyraInfo = {
-  private: 0xae,
-  public: 0x30,
-  scripthash: 0x0d
-}
+const lyraInfo = global['lyraInfo']
 
 export async function issue(req: express.Request, res: express.Response) {
   var wallet = new Crypto.Wallet;

@@ -8,12 +8,7 @@ const CryptoJS = require('crypto-js')
 var cs = require('coinstring')
 var crypto = require('crypto')
 const secp256k1 = require('secp256k1')
-
-const lyraInfo = {
-    private: 0xae,
-    public: 0x30,
-    scripthash: 0x0d
-};
+const lyraInfo = global['lyraInfo']
 
 module Crypto {
 

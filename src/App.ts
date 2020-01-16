@@ -7,7 +7,6 @@ import * as pdm from "./routes/Pdm"
 import * as dapps from "./routes/dApps"
 import * as sidechains from "./routes/SideChains"
 
-const fs = require('fs')
 var bodyParser = require('body-parser')
 var cors = require('cors')
 const IPFS = require('ipfs')
@@ -20,6 +19,21 @@ global['chunkcache'] = []
 global['syncLock'] = false
 global['syncTimeout'] = null
 global['limit'] = 200
+
+if(process.env.TESTNET === 'true'){
+  console.log('RUNNING IN TESTNET MODE!')
+  global['lyraInfo'] = {
+    private: 0xae,
+    public: 0x7f,
+    scripthash: 0x13
+  }
+}else{
+  global['lyraInfo'] = {
+    private: 0xae,
+    public: 0x30,
+    scripthash: 0x0d
+  }
+}
 
 class App {
   public express
