@@ -975,7 +975,9 @@ module Crypto {
                                     time: block['result']['time']
                                 }
                                 singledata = ''
-                                block['result']['data_written'][addressdata].push(parsed)
+                                if(block['result']['data_written'][addressdata].indexOf(parsed) === -1){
+                                    block['result']['data_written'][addressdata].push(parsed)
+                                }
                             }else{
                                 if(global['chunkcache'][addressdata] === undefined){
                                     global['chunkcache'][addressdata] = []
