@@ -33,10 +33,13 @@ module Bootstrap {
             
             archive.pipe(output);
             
-            archive.directory(dotlyrafolder + '/blocks/', 'blocks');
-            archive.directory(dotlyrafolder + '/chainstate/', 'chainstate');
-
-            archive.finalize();
+            try{
+                archive.directory(dotlyrafolder + '/blocks/', 'blocks');
+                archive.directory(dotlyrafolder + '/chainstate/', 'chainstate');
+                archive.finalize();
+            }catch(e){
+                console.log('BOOTSTRAP FAILED')
+            }
         })
     }
 
