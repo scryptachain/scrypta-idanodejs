@@ -157,7 +157,11 @@ module Crypto {
                         trx.addoutput(from,change);
                     }
 
-                    if(metadata !== '' && metadata.length <= 80){
+                    var max_opreturn = 80
+                    if(process.env.MAX_OPRETURN !== undefined){
+                        max_opreturn = parseInt(process.env.MAX_OPRETURN)
+                    }
+                    if(metadata !== '' && metadata.length <= max_opreturn){
                         trx.addmetadata(metadata);
                     }
 
@@ -339,7 +343,11 @@ module Crypto {
                         outputs[from] = change
                     }
 
-                    if(metadata !== '' && metadata.length <= 80){
+                    var max_opreturn = 80
+                    if(process.env.MAX_OPRETURN !== undefined){
+                        max_opreturn = parseInt(process.env.MAX_OPRETURN)
+                    }
+                    if(metadata !== '' && metadata.length <= max_opreturn){
                         trx.addmetadata(metadata);
                     }
                     let middle = trx.serialize()
@@ -392,7 +400,11 @@ module Crypto {
     public async writemultisig(private_keys, trustlink, redeemScript, dataToWrite, uuid, collection, refID, protocol){
         return new Promise(async response => {
             var wallet = new Crypto.Wallet;
-            if(dataToWrite.length <= 80){
+            var max_opreturn = 80
+            if(process.env.MAX_OPRETURN !== undefined){
+                max_opreturn = parseInt(process.env.MAX_OPRETURN)
+            }
+            if(dataToWrite.length <= max_opreturn){
                 let txid = ''
                 var i = 0
                 var totalfees = 0
@@ -517,8 +529,12 @@ module Crypto {
 
     public async write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol){
         return new Promise(async response => {
-            var wallet = new Crypto.Wallet;
-            if(dataToWrite.length <= 80){
+            var wallet = new Crypto.Wallet
+            var max_opreturn = 80
+            if(process.env.MAX_OPRETURN !== undefined){
+                max_opreturn = parseInt(process.env.MAX_OPRETURN)
+            }
+            if(dataToWrite.length <= max_opreturn){
                 let txid = ''
                 var i = 0
                 var totalfees = 0

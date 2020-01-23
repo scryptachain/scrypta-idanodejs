@@ -55,7 +55,6 @@ export default class BitJS {
 
 	constructor (){
 		/* public vars */
-		this.pub = 0x30;
 		this.priv = 0xae;
 		this.compressed = true;
 	}
@@ -100,12 +99,6 @@ export default class BitJS {
 		return {'pubkey':pubkey,'compressed':r['compressed']};
 	}
 
-	/* convert a wif to a address */
-	static wif2address (wif){
-		var r = this.wif2pubkey(wif);
-		return {'address':this.pubkey2address(r['pubkey']), 'compressed':r['compressed']};
-	}
-
 	/* generate a public key from a private key */
 	static newPubkey(hash){
 		var privateKeyBigInt = BigInteger.fromByteArrayUnsigned(BitJS.hexToBytes(hash));
@@ -130,15 +123,6 @@ export default class BitJS {
 		} else {
 			return BitJS.bytesToHex(publicKeyBytes);
 		}
-	}
-
-	/* provide a public key and return address */
-	static pubkey2address(h, byte){
-		var r = ripemd160(Crypto.SHA256(BitJS.hexToBytes(h), {asBytes: true}));
-		r.unshift(byte || this.pub);
-		var hash = Crypto.SHA256(Crypto.SHA256(r, {asBytes: true}), {asBytes: true});
-		var checksum = hash.slice(0, 4);
-		return B58.encode(r.concat(checksum));
 	}
 
 	static transaction() {
@@ -176,24 +160,20 @@ export default class BitJS {
 			var o = {};
 			var buf = [];
 			o.value = 0;
-			if(data.length <= 80){
-				var bytes = Buffer.from(data)
-				buf.push(BitJS.hexToBytes('6a')[0]);
-				if(data.length > 75){
-					buf.push(BitJS.hexToBytes('4c')[0]);
-				}
-				var ln = BitJS.numToByteArray(data.length)
-				buf.push(ln[0]);
-				for(var i=0; i<bytes.length; i++){
-					if(bytes[i] !== undefined){
-						buf.push(bytes[i]);
-					}
-				}
-				o.script = buf;
-				return this.outputs.push(o);
-			} else {
-				console.log('METADATA TOO LONG')
+			var bytes = Buffer.from(data)
+			buf.push(BitJS.hexToBytes('6a')[0]);
+			if(data.length > 75){
+				buf.push(BitJS.hexToBytes('4c')[0]);
 			}
+			var ln = BitJS.numToByteArray(data.length)
+			buf.push(ln[0]);
+			for(var i=0; i<bytes.length; i++){
+				if(bytes[i] !== undefined){
+					buf.push(bytes[i]);
+				}
+			}
+			o.script = buf;
+			return this.outputs.push(o);
 		}
 
 		// Only standard addresses
