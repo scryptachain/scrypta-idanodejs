@@ -68,7 +68,11 @@ export async function write(req: express.Request, res: express.Response) {
 
                         var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + metadata + '*!*'
                         console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
-                        if(dataToWrite.length <= 80){
+                        var max_opreturn = 80
+                        if(process.env.MAX_OPRETURN !== undefined){
+                            max_opreturn = parseInt(process.env.MAX_OPRETURN)
+                        }
+                        if(dataToWrite.length <= max_opreturn){
                             let txid = ''
                             var i = 0
                             var totalfees = 0
