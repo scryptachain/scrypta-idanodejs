@@ -753,10 +753,10 @@ module Crypto {
                                     })
                                 }
                                 //CHECKING OP_RETURN
-                                if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1){
+                                if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'].indexOf('OP_RETURN') !== -1){
                                     //console.log('CHECKING OP_RETURN')
                                     var parser = new Utilities.Parser
-                                    var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
+                                    var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'].substr(4))
                                     var addressdata
                                     var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
                                     if(addresswrite === receivingaddress){
