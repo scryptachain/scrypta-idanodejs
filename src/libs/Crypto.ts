@@ -995,7 +995,7 @@ module Crypto {
                                     time: block['result']['time']
                                 }
                                 singledata = ''
-                                if(block['result']['data_written'][addressdata].indexOf(parsed) === -1){
+                                if(block['result']['data_written'][addressdata].indexOf(parsed) === -1 && datastore.length > 0){
                                     block['result']['data_written'][addressdata].push(parsed)
                                 }
                             }else{

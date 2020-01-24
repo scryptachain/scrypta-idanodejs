@@ -199,22 +199,24 @@ module Daemon {
             let check = await db.collection('written').find({uuid: datastore.uuid, block: datastore.block}).limit(1).toArray()
             if(check[0] === undefined){
                 console.log('STORING DATA NOW!', datastore.data)
-                if(JSON.stringify(datastore.data).indexOf('ipfs:') !== -1){
-                    let parsed = datastore.data.split('***')
-                    if(parsed[0] !== undefined){
-                        let parsehash = parsed[0].split(':')
-                        if(parsehash[1] !== undefined && parsehash[1] !== 'undefined'){
-                            console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + parsehash[1])
-                            global['ipfs'].pin.add(parsehash[1], function (err) {
-                                if (err) {
-                                    throw err
-                                }
-                            })
+                if(datastore.data.length > 0){
+                    if(JSON.stringify(datastore.data).indexOf('ipfs:') !== -1){
+                        let parsed = datastore.data.split('***')
+                        if(parsed[0] !== undefined){
+                            let parsehash = parsed[0].split(':')
+                            if(parsehash[1] !== undefined && parsehash[1] !== 'undefined'){
+                                console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + parsehash[1])
+                                global['ipfs'].pin.add(parsehash[1], function (err) {
+                                    if (err) {
+                                        throw err
+                                    }
+                                })
+                            }
                         }
                     }
-                }
-                if(datastore.uuid !== undefined && datastore.uuid !== ''){
-                    await db.collection("written").insertOne(datastore)
+                    if(datastore.uuid !== undefined && datastore.uuid !== ''){
+                        await db.collection("written").insertOne(datastore)
+                    }
                 }
             }else{
                 console.log('DATA ALREADY STORED AT BLOCK '+ datastore.block +'.')
