@@ -843,7 +843,9 @@ module Crypto {
                         
                         if(global['chunkcache'][addressdata] !== undefined){
                             for(let y in global['chunkcache'][addressdata]){
-                                written.push(global['chunkcache'][addressdata][y])
+                                if(block['result']['raw_written'][addressdata].indexOf(global['chunkcache'][addressdata][y]) === -1){
+                                    written.push(global['chunkcache'][addressdata][y])
+                                }
                             }
                         }
                         
@@ -1025,7 +1027,9 @@ module Crypto {
                     }
 
                     delete block['result']['tx']
-                    response(block['result'])
+                    let res = block['result']
+                    block['result'] = []
+                    response(res)
                 })
             })
         })
