@@ -32,10 +32,15 @@ module Bootstrap {
             });
             
             archive.pipe(output);
-            
+            var testnetfolder = ''
+            if(process.env.TESTNET !== undefined){
+                if(process.env.TESTNET === 'true' || process.env.TESTNET === true){
+                    testnetfolder = '/testnet4'
+                }
+            }
             try{
-                archive.directory(dotlyrafolder + '/blocks/', 'blocks');
-                archive.directory(dotlyrafolder + '/chainstate/', 'chainstate');
+                archive.directory(dotlyrafolder + testnetfolder + '/blocks/', 'blocks');
+                archive.directory(dotlyrafolder + testnetfolder + '/chainstate/', 'chainstate');
                 archive.finalize();
             }catch(e){
                 console.log('BOOTSTRAP FAILED')
