@@ -5,6 +5,7 @@ import * as Bootstrap from "./libs/Bootstrap"
 import * as Database from "./libs/Database"
 import SysTray from 'systray'
 const open = require('opn')
+const fs = require("fs")
 const mongo = require('mongodb').MongoClient
 const exec = require('child_process')
 var publicIp = require('public-ip')
@@ -86,6 +87,14 @@ function sleep (time) {
 }
 
 async function checkConnections(){
+  var is_testnet = false
+  if(process.env.TESTNET !== undefined){
+    if(process.env.TESTNET === 'true' || process.env.TESTNET === true){
+      is_testnet = true
+      console.log('TESTNET MODE ACTIVATED!')
+    }
+  }
+
   var wallet = new Crypto.Wallet;
   wallet.request('getinfo').then( async function(info){
     if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
@@ -94,7 +103,15 @@ async function checkConnections(){
         if(err){
           console.log('Database not connected, starting process now.')
           try{
-            exec.exec('mongod --dbpath=./mongodb_data',{
+            var mongo_path = './mongodb_data'
+            if(is_testnet){
+              console.log('RUNNING DATABASE IN TESTNET FOLDER')
+              mongo_path += '_testnet'
+            }
+            if (!fs.existsSync(mongo_path)) {
+              fs.mkdirSync(mongo_path);
+            }
+            exec.exec('mongod --dbpath=' + mongo_path,{
               stdio: 'ignore',
               detached: true
             }).unref()
@@ -113,13 +130,20 @@ async function checkConnections(){
       });
     }else{
       console.log('Can\'t communicate with wallet, running process now.')
+      var testnet_flag = ''
+      if(is_testnet){
+          testnet_flag = '-testnet'
+          console.log('RUNNING WALLET IN TESTNET MODE')
+      }
       if(process.env.LYRAFOLDER !== undefined){
-        exec.spawn(process.env.LYRAPATH + '/lyrad -datadir=' + process.env.LYRAFOLDER,{
+        exec.spawn(process.env.LYRAPATH + '/lyrad ' + '-datadir=' + process.env.LYRAFOLDER,{
           stdio: 'ignore',
           detached: true
-        }).unref()
+        }).unref().catch(e => {
+          console.log(e)
+        })
       }else{
-        exec.spawn(process.env.LYRAPATH + '/lyrad',{
+        exec.spawn(process.env.LYRAPATH + '/lyrad', [testnet_flag],{
           stdio: 'ignore',
           detached: true
         }).unref()
