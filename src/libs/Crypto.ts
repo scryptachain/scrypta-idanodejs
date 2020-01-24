@@ -19,7 +19,6 @@ module Crypto {
             if(process.env.TESTNET !== undefined && process.env.RPCPORT_TESTNET !== undefined){
               if(process.env.TESTNET === 'true' || process.env.TESTNET === true){
                 rpcport = process.env.RPCPORT_TESTNET
-                console.log('TESTNET RPC PORT SELECTED')
               }
             }
             var rpcuser = process.env.RPCUSER
