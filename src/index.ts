@@ -91,7 +91,6 @@ async function checkConnections(){
   if(process.env.TESTNET !== undefined){
     if(process.env.TESTNET === 'true' || process.env.TESTNET === true){
       is_testnet = true
-      console.log('TESTNET MODE ACTIVATED!')
     }
   }
 

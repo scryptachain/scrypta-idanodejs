@@ -107,10 +107,10 @@ export async function write(req: express.Request, res: express.Response) {
               }else{
                   metadata = request['body']['data']
               }
+              var dataToWrite = '*!*' + uuid+collection+refID+protocol+ '*=>' + metadata + '*!*'
+              console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
 
-              console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + metadata)
-
-              let write = await wallet.writemultisig(private_keys, trustlink, redeemScript, metadata, uuid, collection, refID, protocol)
+              let write = await wallet.writemultisig(private_keys, trustlink, redeemScript, dataToWrite, uuid, collection, refID, protocol)
               res.json(write)
               
             }else{

@@ -543,6 +543,7 @@ module Crypto {
                 max_opreturn = parseInt(process.env.MAX_OPRETURN)
             }
             if(dataToWrite.length <= max_opreturn){
+                // WRITE NEEDS JUST ONE TRANSACTION
                 let txid = ''
                 var i = 0
                 var totalfees = 0
@@ -579,7 +580,7 @@ module Crypto {
                     response(false)
                 }
             }else{
-
+                // WRITE NEEDS TO BE CHUNKED
                 var txs = []
                 var chunklength = max_opreturn - 6
                 var chunkdatalimit = chunklength - 3
@@ -620,7 +621,6 @@ module Crypto {
 
                 var totalfees = 0
                 var error = false
-
                 for(var cix=0; cix<chunks.length; cix++){
                     var txid = ''
                     var i = 0
@@ -766,7 +766,13 @@ module Crypto {
                                 if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1){
                                     //console.log('CHECKING OP_RETURN')
                                     var parser = new Utilities.Parser
-                                    var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'].substr(6))
+                                    let cutter
+                                    if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'].indexOf('6a4c') === 0){
+                                        cutter = 6
+                                    }else{
+                                        cutter = 4
+                                    }
+                                    var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'].substr(cutter))
                                     var addressdata
                                     var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
                                     if(addresswrite === receivingaddress){
@@ -861,7 +867,7 @@ module Crypto {
                                     block['result']['data_written'][addressdata] = []
                                 }
                                 endofdata = 'Y'
-                                console.log('FOUND SINGLE DATA')
+                                console.log('FOUND SINGLE DATA!!!!!!!!!!')
                             }else{
                                 console.log('CHECK FOR CHUCKED DATA')
                                 if(singledata === '' && data.indexOf('*!*') === 0){

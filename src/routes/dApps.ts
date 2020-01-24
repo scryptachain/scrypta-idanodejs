@@ -23,14 +23,13 @@ export function upload(req: express.Request, res: express.Response) {
             for(var x in results){
                 var hash = results[x]
                 if(hash['path'] === fields.dapp_address){
-                    var i = 0
-                    var totalfees = 0
-                    var error = false
-                    var wallet = new Crypto.Wallet;
-                    var Uuid = require('uuid/v4')
-                    var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
-                    var dataToWrite = hash['hash']
-                    
+                  var i = 0
+                  var totalfees = 0
+                  var error = false
+                  var wallet = new Crypto.Wallet;
+                  var Uuid = require('uuid/v4')
+                  var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+                  var dataToWrite = '*!*' + uuid+'!*!'+'!*!'+'!*!dapp://'+ '*=>' + hash['hash'] + '*!*'
                   let write = await wallet.write(fields.private_key, fields.dapp_address, dataToWrite, uuid, '', '', 'dapp://')
                   res.json(write)
                 }
