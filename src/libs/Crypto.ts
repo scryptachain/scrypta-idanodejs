@@ -753,7 +753,7 @@ module Crypto {
                                     })
                                 }
                                 //CHECKING OP_RETURN
-                                if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'].indexOf('OP_RETURN') !== -1){
+                                if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1){
                                     //console.log('CHECKING OP_RETURN')
                                     var parser = new Utilities.Parser
                                     var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'].substr(4))
