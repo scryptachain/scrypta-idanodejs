@@ -446,36 +446,38 @@ module Crypto {
             }else{
 
                 var txs = []
+                var chunklength = max_opreturn - 6
+                var chunkdatalimit = chunklength - 3
                 var dataToWriteLength = dataToWrite.length
-                var nchunks = Math.ceil(dataToWriteLength / 74)
+                var nchunks = Math.ceil(dataToWriteLength / chunklength)
                 var last = nchunks - 1
                 var chunks = []
 
                 for (var i=0; i<nchunks; i++){
-                    var start = i * 74
-                    var end = start + 74
+                    var start = i * chunklength
+                    var end = start + chunklength
                     var chunk = dataToWrite.substring(start,end)
                     var prevref
                     var nextref
                     if(i === 0){
-                        var startnext = (i + 1) * 74
-                        var endnext = startnext + 74
+                        var startnext = (i + 1) * chunklength
+                        var endnext = startnext + chunklength
                         prevref = ''
                         nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
                     } else if(i === last){
-                        var startprev = (i - 1) * 74
-                        var endprev = startprev + 74
+                        var startprev = (i - 1) * chunklength
+                        var endprev = startprev + chunklength
                         nextref = ''
-                        prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                        prevref = dataToWrite.substr(startprev,endprev).substr(chunkdatalimit,3)
                     } else {
                         var sni = i + 1
-                        var startnext = sni * 74
-                        var endnext = startnext + 74
+                        var startnext = sni * chunklength
+                        var endnext = startnext + chunklength
                         nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
                         var spi = i - 1
-                        var startprev = spi * 74
-                        var endprev = startprev + 74
-                        prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                        var startprev = spi * chunklength
+                        var endprev = startprev + chunklength
+                        prevref = dataToWrite.substr(startprev,endprev).substr(chunkdatalimit,3)
                     }
                     chunk = prevref + chunk + nextref
                     chunks.push(chunk)
@@ -573,36 +575,38 @@ module Crypto {
             }else{
 
                 var txs = []
+                var chunklength = max_opreturn - 6
+                var chunkdatalimit = chunklength - 3
                 var dataToWriteLength = dataToWrite.length
-                var nchunks = Math.ceil(dataToWriteLength / 74)
+                var nchunks = Math.ceil(dataToWriteLength / chunklength)
                 var last = nchunks - 1
                 var chunks = []
 
                 for (var i=0; i<nchunks; i++){
-                    var start = i * 74
-                    var end = start + 74
+                    var start = i * chunklength
+                    var end = start + chunklength
                     var chunk = dataToWrite.substring(start,end)
                     var nextref
                     var prevref
                     if(i === 0){
-                        var startnext = (i + 1) * 74
-                        var endnext = startnext + 74
+                        var startnext = (i + 1) * chunklength
+                        var endnext = startnext + chunklength
                         prevref = ''
                         nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
                     } else if(i === last){
-                        var startprev = (i - 1) * 74
-                        var endprev = startprev + 74
+                        var startprev = (i - 1) * chunklength
+                        var endprev = startprev + chunklength
                         nextref = ''
-                        prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                        prevref = dataToWrite.substr(startprev,endprev).substr(chunkdatalimit,3)
                     } else {
                         var sni = i + 1
-                        var startnext = sni * 74
-                        var endnext = startnext + 74
+                        var startnext = sni * chunklength
+                        var endnext = startnext + chunklength
                         nextref = dataToWrite.substring(startnext,endnext).substring(0,3)
                         var spi = i - 1
-                        var startprev = spi * 74
-                        var endprev = startprev + 74
-                        prevref = dataToWrite.substr(startprev,endprev).substr(71,3)
+                        var startprev = spi * chunklength
+                        var endprev = startprev + chunklength
+                        prevref = dataToWrite.substr(startprev,endprev).substr(chunkdatalimit,3)
                     }
                     chunk = prevref + chunk + nextref
                     chunks.push(chunk)

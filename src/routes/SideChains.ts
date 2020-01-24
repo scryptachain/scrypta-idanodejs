@@ -192,11 +192,6 @@ export async function send(req: express.Request, res: express.Response) {
             amountinput = parseFloat(amountinput.toFixed(check_sidechain[0].data.genesis.decimals))
             amount = parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals))
             if (amountinput >= fields.amount) {
-
-              var burnable = false
-              if(check_sidechain[0].burnable !== undefined){
-                burnable = check_sidechain[0].burnable
-              }
               
               if(fields.to === check_sidechain[0].address && check_sidechain[0].data.burnable === false){
                 
