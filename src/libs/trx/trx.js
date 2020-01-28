@@ -162,11 +162,16 @@ export default class BitJS {
 			o.value = 0;
 			var bytes = Buffer.from(data)
 			buf.push(BitJS.hexToBytes('6a')[0]);
-			if(data.length > 75){
+			if(data.length > 75 && data.length <= 255){
 				buf.push(BitJS.hexToBytes('4c')[0]);
+				var ln = BitJS.numToByteArray(data.length)
+				buf.push(ln[0]);
+			}else if(data.length > 255){
+				buf.push(BitJS.hexToBytes('4d')[0]);
+				var ln = BitJS.numToByteArray(data.length)
+				buf.push(ln[0])
+				buf.push(ln[1])
 			}
-			var ln = BitJS.numToByteArray(data.length)
-			buf.push(ln[0]);
 			for(var i=0; i<bytes.length; i++){
 				if(bytes[i] !== undefined){
 					buf.push(bytes[i]);
@@ -452,7 +457,7 @@ export default class BitJS {
 	}
 
 	static numToByteArray(num) {
-		if (num <= 256) {
+		if (num < 256) {
 			return [num];
 		} else {
 			return [num % 256].concat(this.numToByteArray(Math.floor(num / 256)));

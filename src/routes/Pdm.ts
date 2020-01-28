@@ -73,8 +73,16 @@ export async function write(req: express.Request, res: express.Response) {
                             max_opreturn = parseInt(process.env.MAX_OPRETURN)
                         }
                         console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
-                        var write = await wallet.write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol)
-                        res.json(write)
+                        try{
+                            var write = await wallet.write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol)
+                            if(write !== false){
+                                res.json(write)
+                            }else{
+                                res.json({success: false})
+                            }
+                        }catch(e){
+                            res.json(e)
+                        }
                     }else{
                         res.json({
                             data: 'Address isn\'t valid.',

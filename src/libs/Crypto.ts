@@ -173,7 +173,8 @@ module Crypto {
 
                     var signed = trx.sign(private_key,1);
                     if(send === true){
-                        var txid = <string> await wallet.request('sendrawtransaction',[signed])
+                        console.log('ENTIRE TX IS ' + signed.length + ' BYTE. USING ' + fees + 'LYRA OF FEES.')
+                        var txid = <string> await wallet.request('sendrawtransaction',[signed,true])
                         if(txid['result'] !== null && txid['result'].length === 64){
                             for(let x in usedtx){
                                 global['txidcache'].push(usedtx[x])
@@ -192,8 +193,10 @@ module Crypto {
                                 console.log("UNSPENT IS: ",unspent)
                                 global['utxocache'][decoded.txid] = unspent
                             }
+                            response(txid['result'])
+                        }else{
+                            response(txid['error'])
                         }
-                        response(txid['result'])
                     }else{
                         response(signed)
                     }
@@ -555,10 +558,13 @@ module Crypto {
                     if(txid !== null && txid.length === 64){
                         console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                         totalfees += fees
+                    }else{
+                        console.log('SEND FAILED', txid)
+                        txid = ''
                     }
 
                     i++;
-                    if(i > 20){
+                    if(i > 40){
                         error = true
                         txid = '0000000000000000000000000000000000000000000000000000000000000000'
                     }
