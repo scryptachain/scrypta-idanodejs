@@ -23,12 +23,12 @@ module Bootstrap {
                 if (err.code === 'ENOENT') {
                     console.log(err)
                 } else {
-                    throw err;
+                    console.log(err)
                 }
             });
             
             archive.on('error', function(err) {
-                throw err;
+                console.log(err);
             });
             
             archive.pipe(output);
