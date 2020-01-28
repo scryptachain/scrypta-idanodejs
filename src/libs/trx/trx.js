@@ -174,6 +174,9 @@ export default class BitJS {
 				var ln = BitJS.numToByteArray(data.length)
 				buf.push(ln[0])
 				buf.push(ln[1])
+			}else if(data.length < 75){
+				var ln = BitJS.numToByteArray(data.length)
+				buf.push(ln[0]);
 			}
 
 			for(var i=0; i<bytes.length; i++){

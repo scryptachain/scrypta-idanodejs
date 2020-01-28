@@ -193,10 +193,8 @@ module Crypto {
                                 console.log("UNSPENT IS: ",unspent)
                                 global['utxocache'][decoded.txid] = unspent
                             }
-                            response(txid['result'])
-                        }else{
-                            response(txid['error'])
                         }
+                        response(txid['result'])
                     }else{
                         response(signed)
                     }
@@ -425,8 +423,6 @@ module Crypto {
                     if(txid !== null && txid.length === 64){
                         console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                         totalfees += fees
-                    }else{
-                      console.log('TX FAILED.')
                     }
 
                     i++;
@@ -558,9 +554,6 @@ module Crypto {
                     if(txid !== null && txid.length === 64){
                         console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                         totalfees += fees
-                    }else{
-                        console.log('SEND FAILED', txid)
-                        txid = ''
                     }
 
                     i++;
@@ -627,6 +620,8 @@ module Crypto {
 
                 var totalfees = 0
                 var error = false
+                console.log('ATTEMPTING TO WRITE ' + chunks.length + ' CHUNKS')
+                console.log(chunks)
                 for(var cix=0; cix<chunks.length; cix++){
                     var txid = ''
                     var i = 0
