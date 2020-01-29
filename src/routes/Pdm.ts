@@ -161,9 +161,9 @@ export async function read(req: express.Request, res: express.Response) {
             }
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
-                let result = await db.collection('written').find().limit(limit).sort({block: -1}).toArray()
+                let result = await db.collection('written').find().sort({block: -1}).toArray()
                 client.close()
-                let data = await parseDB(result, filters, history)
+                let data = await parseDB(result, filters, history, limit)
                 res.json({
                     data: data,
                     status: 200
@@ -178,7 +178,7 @@ export async function read(req: express.Request, res: express.Response) {
     }
 };
 
-async function parseDB(DB, filters = {}, history = false){
+async function parseDB(DB, filters = {}, history = false, limit = 100){
     return new Promise(async response => {
         let data = []
         let ended = []
@@ -215,7 +215,13 @@ async function parseDB(DB, filters = {}, history = false){
         if(filtered.length > 0){
             filtered = await _.where(data, filters);
         }
-        response(filtered)
+        var limited = []
+        for(let x in filtered){
+            if(limited.length <= limit){
+                limited.push(filtered[x])
+            }
+        }
+        response(limited)
     })
 }
 
