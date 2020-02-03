@@ -327,7 +327,6 @@ export async function reissue(req: express.Request, res: express.Response) {
         if(check_sidechain[0].data.genesis.reissuable === true){      
           let supply = parseFloat(fields.supply)
           if(supply > 0){
-            // TODO: REISSUE
             
             let reissue = {
               "sidechain": fields.sidechain_address,

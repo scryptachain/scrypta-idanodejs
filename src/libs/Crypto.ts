@@ -864,7 +864,7 @@ module Crypto {
                                     block['result']['data_written'][addressdata] = []
                                 }
                                 endofdata = 'Y'
-                                console.log('FOUND SINGLE DATA!!!!!!!!!!')
+                                console.log('FOUND SINGLE DATA.')
                             }else{
                                 console.log('CHECK FOR CHUCKED DATA')
                                 if(singledata === '' && data.indexOf('*!*') === 0){
@@ -935,7 +935,7 @@ module Crypto {
                                                 idc++
                                             }
 
-                                            let max = 10000 * written.length
+                                            let max = 100 * written.length
                                             if(idctt > max){
                                                 endofdata = 'Y'
                                                 console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
@@ -1024,6 +1024,273 @@ module Crypto {
                     delete block['result']['tx']
                     let res = block['result']
                     block['result'] = []
+                    response(res)
+                })
+            })
+        })
+    }
+
+    public async analyzeMempool () {
+        return new Promise (response => {
+            var wallet = new Crypto.Wallet
+            wallet.request('getrawmempool').then(function(mempool){
+                mempool['result']['outputs'] = []
+                mempool['result']['raw_written'] = {}
+                mempool['result']['data_written'] = {}
+                mempool['result']['data_received'] = {}
+                mempool['result']['tx'] = []
+                var mempool_written = []
+                //PARSING ALL TRANSACTIONS
+                new Promise (async resolve => {
+                    for(var i = 0; i < mempool['result'].length; i++){
+                        var txid = mempool['result'][i]
+
+                        var rawtx = await wallet.request('getrawtransaction', [txid])
+                        var tx = await wallet.request('decoderawtransaction', [rawtx['result']])
+                        mempool['result']['tx'][i] = tx['result']
+                        //PARSING ALL VOUT
+                        var receivingaddress = ''
+                        
+                        for(var voutx = 0; voutx < mempool['result']['tx'][i]['vout'].length; voutx++){
+                            //console.log('ANALYZING VOUT ' + voutx)
+                            if(mempool['result']['tx'][i]['vout'][voutx]['value'] >= 0){
+
+                                if(mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses']){
+                                    mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses'].forEach(function(address, index){
+
+                                        if(receivingaddress === ''){
+                                            receivingaddress = address
+                                        }
+
+                                    })
+                                }
+
+                                //CHECKING OP_RETURN
+                                if(mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1){
+                                    //console.log('CHECKING OP_RETURN')
+                                    var parser = new Utilities.Parser
+                                    var OP_RETURN = parser.hex2a(mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
+                                    var addressdata
+                                    var inrawtx = await wallet.request('getrawtransaction', [mempool['result']['tx'][i]['vin'][0].txid])
+                                    var intx = await wallet.request('decoderawtransaction', [inrawtx['result']])
+                                    var addresswrite = intx['result']['vout'][mempool['result']['tx'][i]['vin'][0].vout].scriptPubKey['addresses'][0]
+
+                                    if(addresswrite === receivingaddress){
+                                        addressdata = addresswrite
+                                        if(mempool['result']['raw_written'][addressdata] === undefined){
+                                            mempool['result']['raw_written'][addressdata] = []
+                                        }
+                                        mempool['result']['raw_written'][addressdata].push(OP_RETURN)
+                                    }else{
+                                        addressdata = receivingaddress
+                                        if(mempool['result']['data_received'][addressdata] === undefined){
+                                            mempool['result']['data_received'][addressdata] = []
+                                        }
+                                        mempool['result']['data_received'][addressdata].push({
+                                            txid: txid,
+                                            address: addressdata,
+                                            sender: addresswrite,
+                                            data: OP_RETURN
+                                        })
+                                    }
+
+                                }
+                            }
+                        }
+
+                    }
+
+                    //COMPACTING DATA AGAIN
+                    for(let addressdata in mempool['result']['raw_written']){
+                        var written = []
+                        
+                        if(global['chunkcache'][addressdata] !== undefined){
+                            for(let y in global['chunkcache'][addressdata]){
+                                if(mempool['result']['raw_written'][addressdata].indexOf(global['chunkcache'][addressdata][y]) === -1){
+                                    written.push(global['chunkcache'][addressdata][y])
+                                }
+                            }
+                        }
+                        
+                        for(let y in mempool['result']['raw_written'][addressdata]){
+                            written.push(mempool['result']['raw_written'][addressdata][y])
+                        }
+
+                        var singledata = ''
+                        var readchunks = []
+                        console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata, written)
+                        for(var wix in written){
+                            var data = written[wix]
+                            var checkhead = data.substr(0,3)
+                            var checkfoot = data.substr(-3)
+                            console.log('CHECKING HEAD ' + checkhead)
+                            console.log('CHECKING FOOT ' + checkfoot)
+
+                            if(singledata === '' && checkhead === checkfoot && checkhead === '*!*' && checkfoot === '*!*'){
+                                singledata = data;
+                                if(mempool['result']['data_written'][addressdata] === undefined){
+                                    mempool['result']['data_written'][addressdata] = []
+                                }
+                                endofdata = 'Y'
+                                console.log('FOUND SINGLE DATA.')
+                            }else{
+                                console.log('CHECK FOR CHUCKED DATA')
+                                if(singledata === '' && data.indexOf('*!*') === 0){
+                                    console.log('INIT CHUCK SEARCH')
+                                    var prevcontrol = data.substr(-6).substr(0,3)
+                                    console.log('PREV CONTROL IS ' + prevcontrol)
+                                    var nextcontrol = data.substr(-3)
+                                    console.log('NEXT CONTROL IS ' + nextcontrol)
+                                    var chunkcontrol = prevcontrol + nextcontrol
+                                    singledata += '*!*'
+                                    console.log('SINGLEDATA IS', singledata)
+                                    console.log('NEED TO FIND ' + chunkcontrol)
+                                    var endofdata = 'N'
+                                    var idc = 0
+                                    var idct = 0
+                                    var idctt = 0
+                                    while(endofdata === 'N'){
+                                        idct++
+                                        idctt++
+                                        console.log('CHECKING INDEX ' + idc)
+                                        if(written[idc] !== undefined){
+                                            var checkdata = written[idc].substr(0,6)
+                                            console.log('CHECKING ' + checkdata + ' AGAINST ' + chunkcontrol)
+                                            if(checkdata === chunkcontrol && readchunks.indexOf(idc) === -1){
+                                                readchunks.push(idc)
+                                                console.log('\x1b[33m%s\x1b[0m', 'CHUNK FOUND ' + chunkcontrol + ' at #' + idc)
+                                                idct = 0
+                                                if(checkdata.indexOf('*!*') !== -1){
+                                                    singledata += data.substr(6, data.length)
+                                                    console.log('END OF DATA')
+                                                    endofdata = 'Y';
+                                                }else{
+                                                    var chunk = '' 
+                                                    var datalm3 = 0
+                                                    if(data.indexOf('*!*') === 0 && singledata === '*!*'){
+                                                        chunk = data.substr(3, data.length)
+                                                        datalm3 = data.length - 3
+                                                    }else{
+                                                        chunk = data.substr(6, data.length)
+                                                        datalm3 = data.length - 6
+                                                    }
+                                                    chunk = chunk.substr(0,datalm3)
+                                                    singledata += chunk
+                                                    console.log('CHUNKED DATA IS ' + chunk)
+                                                    if(written[idc] !== undefined){
+                                                        var data = written[idc]
+                                                        var prevcontrol = data.substr(-6).substr(0,3)
+                                                        console.log('PREV CONTROL IS ' + prevcontrol)
+                                                        var nextcontrol = data.substr(-3)
+                                                        console.log('NEXT CONTROL IS ' + nextcontrol)
+                                                        chunkcontrol = prevcontrol + nextcontrol
+                                                        if(chunkcontrol.indexOf('*!*') !== -1){
+                                                            singledata += data.substr(6, data.length)
+                                                            console.log('END OF DATA')
+                                                            endofdata = 'Y'
+                                                        }else{
+                                                            console.log('NEED TO FIND ' + chunkcontrol)
+                                                            idc = 0
+                                                        }
+                                                        idc ++
+                                                    }else{
+                                                        idc = 0
+                                                        console.log('RESTARTING')
+                                                        //endofdata = 'Y'
+                                                    }
+                                                }
+                                            }else{
+                                                idc++
+                                            }
+
+                                            let max = 100 * written.length
+                                            if(idctt > max){
+                                                endofdata = 'Y'
+                                                console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
+                                            }
+                                        }else{
+                                            //endofdata = 'Y'
+                                            idc = 0
+                                            console.log('RESTARTING')
+                                        }
+                                    }
+
+                                }
+                            }
+
+                            checkhead = singledata.substr(0,3)
+                            checkfoot = singledata.substr(-3)
+
+                            if(endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*'){
+                                console.log('COMPLETED DATA ' + singledata)
+                                if(global['chunkcache'][addressdata] !== undefined){
+                                    // RESETTING CACHE DATA
+                                    global['chunkcache'][addressdata] = []
+                                }
+                                if(mempool['result']['data_written'][addressdata] === undefined){
+                                    mempool['result']['data_written'][addressdata] = []
+                                }
+                                singledata = singledata.substr(3)
+                                var datalm3 = singledata.length - 3
+                                singledata = singledata.substr(0, datalm3)
+                                var split = singledata.split('*=>')
+                                var headsplit = split[0].split('!*!')
+                                var datastore
+
+                                try{
+                                    datastore = JSON.parse(split[1]);
+                                }catch(e){
+                                    datastore = split[1]
+                                }
+                                if(headsplit[1] !== undefined){
+                                    var collection = headsplit[1]
+                                }else{
+                                    var collection = ''
+                                }
+                                if(headsplit[2] !== undefined){
+                                    var refID = headsplit[2]
+                                }else{
+                                    var refID = ''
+                                }
+                                if(headsplit[3] !== undefined){
+                                    var protocol = headsplit[3]
+                                }else{
+                                    var protocol = ''
+                                }
+                                if(datastore === undefined){
+                                    datastore = ''
+                                }
+                                var parsed = {
+                                    address: addressdata,
+                                    uuid: headsplit[0],
+                                    collection: collection,
+                                    refID: refID,
+                                    protocol: protocol,
+                                    data: datastore
+                                }
+                                singledata = ''
+                                if(mempool['result']['data_written'][addressdata].indexOf(parsed) === -1){
+                                    mempool['result']['data_written'][addressdata].push(parsed)
+                                }
+                            }else{
+                                if(global['chunkcache'][addressdata] === undefined){
+                                    global['chunkcache'][addressdata] = []
+                                }
+                                //PUSHING CHUNKS INTO CACHE
+                                for(let y in mempool['result']['raw_written'][addressdata]){
+                                    if(global['chunkcache'][addressdata].includes(mempool['result']['raw_written'][addressdata][y]) === false){
+                                        global['chunkcache'][addressdata].push(mempool['result']['raw_written'][addressdata][y])
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    let res = {
+                        data_written: mempool['result']['data_written'],
+                        data_received: mempool['result']['data_received']
+                    }
+
                     response(res)
                 })
             })

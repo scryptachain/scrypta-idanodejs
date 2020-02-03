@@ -35,6 +35,16 @@ export function analyzeblock(req: express.Request, res: express.Response) {
     })
 };
 
+export function analyzemempool(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+    wallet.analyzeMempool().then(analyzed => {
+        res.json({
+            data: analyzed,
+            status: 200
+        })
+    })
+};
+
 export function resync(req: express.Request, res: express.Response) {
     var block = req.params.block
     global['syncLock'] = true 

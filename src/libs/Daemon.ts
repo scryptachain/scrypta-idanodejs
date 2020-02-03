@@ -48,6 +48,30 @@ module Daemon {
         }else{
             analyze = 1
         }
+
+        // ANALYZING MEMPOOL
+        console.log('\x1b[32m%s\x1b[0m', 'ANALYZING MEMPOOL')
+        var wallet = new Crypto.Wallet
+        var mempool = await wallet.analyzeMempool()
+        console.log(mempool)
+        for(var address in mempool['data_written']){
+            var data = mempool['data_written'][address]
+            console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+            for(var dix in data){
+                var task = new Daemon.Sync
+                await task.storewritten(data[dix])
+            }
+        }
+
+        for(var address in mempool['data_received']){
+            var data = mempool['data_received'][address]
+            console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
+            for(var dix in data){
+                var task = new Daemon.Sync
+                await task.storereceived(data[dix])
+            }
+        }
+
         if(analyze <= blocks){
             if(global['syncLock'] === false){
                 var task = new Daemon.Sync
@@ -66,8 +90,11 @@ module Daemon {
         if(toAnalyze !== null){
             analyze = toAnalyze
         }
+        
+        // ANLYZING BLOCK
         if(analyze > 0){
             console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
+            
             var wallet = new Crypto.Wallet
             var blockhash = await wallet.request('getblockhash',[analyze])
             var block = await wallet.analyzeBlock(blockhash['result'])
@@ -130,13 +157,8 @@ module Daemon {
                 var task = new Daemon.Sync
                 task.process()
             },10)
-        }else{
-            console.log('\x1b[41m%s\x1b[0m', 'ANALYZED EVERYTHING REBOOTING PROCESS IN 30 SECONDS')
-            setTimeout(function(){
-                var task = new Daemon.Sync
-                task.init()
-            },30000)
         }
+
     }
 
     private async store(address, block, txid, tx, movements){
@@ -217,7 +239,11 @@ module Daemon {
                     await db.collection("written").insertOne(datastore)
                 }
             }else{
-                console.log('DATA ALREADY STORED AT BLOCK '+ datastore.block +'.')
+                if(datastore.block !== undefined){
+                    console.log('DATA ALREADY STORED AT BLOCK '+ datastore.block +'.')
+                }else{
+                    console.log('DATA ALREADY STORED FROM MEMPOOL.')
+                }
             }
 
             if(datastore.protocol === 'chain://'){
