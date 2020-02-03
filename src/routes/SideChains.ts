@@ -181,6 +181,7 @@ export async function send(req: express.Request, res: express.Response) {
                 let checkinput = await db.collection('sc_transactions').find({ sxid: unspent[i].sxid }).limit(1).toArray()
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
                   if (global['sxidcache'].indexOf(unspent[i].sxid) === -1) {
+                    delete unspent[i].block
                     inputs.push(unspent[i])
                     usedtx.push(unspent[i].sxid)
                     amountinput += parseFloat(unspent[i].amount.toFixed(check_sidechain[0].data.genesis.decimals))
@@ -533,6 +534,7 @@ export async function transactions(req: express.Request, res: express.Response) 
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
         if (check_sidechain[0] !== undefined) {
           let transactions = []
+          let unconfirmed = []
 
           let txs = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: -1 }).toArray()
           for (let tx in txs) {
@@ -559,11 +561,24 @@ export async function transactions(req: express.Request, res: express.Response) 
                 amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals)),
                 block: txs[tx].block
               }
-              transactions.push(analyzed)
+              if(txs[tx].block !== null){
+                transactions.push(analyzed)
+              }else{
+                unconfirmed.push(analyzed)
+              }
             }
           }
+          
+          let response_txs = []
+          for(let x in unconfirmed){
+            response_txs.push(unconfirmed[x])
+          }
+          for(let y in transactions){
+            response_txs.push(transactions[y])
+          }
+
           res.json({
-            transactions: transactions,
+            transactions: response_txs,
             symbol: check_sidechain[0].data.genesis.symbol,
             sidechain: check_sidechain[0].address
           })

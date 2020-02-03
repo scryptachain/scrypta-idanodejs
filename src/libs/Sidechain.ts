@@ -34,6 +34,7 @@ module SideChain {
                     if(check_genesis !== undefined && check_genesis[0] !== undefined && check_genesis[0].genesis !== undefined && check_genesis[0].sxid === sxid){
                         response(true)
                     }else{
+                        console.log('CHECK_REISSUE')
                         let check_reissue = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
                         if(check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined){
                             let check_sidechain = await db.collection('written').find({ address: check_reissue[0].reissue.sidechain }).sort({ block: 1 }).limit(1).toArray()
