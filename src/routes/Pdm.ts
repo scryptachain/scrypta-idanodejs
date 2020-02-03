@@ -181,6 +181,7 @@ export async function read(req: express.Request, res: express.Response) {
 async function parseDB(DB, filters = {}, history = false, limit = 100){
     return new Promise(async response => {
         let data = []
+        let unconfirmed = []
         let ended = []
         let uuids = []
         for(let x in DB){
@@ -199,9 +200,11 @@ async function parseDB(DB, filters = {}, history = false, limit = 100){
                         }else{
                             written['is_file'] = false
                         }
-                        if(uuids.indexOf(written['uuid']) === -1 && written['uuid'].length > 0){
+                        if(uuids.indexOf(written['uuid']) === -1 && written['uuid'].length > 0 && written['block'] !== undefined){
                             uuids.push(written['uuid'])
                             data.push(written)
+                        }else{
+                            unconfirmed.push(written)
                         }
                     }
                 }else{
@@ -212,8 +215,17 @@ async function parseDB(DB, filters = {}, history = false, limit = 100){
             }
         }
         var filtered = data
+        var complete = []
+        for(let x in unconfirmed){
+            if(uuids.indexOf(unconfirmed[x].uuid) === -1){
+                complete.push(unconfirmed[x])
+            }
+        }
+        for(let y in data){
+            complete.push(data[y])
+        }
         if(filtered.length > 0){
-            filtered = await _.where(data, filters);
+            filtered = await _.where(complete, filters);
         }
         var limited = []
         for(let x in filtered){
