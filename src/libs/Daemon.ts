@@ -275,46 +275,46 @@ module Daemon {
                     var scwallet = new Sidechain.Wallet;
                     console.log('SC TRANSACTION FOUND.', JSON.stringify(datastore.data))
                     let check = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
-
-                    if(check[0] === undefined){
-                        let valid = true
-                        var amountinput = 0
-                        var amountoutput = 0
-                        if(datastore.data.transaction.inputs.length > 0){
-                            for(let x in datastore.data.transaction.inputs){
-                                let sxid = datastore.data.transaction.inputs[x].sxid
-                                let vout = datastore.data.transaction.inputs[x].vout
-                                let validatesxid = await scwallet.validatesxid(sxid, vout, datastore.data.transaction.inputs[x].sidechain)
-                                if(validatesxid === false){
-                                    valid = false
-                                }
-                                amountinput += datastore.data.transaction.inputs[x].amount
-                            }
-                        }else{
-                            valid = false
-                        }
-
-                        if(valid === true){
-                            for(let x in datastore.data.transaction.outputs){
-                                amountoutput += datastore.data.transaction.outputs[x]
-                            }
-                        }
-
-                        if(valid === true && amountoutput > amountinput){
-                            valid = false
-                        }
-
-                        var wallet = new Crypto.Wallet;
-                        if(valid === true && datastore.data.pubkey !== undefined && datastore.data.signature !== undefined && datastore.data.transaction !== undefined){
-                            let validatesign = await wallet.verifymessage(datastore.data.pubkey,datastore.data.signature,JSON.stringify(datastore.data.transaction))
-                            if(validatesign === false){
+                    let valid = true
+                    var amountinput = 0
+                    var amountoutput = 0
+                    if(datastore.data.transaction.inputs.length > 0){
+                        for(let x in datastore.data.transaction.inputs){
+                            let sxid = datastore.data.transaction.inputs[x].sxid
+                            let vout = datastore.data.transaction.inputs[x].vout
+                            let validatesxid = await scwallet.validatesxid(sxid, vout, datastore.data.transaction.inputs[x].sidechain)
+                            if(validatesxid === false){
                                 valid = false
                             }
-                        }else{
+                            amountinput += datastore.data.transaction.inputs[x].amount
+                        }
+                    }else{
+                        valid = false
+                    }
+
+                    if(valid === true){
+                        for(let x in datastore.data.transaction.outputs){
+                            amountoutput += datastore.data.transaction.outputs[x]
+                        }
+                    }
+
+                    if(valid === true && amountoutput > amountinput){
+                        valid = false
+                    }
+
+                    var wallet = new Crypto.Wallet;
+                    if(valid === true && datastore.data.pubkey !== undefined && datastore.data.signature !== undefined && datastore.data.transaction !== undefined){
+                        let validatesign = await wallet.verifymessage(datastore.data.pubkey,datastore.data.signature,JSON.stringify(datastore.data.transaction))
+                        if(validatesign === false){
                             valid = false
                         }
-                        
-                        if(valid === true){
+                    }else{
+                        valid = false
+                    }
+                    
+                    if(valid === true){
+                        if(check[0] === undefined){
+                            console.log('SIDECHAIN TRANSACTION IS VALID')
                             datastore.data.block = datastore.block
                             let checkTx = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
                             if(checkTx[0] === undefined){
@@ -345,18 +345,42 @@ module Daemon {
                                 }
                                 vout++
                             }
-                            console.log('SIDECHAIN TRANSACTION IS VALID')
                         }else{
-                            console.log('SIDECHAIN TRANSACTION IS INVALID')
+                            console.log('SIDECHAIN UNSPENT ALREADY STORED.')
+                            let checkTx = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                            console.log(checkTx)
+                            if(checkTx[0].block === null){
+                                await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                            }
+    
+                            let vout = 0
+                            for(let x in datastore.data.transaction.outputs){
+                                let amount = datastore.data.transaction.outputs[x]
+                                let unspent = {
+                                    sxid: datastore.data.sxid,
+                                    vout: vout,
+                                    address: x,
+                                    amount: amount,
+                                    sidechain: datastore.data.transaction.sidechain,
+                                    block: datastore.block
+                                }
+                                let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
+                                if(checkUsxo[0] === undefined){
+                                    await db.collection("sc_unspent").insertOne(unspent)
+                                }else{
+                                    if(checkUsxo[0].block === null){
+                                        await db.collection("sc_unspent").updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
+                                    }
+                                }
+                                vout++
+                            }
                         }
                     }else{
-                        console.log('SIDECHAIN UNSPENT ALREADY STORED.')
-                        let checkTx = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
-                        console.log(checkTx)
-                        if(checkTx[0].block === null){
-                            await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                        console.log('SIDECHAIN TRANSACTION IS INVALID')
+                        // DELETING EVERYTHING RELATED TO AN INVALID TRANSACTION
+                        if(check[0] !== undefined){
+                            await db.collection("sc_transactions").deleteOne(check[0]._id)
                         }
-
                         let vout = 0
                         for(let x in datastore.data.transaction.outputs){
                             let amount = datastore.data.transaction.outputs[x]
@@ -369,16 +393,13 @@ module Daemon {
                                 block: datastore.block
                             }
                             let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
-                            if(checkUsxo[0] === undefined){
-                                await db.collection("sc_unspent").insertOne(unspent)
-                            }else{
-                                if(checkUsxo[0].block === null){
-                                    await db.collection("sc_unspent").updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
-                                }
+                            if(checkUsxo[0] !== undefined){
+                                await db.collection("sc_unspent").deleteOne(checkUsxo[0]._id)
                             }
                             vout++
                         }
                     }
+                   
                 }
             }
             response('STORED')
