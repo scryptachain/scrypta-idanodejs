@@ -53,7 +53,6 @@ module Daemon {
         console.log('\x1b[32m%s\x1b[0m', 'ANALYZING MEMPOOL')
         var wallet = new Crypto.Wallet
         var mempool = await wallet.analyzeMempool()
-        console.log(mempool)
         for(var address in mempool['data_written']){
             var data = mempool['data_written'][address]
             console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
@@ -254,6 +253,9 @@ module Daemon {
                         await db.collection("sc_transactions").insertOne(datastore.data)
                     }else{
                         console.log('GENESIS SXID ALREADY STORED.')
+                        if(datastore.block === null){
+                            await db.collection("sc_unspent").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                        }
                     }
                 }
                 if(datastore.data.reissue !== undefined){
@@ -263,12 +265,16 @@ module Daemon {
                         await db.collection("sc_transactions").insertOne(datastore.data)
                     }else{
                         console.log('REISSUE SXID ALREADY STORED.')
+                        if(datastore.block === null){
+                            await db.collection("sc_unspent").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                        }
                     }
                 }
+
                 if(datastore.data.transaction !== undefined){
                     var scwallet = new Sidechain.Wallet;
                     console.log('SC TRANSACTION FOUND.', JSON.stringify(datastore.data))
-                    let check = await db.collection('sc_unspent').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                    let check = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
 
                     if(check[0] === undefined){
                         let valid = true
@@ -345,6 +351,33 @@ module Daemon {
                         }
                     }else{
                         console.log('SIDECHAIN UNSPENT ALREADY STORED.')
+                        let checkTx = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                        console.log(checkTx)
+                        if(checkTx[0].block === null){
+                            await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                        }
+
+                        let vout = 0
+                        for(let x in datastore.data.transaction.outputs){
+                            let amount = datastore.data.transaction.outputs[x]
+                            let unspent = {
+                                sxid: datastore.data.sxid,
+                                vout: vout,
+                                address: x,
+                                amount: amount,
+                                sidechain: datastore.data.transaction.sidechain,
+                                block: datastore.block
+                            }
+                            let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
+                            if(checkUsxo[0] === undefined){
+                                await db.collection("sc_unspent").insertOne(unspent)
+                            }else{
+                                if(checkUsxo[0].block === null){
+                                    await db.collection("sc_unspent").updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
+                                }
+                            }
+                            vout++
+                        }
                     }
                 }
             }
