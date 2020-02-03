@@ -414,6 +414,9 @@ module Daemon {
                 await db.collection("received").insertOne(datastore)
             }else{
                 console.log('DATA ALREADY STORED.')
+                if(check[0].block === null){
+                    await db.collection('received').updateOne({txid: datastore.txid, address: datastore.address}, {$set: {block: datastore.block}})
+                }
             }
             response('STORED')
         })
