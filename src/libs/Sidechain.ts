@@ -6,16 +6,22 @@ module SideChain {
 
   export class Wallet {
 
-    public async listunpent(address, sidechain){
+    public async listunspent(address, sidechain){
         return new Promise <any> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
+                let res = []
+                let uniq = []
                 let unspent = await db.collection('sc_unspent').find({address: address, sidechain: sidechain}).sort({block: 1}).toArray()
                 for(let x in unspent){
                     delete unspent[x]._id
+                    if(uniq.indexOf(unspent[x].sxid+':'+unspent[x].vout) === -1){
+                        uniq.push(unspent[x].sxid+':'+unspent[x].vout)
+                        res.push(unspent[x])
+                    }
                 }
                 client.close()
-                response(unspent)
+                response(res)
             })
         });
     }
@@ -24,7 +30,7 @@ module SideChain {
         return new Promise <boolean> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
-                let unspent = await db.collection('sc_unspent').find({sxid: sxid, vout: vout, sidechain: sidechain}).sort({block: -1}).toArray()
+                let unspent = await db.collection('sc_unspent').find({sxid: sxid, vout: vout, sidechain: sidechain}).sort({block: -1}).limit(1).toArray()
                 if(unspent[0] !== undefined){
                     // TODO: CHECKSIG
                     response(true)

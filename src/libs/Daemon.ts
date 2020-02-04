@@ -254,7 +254,7 @@ module Daemon {
                     }else{
                         console.log('GENESIS SXID ALREADY STORED.')
                         if(datastore.block === null){
-                            await db.collection("sc_unspent").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                            await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
                         }
                     }
                 }
@@ -266,7 +266,7 @@ module Daemon {
                     }else{
                         console.log('REISSUE SXID ALREADY STORED.')
                         if(datastore.block === null){
-                            await db.collection("sc_unspent").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                            await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
                         }
                     }
                 }
@@ -337,8 +337,7 @@ module Daemon {
                                     vout: vout,
                                     address: x,
                                     amount: amount,
-                                    sidechain: datastore.data.transaction.sidechain,
-                                    block: datastore.block
+                                    sidechain: datastore.data.transaction.sidechain
                                 }
                                 let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
                                 if(checkUsxo[0] === undefined){
@@ -353,7 +352,6 @@ module Daemon {
                     }else{
                         console.log('SIDECHAIN UNSPENT ALREADY STORED.')
                         let checkTx = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
-                        console.log(checkTx)
                         if(checkTx[0].block === null){
                             await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
                         }
@@ -363,28 +361,6 @@ module Daemon {
                             let vout = datastore.data.transaction.inputs[x].vout
                             await db.collection('sc_unspent').deleteOne({sxid: sxid, vout: vout})
                             console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
-                        }
-
-                        let vout = 0
-                        for(let x in datastore.data.transaction.outputs){
-                            let amount = datastore.data.transaction.outputs[x]
-                            let unspent = {
-                                sxid: datastore.data.sxid,
-                                vout: vout,
-                                address: x,
-                                amount: amount,
-                                sidechain: datastore.data.transaction.sidechain,
-                                block: datastore.block
-                            }
-                            let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
-                            if(checkUsxo[0] === undefined){
-                                await db.collection("sc_unspent").insertOne(unspent)
-                            }else{
-                                if(checkUsxo[0].block === null){
-                                    await db.collection("sc_unspent").updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
-                                }
-                            }
-                            vout++
                         }
                     }
                 }

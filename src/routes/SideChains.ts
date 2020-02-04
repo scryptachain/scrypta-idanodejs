@@ -169,7 +169,7 @@ export async function send(req: express.Request, res: express.Response) {
         if (checkto['result'].isvalid === true) {
           if (check_sidechain[0] !== undefined && check_sidechain[0].address === fields.sidechain_address) {
             var scwallet = new Sidechain.Wallet;
-            let unspent = await scwallet.listunpent(fields.from, fields.sidechain_address)
+            let unspent = await scwallet.listunspent(fields.from, fields.sidechain_address)
             let inputs = []
             let outputs = {}
             let amountinput = 0
@@ -442,7 +442,7 @@ export async function getsidechain(req: express.Request, res: express.Response) 
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
         var scwallet = new Sidechain.Wallet;
-        let unspent = await scwallet.listunpent(fields.dapp_address, fields.sidechain_address)
+        let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
         if (check_sidechain[0] !== undefined) {
           res.json({
             sidechain: check_sidechain
@@ -484,7 +484,7 @@ export async function balance(req: express.Request, res: express.Response) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
         var scwallet = new Sidechain.Wallet;
-        let unspent = await scwallet.listunpent(fields.dapp_address, fields.sidechain_address)
+        let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
         if (check_sidechain[0] !== undefined) {
           let balance = 0
           for (let x in unspent) {
@@ -619,7 +619,7 @@ export async function listunspent(req: express.Request, res: express.Response) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
         var scwallet = new Sidechain.Wallet;
-        let unspent = await scwallet.listunpent(fields.dapp_address, fields.sidechain_address)
+        let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
         if (check_sidechain[0] !== undefined) {
           res.json({
             unspent: unspent,
@@ -675,7 +675,7 @@ export async function scanaddress(req: express.Request, res: express.Response) {
           }
           for (let y in sidechains) {
             let balance = 0
-            let unspent = await scwallet.listunpent(fields.dapp_address, sidechains[y].address)
+            let unspent = await scwallet.listunspent(fields.dapp_address, sidechains[y].address)
             if (unspent.length > 0) {
               for (let z in unspent) {
                 balance += parseFloat(unspent[z].amount.toFixed(sidechains[y].genesis.decimals))
