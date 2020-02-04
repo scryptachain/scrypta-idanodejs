@@ -554,6 +554,8 @@ module Crypto {
                     if(txid !== null && txid.length === 64){
                         console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                         totalfees += fees
+                    }else{
+                        txid = ''
                     }
 
                     i++;
