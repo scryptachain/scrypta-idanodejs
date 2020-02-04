@@ -204,15 +204,18 @@ export async function send(req: express.Request, res: express.Response) {
 
               }else{
 
-                let change = amountinput - amount
-                change = parseFloat(change.toFixed(check_sidechain[0].data.genesis.decimals))
-
                 outputs[fields.to] = amount
                 totaloutputs += amount
-                if (change > 0) {
-                  outputs[fields.from] = change
-                  totaloutputs += change
+
+                if(fields.to !== fields.from){
+                  let change = amountinput - amount
+                  change = parseFloat(change.toFixed(check_sidechain[0].data.genesis.decimals))
+                  if (change > 0) {
+                    outputs[fields.from] = change
+                    totaloutputs += change
+                  }
                 }
+                
                 totaloutputs = parseFloat(totaloutputs.toFixed(check_sidechain[0].data.genesis.decimals))
                 if (inputs.length > 0 && totaloutputs > 0) {
                   let transaction = {}
