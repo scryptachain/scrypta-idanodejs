@@ -59,17 +59,25 @@ export function resync(req: express.Request, res: express.Response) {
     var block = req.params.block
     global['syncLock'] = true 
     clearTimeout(global['syncTimeout'])
+    mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+        const db = client.db(global['db_name'])
+        
+        await db.collection('sc_unspent').deleteMany({ block: { $gt: block } })
+        await db.collection('sc_transactions').deleteMany({ block: { $gt: block } })
+        await db.collection('written').deleteMany({ block: { $gt: block } })
+        await db.collection('received').deleteMany({ block: { $gt: block } })
 
-    setTimeout(function(){
-        global['syncLock'] = false
-        var daemon = new Daemon.Sync
-        daemon.analyze(parseInt(block))
+        setTimeout(function(){
+            global['syncLock'] = false
+            var daemon = new Daemon.Sync
+            daemon.analyze(parseInt(block))
 
-        res.json({
-            staus: 'Resync started from ' + parseInt(block),
-            status: 200
-        })
-    },200)
+            res.json({
+                staus: 'Resync started from ' + parseInt(block),
+                status: 200
+            })
+        },200)
+    })
 };
 
 

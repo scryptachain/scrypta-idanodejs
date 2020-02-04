@@ -337,7 +337,8 @@ module Daemon {
                                     vout: vout,
                                     address: x,
                                     amount: amount,
-                                    sidechain: datastore.data.transaction.sidechain
+                                    sidechain: datastore.data.transaction.sidechain,
+                                    block: datastore.block
                                 }
                                 let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
                                 if(checkUsxo[0] === undefined){
