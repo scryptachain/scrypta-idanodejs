@@ -129,6 +129,7 @@ class App {
     app.express.get('/balance/:address', explorer.balance)
     app.express.get('/stats/:address', explorer.stats)
     app.express.get('/unspent/:address', explorer.unspent)
+    app.express.get('/cleanmempool',explorer.cleanmempool)
   }
 }
 

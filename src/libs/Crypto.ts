@@ -1297,6 +1297,18 @@ module Crypto {
         })
     }
 
+    public async cleanMempool () {
+        return new Promise (response => {
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+                const db = client.db(global['db_name'])
+                await db.collection('sc_unspent').deleteMany({ block: null })
+                await db.collection('sc_transactions').deleteMany({ block: null })
+                await db.collection('written').deleteMany({ block: null })
+                await db.collection('received').deleteMany({ block: null })
+                response(true)
+            })
+        })
+    }
   }
 
 }

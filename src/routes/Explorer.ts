@@ -45,6 +45,16 @@ export function analyzemempool(req: express.Request, res: express.Response) {
     })
 };
 
+export function cleanmempool(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+    wallet.cleanMempool().then(response => {
+        res.json({
+            cleaned: response,
+            status: 200
+        })
+    })
+};
+
 export function resync(req: express.Request, res: express.Response) {
     var block = req.params.block
     global['syncLock'] = true 
