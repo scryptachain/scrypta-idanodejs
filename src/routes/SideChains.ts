@@ -664,9 +664,11 @@ export async function scanaddress(req: express.Request, res: express.Response) {
         let sidechain_datas = await db.collection('written').find({ protocol: 'chain://' }).sort({ block: 1 }).toArray()
         if (sidechain_datas[0] !== undefined) {
           let sidechains = []
+          let addresses_sidechains = []
           let scan = []
           for (let x in sidechain_datas) {
-            if (sidechain_datas[x].data.genesis !== undefined && sidechain_datas[x].data.genesis.time !== undefined) {
+            if (sidechain_datas[x].data.genesis !== undefined && sidechain_datas[x].data.genesis.time !== undefined && addresses_sidechains.indexOf(sidechain_datas[x].address) === -1) {
+              addresses_sidechains.push(sidechain_datas[x].address)
               sidechain_datas[x].data.address = sidechain_datas[x].address
               sidechains.push(sidechain_datas[x].data)
             }
