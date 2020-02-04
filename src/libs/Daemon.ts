@@ -327,6 +327,7 @@ module Daemon {
                                 let sxid = datastore.data.transaction.inputs[x].sxid
                                 let vout = datastore.data.transaction.inputs[x].vout
                                 await db.collection('sc_unspent').deleteOne({sxid: sxid, vout: vout})
+                                console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
                             }
                             let vout = 0
                             for(let x in datastore.data.transaction.outputs){
@@ -355,6 +356,13 @@ module Daemon {
                         console.log(checkTx)
                         if(checkTx[0].block === null){
                             await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                        }
+
+                        for(let x in datastore.data.transaction.inputs){
+                            let sxid = datastore.data.transaction.inputs[x].sxid
+                            let vout = datastore.data.transaction.inputs[x].vout
+                            await db.collection('sc_unspent').deleteOne({sxid: sxid, vout: vout})
+                            console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
                         }
 
                         let vout = 0
