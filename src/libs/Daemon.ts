@@ -77,11 +77,11 @@ module Daemon {
                 task.analyze()
             }
         }else{
-            console.log('SYNC FINISHED, RESTART IN 10 SECONDS')
+            console.log('SYNC FINISHED, RESTART IN 5 SECONDS')
             global['syncTimeout'] = setTimeout(function(){
                 var task = new Daemon.Sync
                 task.init()
-            },10000)
+            },5000)
         }
     }
 
