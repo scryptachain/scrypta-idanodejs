@@ -227,6 +227,11 @@ export async function send(req: express.Request, res: express.Response) {
                   transaction["sidechain"] = fields.sidechain_address
                   transaction["inputs"] = inputs
                   transaction["outputs"] = outputs
+                  let memo = ''
+                  if(fields.memo !== undefined){
+                    memo = fields.memo
+                  }
+                  transaction["memo"] = memo
                   transaction["time"] = new Date().getTime()
 
                   let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
