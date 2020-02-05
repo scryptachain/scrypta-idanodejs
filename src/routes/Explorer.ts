@@ -62,11 +62,30 @@ export function resync(req: express.Request, res: express.Response) {
     mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         
-        await db.collection('sc_unspent').deleteMany({ block: { $gt: block } })
-        await db.collection('sc_transactions').deleteMany({ block: { $gt: block } })
-        await db.collection('written').deleteMany({ block: { $gt: block } })
-        await db.collection('received').deleteMany({ block: { $gt: block } })
-
+        let sc_unspent = await db.collection('sc_unspent').find().sort({block: 1}).toArray(1)
+        for(let x in sc_unspent){
+            if(sc_unspent[x].block > block){
+                await db.collection('sc_unspent').deleteOne({"_id": sc_unspent[x]._id})
+            }
+        }
+        let sc_transactions = await db.collection('sc_transactions').find().sort({block: 1}).toArray(1)
+        for(let x in sc_transactions){
+            if(sc_transactions[x].block > block){
+                await db.collection('sc_transactions').deleteOne({"_id": sc_transactions[x]._id})
+            }
+        }
+        let written = await db.collection('written').find().sort({block: 1}).toArray(1)
+        for(let x in written){
+            if(written[x].block > block){
+                await db.collection('written').deleteOne({"_id": written[x]._id})
+            }
+        }
+        let received = await db.collection('received').find().sort({block: 1}).toArray(1)
+        for(let x in received){
+            if(received[x].block > block){
+                await db.collection('received').deleteOne({"_id": received[x]._id})
+            }
+        }
         setTimeout(function(){
             global['syncLock'] = false
             var daemon = new Daemon.Sync

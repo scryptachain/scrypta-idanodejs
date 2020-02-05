@@ -1,6 +1,6 @@
 "use strict";
 const mongo = require('mongodb').MongoClient
-
+import * as Crypto from './Crypto'
 
 module SideChain {
 
@@ -26,34 +26,27 @@ module SideChain {
         });
     }
 
-    public async validatesxid(sxid, vout, sidechain){
+    public async validategenesis(sxid, sidechain){
         return new Promise <boolean> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
-                let unspent = await db.collection('sc_unspent').find({sxid: sxid, vout: vout, sidechain: sidechain}).sort({block: -1}).limit(1).toArray()
-                if(unspent[0] !== undefined){
-                    // TODO: CHECKSIG
-                    
+                let check_genesis = await db.collection('sc_transactions').find({sxid: sxid, sidechain: sidechain}).sort({block: 1}).toArray()
+                console.log('CHECK_GENESIS', sxid)
+                if(check_genesis !== undefined && check_genesis[0] !== undefined && check_genesis[0].genesis !== undefined && check_genesis[0].sxid === sxid){
                     response(true)
                 }else{
-                    let check_genesis = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
-                    console.log('CHECK_GENESIS', sxid)
-                    if(check_genesis !== undefined && check_genesis[0] !== undefined && check_genesis[0].genesis !== undefined && check_genesis[0].sxid === sxid){
-                        response(true)
-                    }else{
-                        console.log('CHECK_REISSUE')
-                        let check_reissue = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
-                        if(check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined){
-                            let check_sidechain = await db.collection('written').find({ address: check_reissue[0].reissue.sidechain }).sort({ block: 1 }).limit(1).toArray()
-                            console.log('CHECK_REISSUE', sxid)
-                            if(check_reissue !== undefined && check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined && check_reissue[0].sxid === sxid && check_reissue[0].reissue.owner === check_sidechain[0].data.genesis.owner && check_sidechain[0].data.genesis.reissuable === true){
-                                response(true)
-                            }else{
-                                response(false)
-                            }
+                    console.log('CHECK_REISSUE')
+                    let check_reissue = await db.collection('sc_transactions').find({sxid: sxid, sidechain: sidechain}).sort({block: 1}).toArray()
+                    if(check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined){
+                        let check_sidechain = await db.collection('written').find({ address: check_reissue[0].reissue.sidechain }).sort({ block: 1 }).limit(1).toArray()
+                        console.log('CHECK_REISSUE', sxid)
+                        if(check_reissue !== undefined && check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined && check_reissue[0].sxid === sxid && check_reissue[0].reissue.owner === check_sidechain[0].data.genesis.owner && check_sidechain[0].data.genesis.reissuable === true){
+                            response(true)
                         }else{
                             response(false)
                         }
+                    }else{
+                        response(false)
                     }
                 }
                 client.close()
@@ -61,11 +54,33 @@ module SideChain {
         });
     }
 
-    public async verifyinput(sxid, vout, sidechain, block){
+    public async validateinput(sxid, vout, sidechain, address, block = ''){
         return new Promise <boolean> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                 const db = client.db(global['db_name'])
-                let valid = true
+                let valid = false
+                // CHECKING IF UNSPENT EXISTS
+                if(block === ''){
+                    let wallet = new Crypto.Wallet
+                    let request = await wallet.request('getinfo')
+                    block = request['result'].blocks
+                }
+                let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
+                let voutx = 0
+                if(sxidcheck[0] !== undefined){
+                    if(sxidcheck[0].transaction !== undefined){
+                        for(let x in sxidcheck[0].transaction.outputs){
+                            if(voutx === vout){
+                                if(x === address){
+                                    valid = true
+                                }
+                            }
+                            voutx++
+                        }
+                    }
+                }
+                
+                // CHECKING IF UNSPENT IS NOT DOUBLE SPENDED
                 let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ block: 1 }).toArray()
                 for(let x in sidechain_datas){
                     let transaction = sidechain_datas[x]

@@ -182,9 +182,14 @@ export async function send(req: express.Request, res: express.Response) {
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
                   if (global['sxidcache'].indexOf(unspent[i].sxid) === -1) {
                     delete unspent[i].block
-                    inputs.push(unspent[i])
-                    usedtx.push(unspent[i].sxid)
-                    amountinput += parseFloat(unspent[i].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+                    let validateinput = await scwallet.validateinput(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, fields.from)
+                    if(validateinput === true){
+                      inputs.push(unspent[i])
+                      usedtx.push(unspent[i].sxid)
+                      amountinput += parseFloat(unspent[i].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+                    }else{
+                      await db.collection('sc_unspent').deleteOne({"_id": unspent[i]._id})
+                    }
                   }
                 }
               }
@@ -789,14 +794,12 @@ export async function verifychain(req: express.Request, res: express.Response) {
                 let inputs = sidechain_datas[x].transaction.inputs
                 for(let y in inputs){
                   let input = inputs[y]
-                  if(input.vout !== "genesis"){
+                  if(input.vout !== "genesis" && input.vout !== "reissue"){
                     let block = sidechain_datas[x].block
-                    let validateinput = await sidechain.verifyinput(input.sxid, input.vout, fields.sidechain_address, block)
+                    let validateinput = await sidechain.validateinput(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
                     if(validateinput === false){
                       verified = false
                     }
-                  }else{
-                    // TODO: CHECK GENESIS 
                   }
                 }
               }else{
