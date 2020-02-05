@@ -552,13 +552,12 @@ export async function transactions(req: express.Request, res: express.Response) 
           for (let tx in txs) {
             if (txs[tx].transaction.inputs[0].address === fields.dapp_address || txs[tx].transaction.outputs[fields.dapp_address] !== undefined) {
               delete txs[tx]._id
-              let amount = 0
-              let recipient = 0
-              if (txs[tx].transaction.inputs[0].address === fields.dapp_address) {
-                amount -= txs[tx].transaction.inputs[0].amount
-              }
-              if (txs[tx].transaction.outputs[fields.dapp_address] !== undefined) {
-                amount += txs[tx].transaction.outputs[fields.dapp_address]
+              let from = txs[tx].transaction.inputs[0].address
+              let amount
+              for(let y in txs[tx].transaction.outputs){
+                if (y !== from) {
+                  amount = txs[tx].transaction.outputs[y]
+                }
               }
               let to
               for (let address in txs[tx].transaction.outputs) {
@@ -566,9 +565,12 @@ export async function transactions(req: express.Request, res: express.Response) 
                   to = address
                 }
               }
+              if(to !== fields.dapp_address){
+                amount = amount * -1
+              }
               let analyzed = {
                 sxid: txs[tx].sxid,
-                from: txs[tx].transaction.inputs[0].address,
+                from: from,
                 to: to,
                 amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals)),
                 block: txs[tx].block
