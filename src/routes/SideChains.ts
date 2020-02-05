@@ -925,7 +925,9 @@ export async function shares(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address }).sort({ block: 1 }).limit(1).toArray()
+        let decimals = check_sidechain[0].data.genesis.decimals
         if (check_sidechain[0] !== undefined) {
+          
           let unspents = await db.collection('sc_unspent').find({sidechain: fields.sidechain_address}).sort({ block: 1 }).toArray()
           let addresses = {}
           let shares = {}
@@ -937,13 +939,13 @@ export async function shares(req: express.Request, res: express.Response) {
             if(addresses[unspent.address] === undefined){
               addresses[unspent.address] = 0
             }
-            addresses[unspent.address] += unspent.amount
-            cap += unspent.amount
+            addresses[unspent.address] += parseFloat(unspent.amount.toFixed(decimals))
+            cap += parseFloat(unspent.amount.toFixed(decimals))
           }
 
           for(let address in addresses){
             let percentage = 100 / cap * addresses[address]
-            percentages[address] = percentage
+            percentages[address] = parseFloat(percentage.toFixed(decimals))
           }
           
           let keysSorted = Object.keys(addresses).sort(function(a,b){return addresses[b]-addresses[a]})
@@ -954,9 +956,10 @@ export async function shares(req: express.Request, res: express.Response) {
               shares: percentages[k]
             }
           }
+
           res.json({
             shares: shares,
-            cap: cap,
+            cap: parseFloat(cap.toFixed(decimals)),
             sidechain: check_sidechain[0].address
           })
           
