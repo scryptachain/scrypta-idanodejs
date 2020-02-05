@@ -215,7 +215,7 @@ export async function send(req: express.Request, res: express.Response) {
                     totaloutputs += change
                   }
                 }
-                
+
                 totaloutputs = parseFloat(totaloutputs.toFixed(check_sidechain[0].data.genesis.decimals))
                 if (inputs.length > 0 && totaloutputs > 0) {
                   let transaction = {}
@@ -257,7 +257,6 @@ export async function send(req: express.Request, res: express.Response) {
                       global['usxocache'].push(unspent)
                       vout++
                     }
-                    // TODO: Send to P2P Network to speed up the transaction.
                     
                   } else {
                     res.send({
@@ -740,6 +739,74 @@ export async function scanchain(req: express.Request, res: express.Response) {
           }
           res.send({
             data: sidechain_datas,
+            status: 200
+          })
+
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  } else {
+    res.send({
+      data: {
+        error: "Specify all required fields first."
+      },
+      status: 422
+    })
+  }
+}
+
+export async function verifychain(req: express.Request, res: express.Response) {
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
+    if (fields.sidechain_address !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: 1 }).toArray()
+        let verified = true
+        var wallet = new Crypto.Wallet;
+        var sidechain = new Sidechain.Wallet;
+        if (sidechain_datas[0] !== undefined) {
+          for (let x in sidechain_datas) {
+            if(verified === true){
+              let validatesign = await wallet.verifymessage(sidechain_datas[x].pubkey,sidechain_datas[x].signature,JSON.stringify(sidechain_datas[x].transaction))
+              if(validatesign !== false){
+                let inputs = sidechain_datas[x].transaction.inputs
+                for(let y in inputs){
+                  let input = inputs[y]
+                  if(input.vout !== "genesis"){
+                    let block = sidechain_datas[x].block
+                    let validateinput = await sidechain.verifyinput(input.sxid, input.vout, fields.sidechain_address, block)
+                    if(validateinput === false){
+                      verified = false
+                    }
+                  }else{
+                    // TODO: CHECK GENESIS 
+                  }
+                }
+              }else{
+                console.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))
+                verified = false
+              }
+            }
+          }
+          res.send({
+            verified: verified,
             status: 200
           })
 

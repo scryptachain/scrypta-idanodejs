@@ -1,6 +1,7 @@
 "use strict";
 import * as Utilities from './Utilities'
 import Trx from '../libs/trx/trx.js'
+import { add } from '../routes/Ipfs';
 const mongo = require('mongodb').MongoClient
 let request = require("request")
 let CoinKey = require("coinkey")

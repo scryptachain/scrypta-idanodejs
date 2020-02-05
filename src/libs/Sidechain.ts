@@ -33,6 +33,7 @@ module SideChain {
                 let unspent = await db.collection('sc_unspent').find({sxid: sxid, vout: vout, sidechain: sidechain}).sort({block: -1}).limit(1).toArray()
                 if(unspent[0] !== undefined){
                     // TODO: CHECKSIG
+                    
                     response(true)
                 }else{
                     let check_genesis = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
@@ -60,6 +61,27 @@ module SideChain {
         });
     }
 
+    public async verifyinput(sxid, vout, sidechain, block){
+        return new Promise <boolean> (async response => {
+            mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                const db = client.db(global['db_name'])
+                let valid = true
+                let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ block: 1 }).toArray()
+                for(let x in sidechain_datas){
+                    let transaction = sidechain_datas[x]
+                    if(transaction.block < block){
+                        for(let y in transaction.transaction.inputs){
+                            let input = transaction.transaction.inputs[y]
+                            if(input.sxid === sxid && input.vout === vout){
+                                valid = false
+                            }
+                        }
+                    }
+                }
+                response(valid)
+            })
+        })
+    }
   }
 
 }

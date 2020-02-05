@@ -363,6 +363,15 @@ module Daemon {
                             await db.collection('sc_unspent').deleteOne({sxid: sxid, vout: vout})
                             console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
                         }
+
+                        let vout = 0
+                        for(let x in datastore.data.transaction.outputs){
+                            let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
+                            if(checkUsxo[0].block === undefined || checkUsxo[0].block === null){
+                                await db.collection('sc_unspent').updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
+                            }
+                            vout++
+                        }
                     }
                 }
             }
@@ -378,6 +387,9 @@ module Daemon {
                 await db.collection("received").insertOne(datastore)
             }else{
                 console.log('DATA ALREADY STORED.')
+                if(check[0].block === undefined || check[0].block === null){
+                    await db.collection("sc_transactions").updateOne({txid: datastore.txid}, {$set: {block: datastore.block}})
+                }
             }
             response('STORED')
         })

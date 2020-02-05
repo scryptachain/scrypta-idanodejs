@@ -104,6 +104,7 @@ class App {
     app.express.post('/sidechain/get', sidechains.getsidechain)
     app.express.post('/sidechain/scan/address', sidechains.scanaddress)
     app.express.post('/sidechain/scan', sidechains.scanchain)
+    app.express.post('/sidechain/verify', sidechains.verifychain)
     
     //DAPPS
     app.express.post('/dapps/upload', dapps.upload)
