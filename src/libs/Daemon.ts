@@ -284,9 +284,9 @@ module Daemon {
                             for(let x in datastore.data.transaction.inputs){
                                 let sxid = datastore.data.transaction.inputs[x].sxid
                                 let vout = datastore.data.transaction.inputs[x].vout
-                                let validategenesis = await scwallet.validategenesis(sxid, datastore.data.transaction.inputs[x].sidechain)
+                                let validategenesis = await scwallet.validategenesis(sxid, datastore.data.transaction.sidechain)
                                 if(validategenesis === false){
-                                    let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.inputs[x].sidechain, datastore.address)
+                                    let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.sidechain, datastore.address)
                                     if(validateinput === false){
                                         valid = false
                                         console.log('INPUT IS INVALID.')

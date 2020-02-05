@@ -178,6 +178,7 @@ export async function send(req: express.Request, res: express.Response) {
             for (let i in unspent) {
               if (amountinput < amount) {
                 delete unspent[i]._id
+                delete unspent[i].sidechain
                 let checkinput = await db.collection('sc_transactions').find({ sxid: unspent[i].sxid }).limit(1).toArray()
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
                   if (global['sxidcache'].indexOf(unspent[i].sxid) === -1) {
