@@ -5,6 +5,7 @@ import * as Sidechain from '../libs/Sidechain'
 let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
+import { Z_MEM_ERROR } from "zlib"
 
 export async function issue(req: express.Request, res: express.Response) {
   var wallet = new Crypto.Wallet;
@@ -179,6 +180,7 @@ export async function send(req: express.Request, res: express.Response) {
               if (amountinput < amount) {
                 delete unspent[i]._id
                 delete unspent[i].sidechain
+                delete unspent[i].address
                 let checkinput = await db.collection('sc_transactions').find({ sxid: unspent[i].sxid }).limit(1).toArray()
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
                   if (global['sxidcache'].indexOf(unspent[i].sxid) === -1) {
@@ -541,6 +543,7 @@ export async function transactions(req: express.Request, res: express.Response) 
   var request = await parser.body(req)
   if (request !== false) {
     let fields = request['body']
+    var wallet = new Crypto.Wallet;
     if (fields.dapp_address !== undefined && fields.sidechain_address) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
@@ -551,31 +554,41 @@ export async function transactions(req: express.Request, res: express.Response) 
 
           let txs = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: -1 }).toArray()
           for (let tx in txs) {
-            if (txs[tx].transaction.inputs[0].address === fields.dapp_address || txs[tx].transaction.outputs[fields.dapp_address] !== undefined) {
+            if (txs[tx].address === fields.dapp_address || txs[tx].transaction.outputs[fields.dapp_address] !== undefined) {
               delete txs[tx]._id
-              let from = txs[tx].transaction.inputs[0].address
+              let from = await wallet.getAddressFromPubKey(txs[tx].pubkey)
               let amount
               for(let y in txs[tx].transaction.outputs){
                 if (y !== from) {
                   amount = txs[tx].transaction.outputs[y]
                 }
               }
+              
               let to
               for (let address in txs[tx].transaction.outputs) {
-                if (address !== txs[tx].transaction.inputs[0].address) {
+                if (address !== from) {
                   to = address
                 }
               }
+
               if(to !== fields.dapp_address){
                 amount = amount * -1
               }
+              
+              let memo = ''
+              if(txs[tx].transaction.memo !== undefined){
+                memo = txs[tx].transaction.memo
+              }
+
               let analyzed = {
                 sxid: txs[tx].sxid,
                 from: from,
                 to: to,
                 amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals)),
+                memo: memo,
                 block: txs[tx].block
               }
+
               if(txs[tx].block !== null){
                 transactions.push(analyzed)
               }else{
