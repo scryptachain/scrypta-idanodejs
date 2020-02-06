@@ -129,6 +129,9 @@ module Daemon {
             console.log('CLEANING UTXO CACHE')
             global['utxocache'] = []
             global['txidcache'] = []
+            console.log('CLEANING USXO CACHE')
+            global['usxocache'] = []
+            global['sxidcache'] = []
             for(var address in block['data_written']){
                 var data = block['data_written'][address]
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
