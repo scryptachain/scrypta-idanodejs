@@ -127,6 +127,7 @@ async function checkConnections(){
           }
           var sync = (process.env.SYNC === 'true')
           if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
+            console.log('Starting sync.')
             var task = new Daemon.Sync
             task.init()
           }

@@ -58,6 +58,7 @@ export function cleanmempool(req: express.Request, res: express.Response) {
 export function resync(req: express.Request, res: express.Response) {
     var block = req.params.block
     global['syncLock'] = true 
+    global['isSyncing'] = true 
     clearTimeout(global['syncTimeout'])
     mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
