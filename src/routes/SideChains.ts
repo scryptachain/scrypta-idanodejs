@@ -557,22 +557,40 @@ export async function transactions(req: express.Request, res: express.Response) 
             if (txs[tx].address === fields.dapp_address || txs[tx].transaction.outputs[fields.dapp_address] !== undefined) {
               delete txs[tx]._id
               let from = await wallet.getAddressFromPubKey(txs[tx].pubkey)
-              let amount
-              for(let y in txs[tx].transaction.outputs){
-                if (y !== from) {
-                  amount = txs[tx].transaction.outputs[y]
+              var isGenesis = false
+              var isReissue = false
+              for(let x in txs[tx].transaction.inputs){
+                if(txs[tx].transaction.inputs[x].vout === 'genesis'){
+                  isGenesis = true
+                  from = "GENESIS"
+                }else if(txs[tx].transaction.inputs[x].vout === 'reissue'){
+                  isReissue = true
+                  from = "REISSUE"
                 }
               }
-              
               let to
-              for (let address in txs[tx].transaction.outputs) {
-                if (address !== from) {
-                  to = address
-                }
-              }
+              let amount
 
-              if(to !== fields.dapp_address){
-                amount = amount * -1
+              if(!isGenesis && !isReissue){
+                for(let y in txs[tx].transaction.outputs){
+                  if (y !== from) {
+                    amount = txs[tx].transaction.outputs[y]
+                  }
+                }
+                
+                for (let address in txs[tx].transaction.outputs) {
+                  if (address !== from) {
+                    to = address
+                  }
+                }
+
+                if(to !== fields.dapp_address){
+                  amount = amount * -1
+                }
+
+              }else{
+                to = await wallet.getAddressFromPubKey(txs[tx].pubkey)
+                amount = txs[tx].transaction.outputs[to]
               }
               
               let memo = ''
@@ -751,6 +769,7 @@ export async function scanaddress(req: express.Request, res: express.Response) {
 
 export async function scanchain(req: express.Request, res: express.Response) {
   var parser = new Utilities.Parser
+  const wallet = new Crypto.Wallet
   var request = await parser.body(req)
   if (request !== false) {
     let fields = request['body']
@@ -762,6 +781,7 @@ export async function scanchain(req: express.Request, res: express.Response) {
         if (sidechain_datas[0] !== undefined) {
           for (let x in sidechain_datas) {
             delete sidechain_datas[x]._id
+            sidechain_datas[x].address = await wallet.getAddressFromPubKey(sidechain_datas[x].pubkey)
           }
           res.send({
             data: sidechain_datas,
