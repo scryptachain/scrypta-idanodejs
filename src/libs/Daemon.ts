@@ -160,25 +160,28 @@ module Daemon {
 
     private async store(address, block, txid, tx, movements){
         return new Promise (async response => {
-            let check = await db.collection('transactions').find({address: address, txid: txid}).limit(1).toArray();
-            if(check[0] === undefined){
-                console.log('STORING TX NOW!')
-                await db.collection("transactions").insertOne(
-                    {
-                        address: address,
-                        txid: txid,
-                        type: tx.type,
-                        from: movements.from,
-                        to: movements.to,
-                        value: tx.value,
-                        blockhash: block['hash'],
-                        blockheight: block['height'],
-                        time: block['time']
-                    }
-                )
-            }else{
-                console.log('TX ALREADY STORED.')
-            }
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+                db = client.db(global['db_name'])
+                let check = await db.collection('transactions').find({address: address, txid: txid}).limit(1).toArray();
+                if(check[0] === undefined){
+                        console.log('STORING TX NOW!')
+                        await db.collection("transactions").insertOne(
+                            {
+                                address: address,
+                                txid: txid,
+                                type: tx.type,
+                                from: movements.from,
+                                to: movements.to,
+                                value: tx.value,
+                                blockhash: block['hash'],
+                                blockheight: block['height'],
+                                time: block['time']
+                            }
+                        )
+                }else{
+                    console.log('TX ALREADY STORED.')
+                }
+            })
             response(block['height'])
         })
     }
@@ -273,6 +276,7 @@ module Daemon {
                     var scwallet = new Sidechain.Wallet;
                     console.log('SC TRANSACTION FOUND.', JSON.stringify(datastore.data))
                     let check = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                    let check_sidechain = await db.collection('written').find({ address: datastore.data.transaction.sidechain }).sort({ block: 1 }).limit(1).toArray()
 
                     if(check[0] === undefined){
                         let valid = true
@@ -290,7 +294,8 @@ module Daemon {
                                         console.log('INPUT IS INVALID.')
                                     }
                                 }
-                                amountinput += datastore.data.transaction.inputs[x].amount
+                                let fixed = parseFloat(datastore.data.transaction.inputs[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+                                amountinput += fixed
                             }
                         }else{
                             valid = false
@@ -298,12 +303,14 @@ module Daemon {
 
                         if(valid === true){
                             for(let x in datastore.data.transaction.outputs){
-                                amountoutput += datastore.data.transaction.outputs[x]
+                                let fixed = parseFloat(datastore.data.transaction.outputs[x].toFixed(check_sidechain[0].data.genesis.decimals))
+                                amountoutput += fixed
                             }
                         }
-
+                        amountoutput = parseFloat(amountoutput.toFixed(check_sidechain[0].data.genesis.decimals))
                         if(valid === true && amountoutput > amountinput){
                             valid = false
+                            console.log('AMOUNT IS INVALID', amountoutput, amountinput)
                         }
 
                         var wallet = new Crypto.Wallet;
