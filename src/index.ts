@@ -126,7 +126,7 @@ async function checkConnections(){
             runIdaNode()
           }
           var sync = (process.env.SYNC === 'true')
-          if(sync === true && global['isSyncing'] === false){
+          if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
             var task = new Daemon.Sync
             task.init()
           }
@@ -178,10 +178,6 @@ async function runIdaNode(){
     bootstrap.create()
   },3600000)
   if(sync === true){
-    console.log('Starting block synchronization.')
-    var task
-    task = new Daemon.Sync
-    task.init()
     global['state'] = 'ON'
   }else{
     console.log('Automatic sync is turned off.')
