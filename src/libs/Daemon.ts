@@ -29,6 +29,7 @@ module Daemon {
     }
 
     public async process(){
+        global['isSyncing'] = true
         var reset = '' //CHECK FOR RESET VALUE
         const sync = await db.collection('settings').find({setting:'sync'}).limit(1).toArray();
         var last
@@ -77,11 +78,8 @@ module Daemon {
                 task.analyze()
             }
         }else{
-            console.log('SYNC FINISHED, RESTART IN 5 SECONDS')
-            global['syncTimeout'] = setTimeout(function(){
-                var task = new Daemon.Sync
-                task.init()
-            },5000)
+            global['isSyncing'] = false
+            console.log('SYNC FINISHED')
         }
     }
 

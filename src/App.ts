@@ -17,6 +17,7 @@ global['sxidcache'] = []
 global['usxocache'] = []
 global['chunkcache'] = []
 global['syncLock'] = false
+global['isSyncing'] = false
 global['syncTimeout'] = null
 global['limit'] = 200
 

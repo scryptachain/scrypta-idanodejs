@@ -125,6 +125,11 @@ async function checkConnections(){
           if(global['state'] === 'OFF'){
             runIdaNode()
           }
+          var sync = (process.env.SYNC === 'true')
+          if(sync === true && global['isSyncing'] === false){
+            var task = new Daemon.Sync
+            task.init()
+          }
         }
       });
     }else{
@@ -160,10 +165,10 @@ async function runIdaNode(){
   var result = await DB.check()
   console.log(result)
   var sync = (process.env.SYNC === 'true')
-  // CHECKING CONNETIONS EVERY 10 SECONDS
+  // CHECKING CONNETIONS EVERY 5 SECONDS
   setInterval(function(){
     checkConnections()
-  },10000)
+  },5000)
   // CREATING BOOTSTRAP AT STARTUP
   let bootstrap = new Bootstrap.Bootstrap
   bootstrap.create()
