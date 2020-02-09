@@ -132,6 +132,7 @@ async function checkConnections(){
             task.init()
           }
         }
+        client.close()
       });
     }else{
       console.log('Can\'t communicate with wallet, running process now.')

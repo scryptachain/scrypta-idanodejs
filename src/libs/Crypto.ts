@@ -938,7 +938,7 @@ module Crypto {
                                                 idc++
                                             }
 
-                                            let max = 100 * written.length
+                                            let max = 1000 * written.length
                                             if(idctt > max){
                                                 endofdata = 'Y'
                                                 console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
@@ -1308,6 +1308,7 @@ module Crypto {
                 await db.collection('sc_transactions').deleteMany({ block: null })
                 await db.collection('written').deleteMany({ block: null })
                 await db.collection('received').deleteMany({ block: null })
+                client.close()
                 response(true)
             })
         })

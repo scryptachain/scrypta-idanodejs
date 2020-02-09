@@ -87,6 +87,7 @@ export function resync(req: express.Request, res: express.Response) {
                 await db.collection('received').deleteOne({"_id": received[x]._id})
             }
         }
+        client.close()
         setTimeout(function(){
             global['syncLock'] = false
             var daemon = new Daemon.Sync

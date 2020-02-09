@@ -75,6 +75,7 @@ module Database {
                         await collectionObj.createIndex(compound)
                     }
                 }
+                client.close()
                 response('Database and tables are ok.')
             })
         })
