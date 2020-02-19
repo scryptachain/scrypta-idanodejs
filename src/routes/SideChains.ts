@@ -936,8 +936,8 @@ export function listchains(req: express.Request, res: express.Response) {
         let sidechain_addresses = []
         for (let x in sidechain_datas) {
           if (sidechain_datas[x].data.genesis !== undefined && sidechain_datas[x].data.genesis.time !== undefined) {
-            if(sidechain_addresses.indexOf(sidechain_datas[x].data.address) === -1){
-              sidechain_addresses.push(sidechain_datas[x].data.address)
+            if(sidechain_addresses.indexOf(sidechain_datas[x].address) === -1){
+              sidechain_addresses.push(sidechain_datas[x].address)
               sidechain_datas[x].data.address = sidechain_datas[x].address
               sidechains.push(sidechain_datas[x].data)
             }
