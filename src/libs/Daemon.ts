@@ -327,6 +327,9 @@ module Daemon {
                                                 let fixed = parseFloat(datastore.data.transaction.inputs[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
                                                 amountinput += fixed
                                             }
+                                        }else{
+                                            valid = false
+                                            console.log(JSON.stringify(check_sidechain[0]))
                                         }
                                     }
                                 }else{
@@ -341,12 +344,14 @@ module Daemon {
                                     }
                                 }else{
                                     valid = false
+                                    console.log(JSON.stringify(check_sidechain[0]))
                                 }
                                 if(check_sidechain[0].data.genesis !== undefined){
                                     amountoutput = parseFloat(amountoutput.toFixed(check_sidechain[0].data.genesis.decimals))
                                     amountinput = parseFloat(amountinput.toFixed(check_sidechain[0].data.genesis.decimals))
                                 }else{
                                     valid = false
+                                    console.log(JSON.stringify(check_sidechain[0]))
                                 }
                                 if(!isGenesis){
                                     if(valid === true && amountoutput > amountinput){
