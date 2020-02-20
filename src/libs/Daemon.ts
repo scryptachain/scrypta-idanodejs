@@ -322,25 +322,32 @@ module Daemon {
                                         if(datastore.data.transaction.inputs[x].vout === 'genesis' || datastore.data.transaction.inputs[x].vout === 'reissue'){
                                             isGenesis = true
                                         }
-                                        if(valid === true && datastore.data.transaction.inputs[x].amount !== undefined){
-                                            let fixed = parseFloat(datastore.data.transaction.inputs[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
-                                            amountinput += fixed
+                                        if(check_sidechain[0] !== undefined){
+                                            if(valid === true && datastore.data.transaction.inputs[x].amount !== undefined){
+                                                let fixed = parseFloat(datastore.data.transaction.inputs[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+                                                amountinput += fixed
+                                            }
                                         }
                                     }
                                 }else{
                                     valid = false
                                 }
-
-                                if(valid === true){
-                                    for(let x in datastore.data.transaction.outputs){
-                                        let fixed = parseFloat(datastore.data.transaction.outputs[x].toFixed(check_sidechain[0].data.genesis.decimals))
-                                        amountoutput += fixed
+                                if(check_sidechain[0] !== undefined){
+                                    if(valid === true){
+                                        for(let x in datastore.data.transaction.outputs){
+                                            let fixed = parseFloat(datastore.data.transaction.outputs[x].toFixed(check_sidechain[0].data.genesis.decimals))
+                                            amountoutput += fixed
+                                        }
                                     }
+                                }else{
+                                    valid = false
                                 }
-                                
-                                amountoutput = parseFloat(amountoutput.toFixed(check_sidechain[0].data.genesis.decimals))
-                                amountinput = parseFloat(amountinput.toFixed(check_sidechain[0].data.genesis.decimals))
-
+                                if(check_sidechain[0] !== undefined){
+                                    amountoutput = parseFloat(amountoutput.toFixed(check_sidechain[0].data.genesis.decimals))
+                                    amountinput = parseFloat(amountinput.toFixed(check_sidechain[0].data.genesis.decimals))
+                                }else{
+                                    valid = false
+                                }
                                 if(!isGenesis){
                                     if(valid === true && amountoutput > amountinput){
                                         valid = false
