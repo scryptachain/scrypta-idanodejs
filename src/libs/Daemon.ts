@@ -299,8 +299,7 @@ module Daemon {
                         var scwallet = new Sidechain.Wallet;
                         console.log('SC TRANSACTION FOUND.', JSON.stringify(datastore.data))
                         let check = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
-                        let check_sidechain = await db.collection('written').find({ address: datastore.data.transaction.sidechain }).sort({ block: 1 }).limit(1).toArray()
-                
+                        let check_sidechain = await db.collection('written').find({ address: datastore.data.transaction.sidechain, "data.genesis": {$exists: true} }).sort({ block: 1 }).limit(1).toArray()
                         if(check_sidechain[0] !== undefined){
                             if(check[0] === undefined){
                                 let valid = true
