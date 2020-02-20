@@ -322,7 +322,7 @@ module Daemon {
                                         if(datastore.data.transaction.inputs[x].vout === 'genesis' || datastore.data.transaction.inputs[x].vout === 'reissue'){
                                             isGenesis = true
                                         }
-                                        if(check_sidechain[0] !== undefined){
+                                        if(check_sidechain[0].data.genesis !== undefined){
                                             if(valid === true && datastore.data.transaction.inputs[x].amount !== undefined){
                                                 let fixed = parseFloat(datastore.data.transaction.inputs[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
                                                 amountinput += fixed
@@ -332,7 +332,7 @@ module Daemon {
                                 }else{
                                     valid = false
                                 }
-                                if(check_sidechain[0] !== undefined){
+                                if(check_sidechain[0].data.genesis !== undefined){
                                     if(valid === true){
                                         for(let x in datastore.data.transaction.outputs){
                                             let fixed = parseFloat(datastore.data.transaction.outputs[x].toFixed(check_sidechain[0].data.genesis.decimals))
@@ -342,7 +342,7 @@ module Daemon {
                                 }else{
                                     valid = false
                                 }
-                                if(check_sidechain[0] !== undefined){
+                                if(check_sidechain[0].data.genesis !== undefined){
                                     amountoutput = parseFloat(amountoutput.toFixed(check_sidechain[0].data.genesis.decimals))
                                     amountinput = parseFloat(amountinput.toFixed(check_sidechain[0].data.genesis.decimals))
                                 }else{
