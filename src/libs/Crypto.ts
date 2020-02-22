@@ -1,7 +1,6 @@
 "use strict";
 import * as Utilities from './Utilities'
 import Trx from '../libs/trx/trx.js'
-import { add } from '../routes/Ipfs';
 const mongo = require('mongodb').MongoClient
 let request = require("request")
 let CoinKey = require("coinkey")
@@ -773,7 +772,7 @@ module Crypto {
                                     var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
                                     var addressdata
                                     var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
-                                    if(addresswrite === receivingaddress){
+                                    if(addresswrite === receivingaddress || receivingaddress === ''){
                                         addressdata = addresswrite
                                         if(block['result']['raw_written'][addressdata] === undefined){
                                             block['result']['raw_written'][addressdata] = []
