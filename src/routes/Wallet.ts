@@ -215,6 +215,26 @@ export async function sendrawtransaction(req: express.Request, res: express.Resp
     var request = await parser.body(req)
     if(request['body']['rawtransaction'] !== undefined){
         wallet.request('sendrawtransaction',[request['body']['rawtransaction']]).then(async response => {
+            if(response['result'] !== null){
+                let decoderawtransaction = await wallet.request('decoderawtransaction', [request['body']['rawtransaction']])
+                let decoded = decoderawtransaction['result']
+                for(let x in decoded.vin){
+                    global['txidcache'].push(decoded.vin[x].txid)
+                    delete global['utxocache'][decoded.vin[x].txid]
+                }
+                let voutchange = 1
+                if(decoded.vout[0].scriptPubKey.addresses !== undefined){
+                    let unspent = {
+                        txid: decoded.txid,
+                        vout: voutchange,
+                        address: decoded.vout[voutchange].scriptPubKey.addresses[0],
+                        scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
+                        amount: decoded.vout[voutchange].value
+                    }
+                    global['utxocache'][decoded.txid] = unspent
+                    console.log("UNSPENT IS",unspent)
+                }
+            }
             res.json({
                 data: response['result'],
                 status: 200
