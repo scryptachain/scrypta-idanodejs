@@ -135,7 +135,7 @@ export async function transactions(req: express.Request, res: express.Response) 
         }
         client.close()
         res.json({
-            data: transactions,
+            data: response,
             unconfirmed: unconfirmed,
             status: 200
         })
