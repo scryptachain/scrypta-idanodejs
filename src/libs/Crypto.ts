@@ -182,16 +182,18 @@ module Crypto {
                             }
                             let decoderawtransaction = await wallet.request('decoderawtransaction', [signed])
                             let decoded = decoderawtransaction['result']
-                            if(decoded.vout[0].scriptPubKey.addresses !== undefined){
-                                let unspent = {
-                                    txid: decoded.txid,
-                                    vout: voutchange,
-                                    address: decoded.vout[voutchange].scriptPubKey.addresses[0],
-                                    scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
-                                    amount: decoded.vout[voutchange].value
+                            if(decoded.vout[0] !== undefined){
+                                if(decoded.vout[0].scriptPubKey.addresses !== undefined){
+                                    let unspent = {
+                                        txid: decoded.txid,
+                                        vout: voutchange,
+                                        address: decoded.vout[voutchange].scriptPubKey.addresses[0],
+                                        scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
+                                        amount: decoded.vout[voutchange].value
+                                    }
+                                    console.log("UNSPENT IS: ",unspent)
+                                    global['utxocache'][decoded.txid] = unspent
                                 }
-                                console.log("UNSPENT IS: ",unspent)
-                                global['utxocache'][decoded.txid] = unspent
                             }
                         }
                         response(txid['result'])
