@@ -123,9 +123,20 @@ export async function transactions(req: express.Request, res: express.Response) 
     mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         let transactions = await db.collection('transactions').find({address: address}).sort({blockheight: -1}).toArray()
+        let response = []
+        let unconfirmed = []
+        for(let x in transactions){
+            let tx = transactions[x]
+            if(tx['blockheight'] !== null){
+                response.push(tx)
+            }else{
+                unconfirmed.push(tx)
+            }
+        }
         client.close()
         res.json({
             data: transactions,
+            unconfirmed: unconfirmed,
             status: 200
         })
     })

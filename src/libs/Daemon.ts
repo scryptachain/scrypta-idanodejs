@@ -92,7 +92,7 @@ module Daemon {
                 if(found === false){
                     await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
                 }else{
-                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
                 }
             }
 
@@ -150,7 +150,7 @@ module Daemon {
                 if(found === false){
                     await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
                 }else{
-                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
                 }
             }
 
