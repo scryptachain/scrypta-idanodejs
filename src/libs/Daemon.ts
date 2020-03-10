@@ -69,6 +69,37 @@ module Daemon {
                     await task.storereceived(data[dix])
                 }
             }
+
+            for(var txid in mempool['analysis']){
+                for(var address in mempool['analysis'][txid]['balances']){
+                    var tx = mempool['analysis'][txid]['balances'][address]
+                    var movements = mempool['analysis'][txid]['movements']
+                    var task = new Daemon.Sync
+                    console.log('STORING '+ tx.type +' OF '+ tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
+                    await task.store(address, mempool, txid, tx, movements)
+                }
+            }
+
+            for(var i in mempool['outputs']){
+                let unspent = mempool['outputs'][i]
+                var found = false
+                for(var i in mempool['inputs']){
+                    let input = mempool['inputs'][i]
+                    if(input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']){
+                        found = true
+                    }
+                }
+                if(found === false){
+                    await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
+                }else{
+                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                }
+            }
+
+            for(var i in mempool['inputs']){
+                let input = mempool['inputs'][i]
+                await task.redeemunspent(input['txid'], input['vout'])
+            }
             
             client.close()
 
@@ -186,6 +217,16 @@ module Daemon {
                                 time: block['time']
                             }
                         )
+                }else if(check[0].blockheight === null && block['height'] !== undefined){
+                    await db.collection("transactions").updateOne({
+                            address: address, txid: txid
+                        },{ 
+                            $set: {
+                                blockheight: block['height'],
+                                blockhash: block['hash'],
+                                time: block['time']
+                            }
+                        })
                 }else{
                     console.log('TX ALREADY STORED.')
                 }
@@ -212,6 +253,9 @@ module Daemon {
                             block: block
                         }
                     )
+                }else if(check[0].block === null && block !== null){
+                    console.log('\x1b[36m%s\x1b[0m', 'UPDATING BLOCK NOW!')
+                    await db.collection("unspent").updateOne({txid: txid, vout: vout}, {$set: {block: block}})
                 }else{
                     console.log('UNSPENT ALREADY STORED.')
                 }

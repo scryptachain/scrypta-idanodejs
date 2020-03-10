@@ -223,16 +223,18 @@ export async function sendrawtransaction(req: express.Request, res: express.Resp
                     delete global['utxocache'][decoded.vin[x].txid]
                 }
                 let voutchange = 1
-                if(decoded.vout[0].scriptPubKey.addresses !== undefined){
-                    let unspent = {
-                        txid: decoded.txid,
-                        vout: voutchange,
-                        address: decoded.vout[voutchange].scriptPubKey.addresses[0],
-                        scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
-                        amount: decoded.vout[voutchange].value
+                if(decoded.vout[voutchange] !== undefined){
+                    if(decoded.vout[voutchange].scriptPubKey.addresses !== undefined){
+                        let unspent = {
+                            txid: decoded.txid,
+                            vout: voutchange,
+                            address: decoded.vout[voutchange].scriptPubKey.addresses[0],
+                            scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
+                            amount: decoded.vout[voutchange].value
+                        }
+                        global['utxocache'][decoded.txid] = unspent
+                        console.log("UNSPENT IS",unspent)
                     }
-                    global['utxocache'][decoded.txid] = unspent
-                    console.log("UNSPENT IS",unspent)
                 }
             }*/
             res.json({

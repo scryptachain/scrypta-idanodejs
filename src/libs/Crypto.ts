@@ -854,7 +854,7 @@ module Crypto {
 
                         var singledata = ''
                         var readchunks = []
-                        console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata, written)
+                        console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata)
                         for(var wix in written){
                             var data = written[wix]
                             var checkhead = data.substr(0,3)
@@ -1038,6 +1038,11 @@ module Crypto {
         return new Promise (response => {
             var wallet = new Crypto.Wallet
             wallet.request('getrawmempool').then(function(mempool){
+                mempool['result']['totvin'] = 0
+                mempool['result']['totvout'] = 0
+                mempool['result']['fees'] = 0
+                mempool['result']['analysis'] = {}
+                mempool['result']['inputs'] = []
                 mempool['result']['outputs'] = []
                 mempool['result']['raw_written'] = {}
                 mempool['result']['data_written'] = {}
@@ -1052,26 +1057,87 @@ module Crypto {
                         var rawtx = await wallet.request('getrawtransaction', [txid])
                         var tx = await wallet.request('decoderawtransaction', [rawtx['result']])
                         mempool['result']['tx'][i] = tx['result']
+
+                        var txtotvin = 0
+                        var txtotvout = 0
+                        mempool['result']['analysis'][txid] = {}
+                        mempool['result']['analysis'][txid]['vin'] = 0
+                        mempool['result']['analysis'][txid]['vout'] = 0
+                        mempool['result']['analysis'][txid]['balances'] = {}
+
+                        //FETCHING ALL VIN
+                        for(var vinx = 0; vinx < mempool['result']['tx'][i]['vin'].length; vinx++){
+                            var vout = mempool['result']['tx'][i]['vin'][vinx]['vout']
+                            if(mempool['result']['tx'][i]['vin'][vinx]['txid']){
+                                //console.log('ANALYZING VIN ' + vinx)
+                                var rawtxvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid']])
+                                var txvin = await wallet.request('decoderawtransaction', [rawtxvin['result']])
+                                let input = {
+                                    txid: tx['result']['vin'][vinx]['txid'],
+                                    vout: txvin['result']['vout'][vout]['n']
+                                }
+                                mempool['result']['inputs'].push(input)
+                                mempool['result']['tx'][i]['vin'][vinx]['value'] = txvin['result']['vout'][vout]['value']
+                                mempool['result']['totvin'] += txvin['result']['vout'][vout]['value']
+                                mempool['result']['tx'][i]['vin'][vinx]['addresses'] = txvin['result']['vout'][vout]['scriptPubKey']['addresses']
+                                for(var key in txvin['result']['vout'][vout]['scriptPubKey']['addresses']){
+                                    var address = txvin['result']['vout'][vout]['scriptPubKey']['addresses'][key]
+                                    if(mempool['result']['analysis'][txid]['balances'][address] === undefined){
+                                        mempool['result']['analysis'][txid]['balances'][address] = {}
+                                        mempool['result']['analysis'][txid]['balances'][address]['value'] = 0
+                                        mempool['result']['analysis'][txid]['balances'][address]['type'] = 'TX'
+                                        mempool['result']['analysis'][txid]['balances'][address]['vin'] = 0
+                                        mempool['result']['analysis'][txid]['balances'][address]['vout'] = 0
+                                    }
+                                    mempool['result']['analysis'][txid]['balances'][address]['value'] -= txvin['result']['vout'][vout]['value']
+                                    mempool['result']['analysis'][txid]['vin'] += txvin['result']['vout'][vout]['value']
+                                    mempool['result']['analysis'][txid]['balances'][address]['vin'] += txvin['result']['vout'][vout]['value']
+                                    txtotvin += txvin['result']['vout'][vout]['value']
+                                }
+                            }
+                        }
+
                         //PARSING ALL VOUT
                         var receivingaddress = ''
-                        
+                        var isDataTransaction = false
                         for(var voutx = 0; voutx < mempool['result']['tx'][i]['vout'].length; voutx++){
                             //console.log('ANALYZING VOUT ' + voutx)
                             if(mempool['result']['tx'][i]['vout'][voutx]['value'] >= 0){
 
+                                mempool['result']['totvout'] += mempool['result']['tx'][i]['vout'][voutx]['value']
+                                //CHECKING VALUES OUT
                                 if(mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses']){
                                     mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses'].forEach(function(address, index){
-
+                                        if(mempool['result']['analysis'][txid]['balances'][address] === undefined){
+                                            mempool['result']['analysis'][txid]['balances'][address] = {}
+                                            mempool['result']['analysis'][txid]['balances'][address]['value'] = 0
+                                            mempool['result']['analysis'][txid]['balances'][address]['type'] = 'TX'
+                                            mempool['result']['analysis'][txid]['balances'][address]['vin'] = 0
+                                            mempool['result']['analysis'][txid]['balances'][address]['vout'] = 0
+                                        }
+                                        mempool['result']['analysis'][txid]['balances'][address]['value'] += mempool['result']['tx'][i]['vout'][voutx]['value']
+                                        mempool['result']['analysis'][txid]['vout'] += mempool['result']['tx'][i]['vout'][voutx]['value']
+                                        mempool['result']['analysis'][txid]['balances'][address]['vout'] += mempool['result']['tx'][i]['vout'][voutx]['value']
+                                        txtotvout += mempool['result']['tx'][i]['vout'][voutx]['value']
                                         if(receivingaddress === ''){
                                             receivingaddress = address
                                         }
 
+                                        let outputs = {
+                                            txid: txid,
+                                            vout: voutx,
+                                            address: address,
+                                            scriptPubKey: mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'],
+                                            amount: mempool['result']['tx'][i]['vout'][voutx]['value']
+                                        }
+                                        mempool['result']['outputs'].push(outputs)
                                     })
                                 }
 
                                 //CHECKING OP_RETURN
                                 if(mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1){
                                     //console.log('CHECKING OP_RETURN')
+                                    isDataTransaction = true
                                     var parser = new Utilities.Parser
                                     var OP_RETURN = parser.hex2a(mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
                                     var addressdata
@@ -1101,6 +1167,31 @@ module Crypto {
                                 }
                             }
                         }
+                    }
+
+                    //CHECKING TRANSACTION TYPE
+                    for(let txid in mempool['result']['analysis']){
+                        mempool['result']['analysis'][txid]['movements'] = {}
+                        mempool['result']['analysis'][txid]['movements']['from'] = []
+                        mempool['result']['analysis'][txid]['movements']['to'] = []
+
+                        for(let address in mempool['result']['analysis'][txid]['balances']){
+                            if(mempool['result']['analysis'][txid]['vin'] < mempool['result']['analysis'][txid]['vout']){
+                                if(mempool['result']['analysis'][txid]['balances'][address]['vin'] > 0){
+                                    if(mempool['result']['analysis'][txid]['balances'][address]['vin'] < mempool['result']['analysis'][txid]['balances'][address]['vout']){
+                                        mempool['result']['analysis'][txid]['balances'][address]['type'] = 'STAKE'
+                                    }
+                                }else{
+                                    mempool['result']['analysis'][txid]['balances'][address]['type'] = 'REWARD'
+                                }
+                            }
+                            if(mempool['result']['analysis'][txid]['balances'][address]['vin'] > 0){
+                                mempool['result']['analysis'][txid]['movements']['from'].push(address)
+                            }
+                            if(mempool['result']['analysis'][txid]['balances'][address]['vout'] > 0){
+                                mempool['result']['analysis'][txid]['movements']['to'].push(address)
+                            }
+                        }
 
                     }
 
@@ -1122,7 +1213,7 @@ module Crypto {
 
                         var singledata = ''
                         var readchunks = []
-                        console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata, written)
+                        console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata)
                         for(var wix in written){
                             var data = written[wix]
                             var checkhead = data.substr(0,3)
@@ -1292,7 +1383,10 @@ module Crypto {
 
                     let res = {
                         data_written: mempool['result']['data_written'],
-                        data_received: mempool['result']['data_received']
+                        data_received: mempool['result']['data_received'],
+                        analysis: mempool['result']['analysis'],
+                        inputs: mempool['result']['inputs'],
+                        outputs: mempool['result']['outputs']
                     }
 
                     response(res)

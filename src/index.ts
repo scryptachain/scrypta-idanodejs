@@ -171,14 +171,7 @@ async function runIdaNode(){
   setInterval(function(){
     checkConnections()
   },5000)
-  // CREATING BOOTSTRAP AT STARTUP
-  let bootstrap = new Bootstrap.Bootstrap
-  bootstrap.create()
-  // CREATING BOOTSTRAP EVERY HOUR
-  setInterval(function(){
-    let bootstrap = new Bootstrap.Bootstrap
-    bootstrap.create()
-  },3600000)
+  
   if(sync === true){
     global['state'] = 'ON'
   }else{
