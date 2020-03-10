@@ -182,8 +182,8 @@ module Crypto {
                             }
                             let decoderawtransaction = await wallet.request('decoderawtransaction', [signed])
                             let decoded = decoderawtransaction['result']
-                            if(decoded.vout[0] !== undefined){
-                                if(decoded.vout[0].scriptPubKey.addresses !== undefined){
+                            if(decoded.vout[voutchange] !== undefined){
+                                if(decoded.vout[voutchange].scriptPubKey.addresses !== undefined){
                                     let unspent = {
                                         txid: decoded.txid,
                                         vout: voutchange,
