@@ -18,4 +18,3 @@ RUN npm run-script tsc
 EXPOSE 3001
 
 CMD ["npm","run-script","start"]
-

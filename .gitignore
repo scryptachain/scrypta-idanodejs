@@ -11,3 +11,5 @@ mongo_*
 idanodejs/
 public/bootstrap.zip
 mongodb_data_testnet
+keys/public.pem
+keys/private.pem

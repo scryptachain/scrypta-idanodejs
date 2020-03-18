@@ -6,6 +6,7 @@ let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
 import { Z_MEM_ERROR } from "zlib"
+import Daemon = require("../libs/Daemon")
 
 export async function issue(req: express.Request, res: express.Response) {
   var wallet = new Crypto.Wallet;
@@ -27,6 +28,11 @@ export async function issue(req: express.Request, res: express.Response) {
           reissuable = false
         }
 
+        var dna = ''
+        if(fields.dna !== undefined && fields.dna !== ''){
+          dna = fields.dna
+        }
+
         let genesis = {
           "name": fields.name,
           "supply": supply,
@@ -37,6 +43,7 @@ export async function issue(req: express.Request, res: express.Response) {
           "pubkey": fields.pubkey,
           "burnable": burnable,
           "version": fields.version,
+          "dna": dna,
           "time": new Date().getTime()
         }
 

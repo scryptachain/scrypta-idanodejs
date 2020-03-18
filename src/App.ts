@@ -6,11 +6,11 @@ import * as trustlink from "./routes/Trustlink"
 import * as pdm from "./routes/Pdm"
 import * as dapps from "./routes/dApps"
 import * as sidechains from "./routes/SideChains"
+import * as p2p from "./routes/P2PEngine"
 
 var bodyParser = require('body-parser')
 var cors = require('cors')
 const IPFS = require('ipfs')
-global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
 global['txidcache'] = []
 global['utxocache'] = []
 global['sxidcache'] = []
@@ -54,7 +54,8 @@ class App {
   constructor () {
     const app = this
     app.express = express()
-
+    app.initIPFS()
+    p2p.initP2P()
     app.express.use(bodyParser.urlencoded({extended: true, limit: global['limit'] + 'mb'}))
     app.express.use(bodyParser.json())
     app.express.use(express.static('public'))
@@ -132,6 +133,13 @@ class App {
     app.express.get('/stats/:address', explorer.stats)
     app.express.get('/unspent/:address', explorer.unspent)
     app.express.get('/cleanmempool',explorer.cleanmempool)
+
+    //P2P-NETWORK
+    app.express.post('/broadcast', p2p.broadcast)
+  }
+
+  async initIPFS() {
+    global['ipfs'] = await IPFS.create({ repo: 'ipfs_data' })
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "scrypta-idanodejs",
-  "version": "1.0.0",
+  "version": "1.1.2",
   "description": "NodeJS implementation of Scrypta IdaNode",
   "main": "index.js",
   "scripts": {
@@ -28,7 +28,7 @@
     "express": "^4.16.4",
     "file-type": "^10.11.0",
     "formidable": "^1.2.1",
-    "ipfs": "^0.40.0",
+    "ipfs": "^0.41.2",
     "lcrypt": "^1.0.2",
     "mongodb": "^3.3.2",
     "node-port-check": "^2.0.1",
@@ -38,6 +38,7 @@
     "public-ip": "^3.1.0",
     "request": "^2.88.0",
     "secp256k1": "^3.7.1",
+    "socket.io": "^2.3.0",
     "systray": "^1.0.5",
     "underscore": "^1.9.1",
     "uuid": "^3.3.2"
