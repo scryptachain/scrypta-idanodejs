@@ -139,7 +139,7 @@ class App {
   }
 
   async initIPFS() {
-    global['ipfs'] = new IPFS.create({ repo: 'ipfs_data' })
+    global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
   }
 }
 
