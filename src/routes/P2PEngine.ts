@@ -4,8 +4,6 @@ require('dotenv').config()
 const sign = require('../libs/p2p/sign.js')
 const utilities = require('../libs/p2p/utilities.js')
 const messages = require('../libs/p2p/messages.js')
-const request = require('request')
-var argv = require('minimist')(process.argv.slice(2))
 const app = require('express')()
 var server = require('http').Server(app)
 
@@ -62,7 +60,7 @@ export async function initP2P (){
     }
 
     //INIT SOCKETIO SERVER
-    let p2pport = process.env.PORT;
+    let p2pport = process.env.P2PPORT;
     console.log('Starting P2P server on port ' + p2pport)
     server.listen(p2pport);
     global['io'].server.on('connection', function (socket) {
