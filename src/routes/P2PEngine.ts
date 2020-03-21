@@ -29,7 +29,7 @@ export async function initP2P (){
     for (var k in bootstrap) {
         if (!global['clients'][bootstrap[k]]) {
             //INIT CONNECTION
-            let lookupURL = bootstrap[k].replace('http://', '').replace(':' + process.env.PORT, '')
+            let lookupURL = bootstrap[k].replace('http://', '').replace(':' + process.env.P2PPORT, '')
             let ip = await lookup(lookupURL)
             let publicip = await publicIp.v4().catch(err => {
               console.log('Public IP not available')
