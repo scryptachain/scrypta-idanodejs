@@ -15,9 +15,14 @@ module.exports = {
         //console.log('Broadcasting to network..')
         return new Promise(async response => {
             if(nodeID === ''){
+                let sent = 0
                 for (let id in global['nodes']) {
-                    global['nodes'][id].emit(protocol, message)
+                    if(global['connected'][id]){
+                        global['nodes'][id].emit(protocol, message)
+                        sent ++
+                    }
                 }
+                console.log('Sent message to ' + sent + ' nodes')
             }else{
                 if(global['nodes'][nodeID]){
                     global['nodes'][nodeID].emit(protocol, message)

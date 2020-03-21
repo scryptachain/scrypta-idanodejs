@@ -35,10 +35,10 @@ export async function initP2P (){
               console.log('Public IP not available')
             })
             let node = bootstrap[k]
-
             if (ip !== publicip) {
                 console.log('Bootstrap connection to ' + bootstrap[k] + ':' + process.env.P2PPORT)
-                global['nodes'][node] = require('socket.io-client')(node, { reconnect: true })
+                global['nodes'][node] = require('socket.io-client')(node + ':' + process.env.P2PPORT, { reconnect: true })
+                global['nodes'][node].on('event', function(data){console.log(data)});
                 global['nodes'][node].on('connect', function () {
                     console.log('Connected to peer: ' + global['nodes'][node].io.uri)
                     global['connected'][node] = true
