@@ -130,6 +130,7 @@ class App {
     app.express.get('/resync/:block',explorer.resync)
     app.express.get('/transactions/:address', explorer.transactions)
     app.express.get('/balance/:address', explorer.balance)
+    app.express.get('/validate/:address', explorer.validate)
     app.express.get('/stats/:address', explorer.stats)
     app.express.get('/unspent/:address', explorer.unspent)
     app.express.get('/cleanmempool',explorer.cleanmempool)

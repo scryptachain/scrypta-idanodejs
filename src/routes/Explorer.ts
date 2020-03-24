@@ -181,6 +181,17 @@ export async function balance(req: express.Request, res: express.Response) {
     })
 };
 
+export async function validate(req: express.Request, res: express.Response) {
+    var address = req.params.address
+    var wallet = new Crypto.Wallet;
+    wallet.request('validateaddress', [address]).then(function(validation){
+        res.json({
+            data: validation['result'],
+            status: 200
+        })
+    })
+};
+
 export async function stats(req: express.Request, res: express.Response) {
     var address = req.params.address
     if(address.length > 0){
