@@ -237,6 +237,61 @@ async function parseDB(DB, filters = {}, history = false, limit = 100){
     })
 }
 
+async function parseReceived(DB, filters = {}, history = false, limit = 100){
+    return new Promise(async response => {
+        let data = []
+        let unconfirmed = []
+        let ended = []
+        let uuids = []
+        for(let x in DB){
+            let written = DB[x]
+            if(written['data'] !== undefined){
+                if(written['data'] !== 'END'){
+                    if(ended.indexOf(written['uuid']) === -1){
+                        if(JSON.stringify(written['data']).indexOf('ipfs:') !== -1){
+                            written['is_file'] = true
+                            written['data'] = written['data'].replace('ipfs:','')
+                            let check = written['data'].split('***')
+                            if(check[1] !== undefined && check[1] !== 'undefined'){
+                                written['data'] = check[0]
+                                written['title'] = check[1]
+                            }
+                        }else{
+                            written['is_file'] = false
+                        }
+                        uuids.push(written['uuid'])
+                        data.push(written)
+                    }
+                }else{
+                    if(history === false){
+                        ended.push(written['uuid'])
+                    }
+                }
+            }
+        }
+        var filtered = data
+        var complete = []
+        for(let x in unconfirmed){
+            if(uuids.indexOf(unconfirmed[x].uuid) === -1){
+                complete.push(unconfirmed[x])
+            }
+        }
+        for(let y in data){
+            complete.push(data[y])
+        }
+        if(filtered.length > 0){
+            filtered = await _.where(complete, filters);
+        }
+        var limited = []
+        for(let x in filtered){
+            if(limited.length <= limit){
+                limited.push(filtered[x])
+            }
+        }
+        response(limited)
+    })
+}
+
 export async function received(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)
@@ -261,7 +316,7 @@ export async function received(req: express.Request, res: express.Response) {
             const db = client.db(global['db_name'])
             let result = await db.collection('received').find({address: request['body']['address']}).sort({block: -1}).toArray()
             client.close()
-            let data = await parseDB(result, filters, history)
+            let data = await parseReceived(result, filters, history)
             res.json({
                 data: data,
                 status: 200
