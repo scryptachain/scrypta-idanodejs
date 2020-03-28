@@ -536,7 +536,7 @@ module Crypto {
         })
     }
 
-    public async write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol){
+    public async write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol, basefees = 0.001){
         return new Promise(async response => {
             var wallet = new Crypto.Wallet
             var max_opreturn = 80
@@ -550,8 +550,7 @@ module Crypto {
                 var totalfees = 0
                 var error = false
                 while(txid.length !== 64 && error == false){
-                    var fees = 0.001 + (i / 1000)
-
+                    var fees = basefees + (i / 10000)
                     txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,dataToWrite,fees,true)
                     if(txid !== null && txid.length === 64){
                         console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
@@ -631,7 +630,7 @@ module Crypto {
                     var i = 0
                     var rawtransaction
                     while(txid !== null && txid !== undefined && txid.length !== 64){
-                        var fees = 0.001 + (i / 1000)
+                        var fees = basefees + (i / 1000)
 
                         txid = <string> await wallet.send(private_key,dapp_address,dapp_address,0,chunks[cix],fees,true)
                         if(txid !== null && txid.length === 64){

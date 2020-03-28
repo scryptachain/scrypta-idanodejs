@@ -50,6 +50,10 @@ export async function write(req: express.Request, res: express.Response) {
                             protocol = '!*!'
                         }
 
+                        var fees = 0.001
+                        if(request['body']['fees'] !== undefined && parseFloat(request['body']['fees']) && request['body']['fees'] !== '' && request['body']['fees'] !== 'undefined'){
+                            fees = parseFloat(request['body']['fees'])
+                        }
                         var metadata
                         //TODO: ADD FOLDER, NOT ONLY SINGLE FILES
                         if(request['files']['file'] !== undefined){
@@ -74,7 +78,7 @@ export async function write(req: express.Request, res: express.Response) {
                         }
                         console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
                         try{
-                            var write = await wallet.write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol)
+                            var write = await wallet.write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol, fees)
                             if(write !== false){
                                 res.json(write)
                             }else{
