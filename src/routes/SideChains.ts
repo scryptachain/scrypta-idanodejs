@@ -604,14 +604,13 @@ export async function transactions(req: express.Request, res: express.Response) 
               if(txs[tx].transaction.memo !== undefined){
                 memo = txs[tx].transaction.memo
               }
-
               let analyzed = {
                 sxid: txs[tx].sxid,
                 from: from,
                 to: to,
                 amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals)),
                 memo: memo,
-                time: txs[tx].time,
+                time: txs[tx].transaction.time,
                 block: txs[tx].block
               }
 
