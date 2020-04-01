@@ -561,9 +561,9 @@ export async function transactions(req: express.Request, res: express.Response) 
 
           let txs = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: -1 }).toArray()
           for (let tx in txs) {
-            if (txs[tx].address === fields.dapp_address || txs[tx].transaction.outputs[fields.dapp_address] !== undefined) {
+            let from = await wallet.getAddressFromPubKey(txs[tx].pubkey)
+            if (from === fields.dapp_address || txs[tx].transaction.outputs[fields.dapp_address] !== undefined) {
               delete txs[tx]._id
-              let from = await wallet.getAddressFromPubKey(txs[tx].pubkey)
               var isGenesis = false
               var isReissue = false
               for(let x in txs[tx].transaction.inputs){
@@ -611,6 +611,7 @@ export async function transactions(req: express.Request, res: express.Response) 
                 to: to,
                 amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals)),
                 memo: memo,
+                time: txs[tx].time,
                 block: txs[tx].block
               }
 
