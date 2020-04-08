@@ -222,11 +222,17 @@ export async function send(req: express.Request, res: express.Response) {
                 outputs[fields.to] = amount
                 totaloutputs += amount
 
+                let change = amountinput - amount
+                change = parseFloat(change.toFixed(check_sidechain[0].data.genesis.decimals))
+
                 if(fields.to !== fields.from){
-                  let change = amountinput - amount
-                  change = parseFloat(change.toFixed(check_sidechain[0].data.genesis.decimals))
                   if (change > 0) {
                     outputs[fields.from] = change
+                    totaloutputs += change
+                  }
+                }else{
+                  if (change > 0) {
+                    outputs[fields.from] = change + amount
                     totaloutputs += change
                   }
                 }
@@ -588,16 +594,16 @@ export async function transactions(req: express.Request, res: express.Response) 
                 for (let address in txs[tx].transaction.outputs) {
                   if (address !== from) {
                     to = address
-                  }else{
-                    to = from
-                    amount = txs[tx].transaction.outputs[to]
                   }
                 }
 
                 if(to !== fields.dapp_address){
                   amount = amount * -1
                 }
-
+                if(to === undefined){
+                  to = from
+                  amount = txs[tx].transaction.outputs[to]
+                }
               }else{
                 to = await wallet.getAddressFromPubKey(txs[tx].pubkey)
                 amount = txs[tx].transaction.outputs[to]
