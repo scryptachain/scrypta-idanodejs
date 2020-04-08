@@ -588,6 +588,9 @@ export async function transactions(req: express.Request, res: express.Response) 
                 for (let address in txs[tx].transaction.outputs) {
                   if (address !== from) {
                     to = address
+                  }else{
+                    to = from
+                    amount = txs[tx].transaction.outputs[to]
                   }
                 }
 
@@ -599,7 +602,6 @@ export async function transactions(req: express.Request, res: express.Response) 
                 to = await wallet.getAddressFromPubKey(txs[tx].pubkey)
                 amount = txs[tx].transaction.outputs[to]
               }
-              
               let memo = ''
               if(txs[tx].transaction.memo !== undefined){
                 memo = txs[tx].transaction.memo
