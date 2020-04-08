@@ -233,6 +233,7 @@ export async function send(req: express.Request, res: express.Response) {
                 }else{
                   if (change > 0) {
                     outputs[fields.from] = change + amount
+                    outputs[fields.from] = parseFloat(outputs[fields.from].toFixed(check_sidechain[0].data.genesis.decimals))
                     totaloutputs += change
                   }
                 }
