@@ -5,8 +5,6 @@ import * as Sidechain from '../libs/Sidechain'
 let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
-import { Z_MEM_ERROR } from "zlib"
-import Daemon = require("../libs/Daemon")
 
 export async function issue(req: express.Request, res: express.Response) {
   var wallet = new Crypto.Wallet;
@@ -1009,11 +1007,11 @@ export async function shares(req: express.Request, res: express.Response) {
             percentages[address] = parseFloat(percentage.toFixed(decimals))
           }
           
-          let keysSorted = Object.keys(addresses).sort(function(a,b){return addresses[b]-addresses[a]})
+          let keysSorted = Object.keys(addresses).sort(function(a,b){return addresses[b] - addresses[a]})
           for(let x in keysSorted){
             let k = keysSorted[x]
             shares[k] = {
-              balance: addresses[k],
+              balance: parseFloat(addresses[k].toFixed(decimals)),
               shares: percentages[k]
             }
           }
