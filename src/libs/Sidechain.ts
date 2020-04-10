@@ -80,7 +80,7 @@ module SideChain {
                         }
                     }
                 }
-                
+                console.log('UNSPENT EXIST', valid)
                 // CHECKING IF UNSPENT IS NOT DOUBLE SPENDED
                 let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ block: 1 }).toArray()
                 for(let x in sidechain_datas){
@@ -94,6 +94,7 @@ module SideChain {
                         }
                     }
                 }
+                console.log('DOUBLE SPENDING', valid)
                 client.close()
                 response(valid)
             })
