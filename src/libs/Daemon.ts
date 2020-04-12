@@ -4,7 +4,17 @@ import * as Crypto from './Crypto'
 import * as Sidechain from './Sidechain'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
+import { create, all } from 'mathjs'
 
+const config = {
+    epsilon: 1e-12,
+    matrix: 'Matrix',
+    number: 'number',
+    precision: 64,
+    predictable: false,
+    randomSeed: null
+}
+const math = create(all, config)
 var blocks = 0
 var analyze = 0
 var analyzed = 0
@@ -367,8 +377,8 @@ module Daemon {
                                         }
                                         if(check_sidechain[0].data.genesis !== undefined){
                                             if(valid === true && datastore.data.transaction.inputs[x].amount !== undefined){
-                                                let fixed = parseFloat(datastore.data.transaction.inputs[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
-                                                amountinput += fixed
+                                                let fixed = math.round(datastore.data.transaction.inputs[x].amount,check_sidechain[0].data.genesis.decimals)
+                                                amountinput = math.sum(amountinput, fixed)
                                             }
                                         }else{
                                             valid = false
@@ -381,8 +391,8 @@ module Daemon {
                                 if(check_sidechain[0].data.genesis !== undefined){
                                     if(valid === true){
                                         for(let x in datastore.data.transaction.outputs){
-                                            let fixed = parseFloat(datastore.data.transaction.outputs[x].toFixed(check_sidechain[0].data.genesis.decimals))
-                                            amountoutput += fixed
+                                            let fixed = math.round(datastore.data.transaction.outputs[x], check_sidechain[0].data.genesis.decimals)
+                                            amountoutput = math.sum(amountoutput, fixed)
                                         }
                                     }
                                 }else{
@@ -390,8 +400,8 @@ module Daemon {
                                     console.log(JSON.stringify(check_sidechain[0]))
                                 }
                                 if(check_sidechain[0].data.genesis !== undefined){
-                                    amountoutput = parseFloat(amountoutput.toFixed(check_sidechain[0].data.genesis.decimals))
-                                    amountinput = parseFloat(amountinput.toFixed(check_sidechain[0].data.genesis.decimals))
+                                    amountoutput = math.round(amountoutput, check_sidechain[0].data.genesis.decimals)
+                                    amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
                                 }else{
                                     valid = false
                                     console.log(JSON.stringify(check_sidechain[0]))

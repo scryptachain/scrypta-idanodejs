@@ -7,7 +7,6 @@ const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
 import { create, all } from 'mathjs'
 
-// create a mathjs instance with configuration
 const config = {
   epsilon: 1e-12,
   matrix: 'Matrix',
@@ -1007,15 +1006,18 @@ export async function shares(req: express.Request, res: express.Response) {
           let percentages = {}
           let cap = 0
           let burned = 0
-
+          let sxids = []
           for(let x in unspents){
             let unspent = unspents[x]
-            if(addresses[unspent.address] === undefined){
-              addresses[unspent.address] = 0
+            if(unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid) === -1 && unspent.block > 0){
+              sxids.push(unspent.sxid + ':' + unspent.vout)
+              if(addresses[unspent.address] === undefined){
+                addresses[unspent.address] = 0
+              }
+              let amount = math.round(unspent.amount, decimals)
+              addresses[unspent.address] += amount
+              cap = math.sum(cap, amount)
             }
-            let amount = math.round(unspent.amount, decimals)
-            addresses[unspent.address] += amount
-            cap = math.sum(cap, amount)
           }
 
           for(let address in addresses){
