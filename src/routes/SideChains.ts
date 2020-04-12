@@ -191,7 +191,7 @@ export async function send(req: express.Request, res: express.Response) {
             let inputs = []
             let outputs = {}
             let amountinput = 0
-            let amount = parseFloat(parseFloat(fields.amount).toFixed(decimals))
+            let amount = math.round(fields.amount, decimals)
             let usedtx = []
             for (let i in unspent) {
               if (amountinput < amount) {
@@ -206,7 +206,9 @@ export async function send(req: express.Request, res: express.Response) {
                     if(validateinput === true){
                       inputs.push(unspent[i])
                       usedtx.push(unspent[i].sxid)
-                      amountinput += parseFloat(unspent[i].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+                      let toadd = math.round(unspent[i].amount, decimals)
+                      amountinput = math.sum(amountinput, toadd)
+                      amountinput = math.round(amountinput, decimals)
                     }else{
                       await db.collection('sc_unspent').deleteOne({"_id": unspent[i]._id})
                     }
@@ -215,8 +217,8 @@ export async function send(req: express.Request, res: express.Response) {
               }
             }
             let totaloutputs = 0
-            amountinput = parseFloat(amountinput.toFixed(check_sidechain[0].data.genesis.decimals))
-            amount = parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals))
+            amountinput = math.round(amountinput, decimals)
+            amount = math.round(amount, decimals)
             if (amountinput >= fields.amount) {
               
               if(fields.to === check_sidechain[0].address && check_sidechain[0].data.burnable === false){
@@ -230,25 +232,25 @@ export async function send(req: express.Request, res: express.Response) {
               }else{
 
                 outputs[fields.to] = amount
-                totaloutputs += amount
+                totaloutputs = math.sum(totaloutputs, amount)
 
-                let change = amountinput - amount
-                change = parseFloat(change.toFixed(check_sidechain[0].data.genesis.decimals))
-
+                let change = <number> math.subtract(amountinput, amount)
+                change = math.round(change, check_sidechain[0].data.genesis.decimals)
                 if(fields.to !== fields.from){
                   if (change > 0) {
                     outputs[fields.from] = change
-                    totaloutputs += change
+                    totaloutputs = math.sum(totaloutputs, change)
                   }
                 }else{
                   if (change > 0) {
-                    outputs[fields.from] = change + amount
-                    outputs[fields.from] = parseFloat(outputs[fields.from].toFixed(check_sidechain[0].data.genesis.decimals))
-                    totaloutputs += change
+                    outputs[fields.from] = math.sum(change, amount)
+                    outputs[fields.from] = math.round(outputs[fields.from], check_sidechain[0].data.genesis.decimals)
+                    totaloutputs = math.sum(totaloutputs, change)
                   }
                 }
 
-                totaloutputs = parseFloat(totaloutputs.toFixed(check_sidechain[0].data.genesis.decimals))
+                totaloutputs = math.round(totaloutputs, check_sidechain[0].data.genesis.decimals)
+
                 if (inputs.length > 0 && totaloutputs > 0) {
                   let transaction = {}
                   transaction["sidechain"] = fields.sidechain_address
