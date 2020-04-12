@@ -5,6 +5,18 @@ import * as Sidechain from '../libs/Sidechain'
 let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
+import { create, all } from 'mathjs'
+
+// create a mathjs instance with configuration
+const config = {
+  epsilon: 1e-12,
+  matrix: 'Matrix',
+  number: 'number',
+  precision: 64,
+  predictable: false,
+  randomSeed: null
+}
+const math = create(all, config)
 
 export async function issue(req: express.Request, res: express.Response) {
   var wallet = new Crypto.Wallet;
@@ -992,33 +1004,40 @@ export async function shares(req: express.Request, res: express.Response) {
           let shares = {}
           let percentages = {}
           let cap = 0
+          let burned = 0
 
           for(let x in unspents){
             let unspent = unspents[x]
             if(addresses[unspent.address] === undefined){
               addresses[unspent.address] = 0
             }
-            addresses[unspent.address] += parseFloat(unspent.amount.toFixed(decimals))
-            cap += parseFloat(unspent.amount.toFixed(decimals))
+            let amount = math.round(unspent.amount, decimals)
+            addresses[unspent.address] += amount
+            cap = math.sum(cap, amount)
           }
 
           for(let address in addresses){
-            let percentage = 100 / cap * addresses[address]
-            percentages[address] = parseFloat(percentage.toFixed(decimals))
+            let percentage = math.evaluate('100 / '+ cap +  ' * ' + addresses[address])
+            percentages[address] = math.round(percentage, decimals)
           }
           
           let keysSorted = Object.keys(addresses).sort(function(a,b){return addresses[b] - addresses[a]})
           for(let x in keysSorted){
             let k = keysSorted[x]
             shares[k] = {
-              balance: parseFloat(addresses[k].toFixed(decimals)),
+              balance: math.round(addresses[k], decimals),
               shares: percentages[k]
             }
+          }
+          
+          if(addresses[fields.sidechain_address] !== undefined){
+            burned = addresses[fields.sidechain_address]
           }
 
           res.json({
             shares: shares,
-            cap: parseFloat(cap.toFixed(decimals)),
+            cap: math.round(cap, decimals),
+            burned: math.round(burned, decimals),
             sidechain: check_sidechain[0].address
           })
           
