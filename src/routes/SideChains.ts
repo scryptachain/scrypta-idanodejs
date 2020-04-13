@@ -954,6 +954,7 @@ export async function transaction(req: express.Request, res: express.Response) {
 
 export function listchains(req: express.Request, res: express.Response) {
   var form = new formidable.IncomingForm();
+  var parser = new Utilities.Parser
   form.parse(req, async function (err, fields, files) {
     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
       const db = client.db(global['db_name'])
@@ -964,12 +965,35 @@ export function listchains(req: express.Request, res: express.Response) {
         for (let x in sidechain_datas) {
           if (sidechain_datas[x].data.genesis !== undefined && sidechain_datas[x].data.genesis.time !== undefined) {
             if(sidechain_addresses.indexOf(sidechain_datas[x].address) === -1){
+
               sidechain_addresses.push(sidechain_datas[x].address)
               sidechain_datas[x].data.address = sidechain_datas[x].address
+              sidechain_datas[x].data.last_24 = 0
+
+              let txs = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain_datas[x].address }).sort({ block: -1 }).toArray()
+              let last = txs[0]
+              for(let yy in txs){
+                let ts = math.round(txs[yy].transaction.time / 1000)
+                var tsNow = math.round(new Date().getTime() / 1000)
+                var tsYesterday = tsNow - (24 * 3600)
+                if(ts >= tsYesterday){
+                  sidechain_datas[x].data.last_24++
+                }
+              }
+              sidechain_datas[x].data.last_tx = {
+                time: parser.timeToDate(last.transaction.time),
+                sxid: last.sxid,
+                block: last.block
+              }
+
               sidechains.push(sidechain_datas[x].data)
             }
           }
         }
+        
+        sidechains.sort(function(a, b) {
+          return parseFloat(b.last_24) - parseFloat(a.last_24);
+        })
 
         res.send({
           data: sidechains,

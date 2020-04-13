@@ -1,5 +1,6 @@
 "use strict";
 import express = require("express")
+import { format } from "url";
 var formidable = require('formidable')
 
 module Utilities {
@@ -47,6 +48,17 @@ module Utilities {
         return str;
     }
 
+    public timeToDate(time){
+        var date = new Date(time)
+        var year = date.getFullYear()
+        var month = date.getMonth() + 1
+        var day = date.getDate()
+        var hours = date.getHours()
+        var minutes = "0" + date.getMinutes()
+        var seconds = "0" + date.getSeconds()
+        var formattedTime = day + '/' + month + '/' + year +' at ' + hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2)
+        return formattedTime
+    }
   }
 
 }
