@@ -12,7 +12,7 @@ module SideChain {
                 const db = client.db(global['db_name'])
                 let res = []
                 let uniq = []
-                let unspent = await db.collection('sc_unspent').find({address: address, sidechain: sidechain}).sort({block: 1}).toArray()
+                let unspent = await db.collection('sc_unspent').find({address: address, sidechain: sidechain}).sort({ block: -1 }).toArray()
                 for(let x in unspent){
                     delete unspent[x]._id
                     if(uniq.indexOf(unspent[x].sxid+':'+unspent[x].vout) === -1){
