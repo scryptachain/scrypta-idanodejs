@@ -477,7 +477,7 @@ module Daemon {
                                         if(checkdoublespended === true){
                                             console.log('INPUT IS DOUBLE SPENDED')
                                             doublespending = true
-                                            await db.collection('sc_unspent').deleteOne({sxid: datastore.data.sxid})
+                                            await db.collection('sc_transactions').deleteOne({sxid: datastore.data.sxid})
                                         }
                                     }
                                 }
