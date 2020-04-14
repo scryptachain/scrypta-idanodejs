@@ -100,6 +100,29 @@ module SideChain {
             })
         })
     }
+
+    public async checkdoublespending(sxid, vout, sidechain, mainTx){
+        return new Promise <boolean> (async response => {
+            mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                const db = client.db(global['db_name'])
+                let valid = false
+                // CHECKING IF UNSPENT IS NOT DOUBLE SPENDED
+                let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ block: 1 }).toArray()
+                for(let x in sidechain_datas){
+                    let transaction = sidechain_datas[x]
+                    for(let y in transaction.transaction.inputs){
+                        let input = transaction.transaction.inputs[y]
+                        if(input.sxid === sxid && input.vout === vout && transaction.transaction.sxid !== mainTx.sxid){
+                            valid = true
+                        }
+                    }
+                }
+                console.log('DOUBLE SPENDING', valid)
+                client.close()
+                response(valid)
+            })
+        })
+    }
   }
 
 }

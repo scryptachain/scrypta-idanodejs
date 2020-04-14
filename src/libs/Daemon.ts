@@ -67,7 +67,7 @@ module Daemon {
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
                 for(var dix in data){
                     var task = new Daemon.Sync
-                    await task.storewritten(data[dix])
+                    await task.storewritten(data[dix], true)
                 }
             }
 
@@ -179,7 +179,7 @@ module Daemon {
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
                 for(var dix in data){
                     var task = new Daemon.Sync
-                    await task.storewritten(data[dix])
+                    await task.storewritten(data[dix], false)
                 }
             }
 
@@ -287,7 +287,7 @@ module Daemon {
         })
     }
 
-    private async storewritten(datastore){
+    private async storewritten(datastore, isMempool = false){
         return new Promise (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 var db = client.db(global['db_name'])
@@ -462,6 +462,7 @@ module Daemon {
                             }else{
                                 console.log('SIDECHAIN UNSPENT ALREADY STORED.')
                                 let checkTx = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                                let doublespending = false
                                 if(checkTx[0].block === null){
                                     await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
                                 }
@@ -471,15 +472,27 @@ module Daemon {
                                     let vout = datastore.data.transaction.inputs[x].vout
                                     await db.collection('sc_unspent').deleteOne({sxid: sxid, vout: vout})
                                     console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
+                                    if(!isMempool){
+                                        let checkdoublespended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, checkTx)
+                                        if(checkdoublespended === true){
+                                            console.log('INPUT IS DOUBLE SPENDED')
+                                            doublespending = true
+                                            await db.collection('sc_unspent').deleteOne({sxid: datastore.data.sxid})
+                                        }
+                                    }
                                 }
 
                                 let vout = 0
                                 for(let x in datastore.data.transaction.outputs){
-                                    let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
-                                    if(checkUsxo[0] !== undefined){
-                                        if(checkUsxo[0].block === undefined || checkUsxo[0].block === null){
-                                            await db.collection('sc_unspent').updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
+                                    if(!doublespending){
+                                        let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
+                                        if(checkUsxo[0] !== undefined){
+                                            if(checkUsxo[0].block === undefined || checkUsxo[0].block === null){
+                                                await db.collection('sc_unspent').updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
+                                            }
                                         }
+                                    }else{
+                                        await db.collection('sc_unspent').deleteOne({sxid: datastore.data.sxid, vout: vout})
                                     }
                                     vout++
                                 }
