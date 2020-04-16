@@ -854,6 +854,7 @@ export async function verifychain(req: express.Request, res: express.Response) {
         let verified = true
         var wallet = new Crypto.Wallet;
         var sidechain = new Sidechain.Wallet;
+        let errors = []
         if (sidechain_datas[0] !== undefined) {
           for (let x in sidechain_datas) {
             if(verified === true){
@@ -867,6 +868,9 @@ export async function verifychain(req: express.Request, res: express.Response) {
                     let validateinput = await sidechain.validateinput(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
                     if(validateinput === false){
                       verified = false
+                      await db.collection('sc_transactions').deleteOne({ "sxid": sidechain_datas[x].sxid })
+                      errors.push(sidechain_datas[x].sxid + ':' + sidechain_datas[x].block)
+                      console.log('ERROR VALIDATING INPUT ' + input.sxid + ':' + input.vout)
                     }
                   }
                 }
@@ -878,6 +882,7 @@ export async function verifychain(req: express.Request, res: express.Response) {
           }
           res.send({
             verified: verified,
+            errors: errors,
             status: 200
           })
 

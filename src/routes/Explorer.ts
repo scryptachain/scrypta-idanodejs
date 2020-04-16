@@ -65,25 +65,25 @@ export function resync(req: express.Request, res: express.Response) {
         
         let sc_unspent = await db.collection('sc_unspent').find().sort({block: 1}).toArray(1)
         for(let x in sc_unspent){
-            if(sc_unspent[x].block > block){
+            if(sc_unspent[x].block > block || sc_unspent[x].block === null){
                 await db.collection('sc_unspent').deleteOne({"_id": sc_unspent[x]._id})
             }
         }
         let sc_transactions = await db.collection('sc_transactions').find().sort({block: 1}).toArray(1)
         for(let x in sc_transactions){
-            if(sc_transactions[x].block > block){
+            if(sc_transactions[x].block > block || sc_transactions[x].block === null){
                 await db.collection('sc_transactions').deleteOne({"_id": sc_transactions[x]._id})
             }
         }
         let written = await db.collection('written').find().sort({block: 1}).toArray(1)
         for(let x in written){
-            if(written[x].block > block){
+            if(written[x].block > block || written[x].block === null){
                 await db.collection('written').deleteOne({"_id": written[x]._id})
             }
         }
         let received = await db.collection('received').find().sort({block: 1}).toArray(1)
         for(let x in received){
-            if(received[x].block > block){
+            if(received[x].block > block || received[x].block === null){
                 await db.collection('received').deleteOne({"_id": received[x]._id})
             }
         }
