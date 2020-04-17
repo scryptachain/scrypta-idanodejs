@@ -362,17 +362,23 @@ export async function reissue(req: express.Request, res: express.Response) {
    if (fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.sidechain_address !== undefined && fields.supply !== undefined && fields.private_key !== undefined) {
      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
        const db = client.db(global['db_name'])
-
+       
        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
        if (check_sidechain[0] !== undefined) { 
         if(check_sidechain[0].data.genesis.reissuable === true){      
           let supply = parseFloat(fields.supply)
+          var dna = ''
+          if(fields.dna !== undefined && fields.dna !== ''){
+            dna = fields.dna
+          }
+          
           if(supply > 0){
             
             let reissue = {
               "sidechain": fields.sidechain_address,
               "owner": fields.dapp_address,
               "supply": supply,
+              "dna": dna,
               "time": new Date().getTime()
             }
 
