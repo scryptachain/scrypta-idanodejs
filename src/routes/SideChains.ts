@@ -816,6 +816,9 @@ export async function scanchain(req: express.Request, res: express.Response) {
             delete sidechain_datas[x]._id
             sidechain_datas[x].address = await wallet.getAddressFromPubKey(sidechain_datas[x].pubkey)
           }
+          sidechain_datas.sort(function(a, b) {
+              return parseFloat(b.transaction.time) - parseFloat(a.transaction.time);
+          });
           res.send({
             data: sidechain_datas,
             status: 200

@@ -174,9 +174,23 @@ module Daemon {
             console.log('CLEANING USXO CACHE')
             global['usxocache'] = []
             global['sxidcache'] = []
+
             for(var address in block['data_written']){
                 var data = block['data_written'][address]
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                for(var dix in data){
+                    if(data[dix].protocol !== 'chain://'){
+                        var task = new Daemon.Sync
+                        await task.storewritten(data[dix], false)
+                    }else{
+                        console.log('IS PLANUM, IGNORING')
+                    }
+                }
+            }
+
+            for(var address in block['planum']){
+                var data = block['planum'][address]
+                console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX FOR ' + address + '.')
                 for(var dix in data){
                     var task = new Daemon.Sync
                     await task.storewritten(data[dix], false)

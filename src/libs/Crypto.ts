@@ -681,6 +681,7 @@ module Crypto {
                 block['result']['analysis'] = {}
                 block['result']['inputs'] = []
                 block['result']['outputs'] = []
+                block['result']['planum'] = {}
                 block['result']['raw_written'] = {}
                 block['result']['data_written'] = {}
                 block['result']['data_received'] = {}
@@ -1010,6 +1011,19 @@ module Crypto {
                                 if(block['result']['data_written'][addressdata].indexOf(parsed) === -1){
                                     block['result']['data_written'][addressdata].push(parsed)
                                 }
+                                if(protocol === 'chain://'){
+                                    if(block['result']['planum'][addressdata] === undefined){
+                                        block['result']['planum'][addressdata] = []
+                                    }
+                                    if(parsed['data']['transaction'] !== undefined && parsed['data']['transaction']['time'] !== undefined){
+                                        parsed['tx_time'] = parsed['data']['transaction']['time']
+                                    }else{
+                                        parsed['tx_time'] = parsed['data']['time']
+                                    }
+                                    if(block['result']['planum'][addressdata].indexOf(parsed) === -1){
+                                        block['result']['planum'][addressdata].push(parsed)
+                                    }
+                                }
                             }else{
                                 if(global['chunkcache'][addressdata] === undefined){
                                     global['chunkcache'][addressdata] = []
@@ -1025,6 +1039,13 @@ module Crypto {
                     }
 
                     delete block['result']['tx']
+                    if(Object.keys(block['result']['planum']).length > 0){
+                        for(let yy in block['result']['planum']){
+                            block['result']['planum'][yy].sort(function(a, b) {
+                                return parseFloat(a.tx_time) - parseFloat(b.tx_time);
+                            });
+                        }
+                    }
                     let res = block['result']
                     block['result'] = []
                     response(res)
