@@ -108,7 +108,7 @@ module Daemon {
 
             for(var i in mempool['inputs']){
                 let input = mempool['inputs'][i]
-                await task.redeemunspent(input['txid'], input['vout'])
+                await task.redeemunspent(input['txid'], input['vout'], null)
             }
             
             client.close()
@@ -166,7 +166,7 @@ module Daemon {
 
             for(var i in block['inputs']){
                 let input = block['inputs'][i]
-                await task.redeemunspent(input['txid'], input['vout'])
+                await task.redeemunspent(input['txid'], input['vout'], analyze)
             }
             console.log('CLEANING UTXO CACHE')
             global['utxocache'] = []
@@ -264,7 +264,7 @@ module Daemon {
         return new Promise (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 var db = client.db(global['db_name'])
-                let check = await db.collection('unspent').find({txid: txid, vout: vout}).limit(1).toArray()
+                let check = await db.collection("unspent").find({txid: txid, vout: vout}).limit(1).toArray()
                 if(check[0] === undefined){
                     console.log('\x1b[36m%s\x1b[0m', 'STORING UNSPENT NOW!')
                     await db.collection("unspent").insertOne(
@@ -274,7 +274,9 @@ module Daemon {
                             scriptPubKey: scriptPubKey,
                             amount: amount,
                             vout: vout,
-                            block: block
+                            block: block,
+                            redeemed: null,
+                            redeemblock: null
                         }
                     )
                 }else if(check[0].block === null && block !== null){
@@ -289,12 +291,12 @@ module Daemon {
         })
     }
 
-    private async redeemunspent(txid, vout){
+    private async redeemunspent(txid, vout, block){
         return new Promise (async response => {
             console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT NOW!')
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 var db = client.db(global['db_name'])
-                await db.collection('unspent').deleteOne({txid: txid, vout: vout})
+                await db.collection('unspent').updateOne({txid: txid, vout: vout}, {$set: {redeemblock: block, redeemed: txid}})
                 client.close()
                 response(true)
             })
@@ -449,7 +451,7 @@ module Daemon {
                                     for(let x in datastore.data.transaction.inputs){
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
-                                        await db.collection('sc_unspent').deleteOne({sxid: sxid, vout: vout})
+                                        await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                         console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
                                     }
                                     let vout = 0
@@ -461,7 +463,9 @@ module Daemon {
                                             address: x,
                                             amount: amount,
                                             sidechain: datastore.data.transaction.sidechain,
-                                            block: datastore.block
+                                            block: datastore.block,
+                                            redeemed: null,
+                                            redeemblock: null
                                         }
                                         let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
                                         if(checkUsxo[0] === undefined){
@@ -484,7 +488,7 @@ module Daemon {
                                 for(let x in datastore.data.transaction.inputs){
                                     let sxid = datastore.data.transaction.inputs[x].sxid
                                     let vout = datastore.data.transaction.inputs[x].vout
-                                    await db.collection('sc_unspent').deleteOne({sxid: sxid, vout: vout})
+                                    await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                     console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
                                     if(!isMempool){
                                         let checkdoublespended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, checkTx)
@@ -506,7 +510,7 @@ module Daemon {
                                             }
                                         }
                                     }else{
-                                        await db.collection('sc_unspent').deleteOne({sxid: datastore.data.sxid, vout: vout})
+                                        // await db.collection('sc_unspent').deleteOne({sxid: datastore.data.sxid, vout: vout})
                                     }
                                     vout++
                                 }

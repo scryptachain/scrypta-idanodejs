@@ -112,7 +112,7 @@ module Crypto {
         return new Promise <any> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
-                let unspent = await db.collection('unspent').find({address: address}).sort({block: -1}).toArray()
+                let unspent = await db.collection("unspent").find({address: address, redeemed: null}).sort({block: -1}).toArray()
                 client.close()
                 response(unspent)
             })

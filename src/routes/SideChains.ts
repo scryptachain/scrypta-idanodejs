@@ -201,6 +201,8 @@ export async function send(req: express.Request, res: express.Response) {
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
                   if (global['sxidcache'].indexOf(unspent[i].sxid) === -1) {
                     delete unspent[i].block
+                    delete unspent[i].redeemblock
+                    delete unspent[i].redeemed
                     let validateinput = await scwallet.validateinput(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, fields.from)
                     if(validateinput === true){
                       inputs.push(unspent[i])
@@ -208,8 +210,6 @@ export async function send(req: express.Request, res: express.Response) {
                       let toadd = math.round(unspent[i].amount, decimals)
                       amountinput = math.sum(amountinput, toadd)
                       amountinput = math.round(amountinput, decimals)
-                    }else{
-                      await db.collection('sc_unspent').deleteOne({"_id": unspent[i]._id})
                     }
                   }
                 }
@@ -236,9 +236,20 @@ export async function send(req: express.Request, res: express.Response) {
                 let change = <number> math.subtract(amountinput, amount)
                 change = math.round(change, check_sidechain[0].data.genesis.decimals)
                 if(fields.to !== fields.from){
-                  if (change > 0) {
+                  if (change > 0 && fields.change === undefined) {
                     outputs[fields.from] = change
                     totaloutputs = math.sum(totaloutputs, change)
+                  } else if (change > 0 && fields.change !== undefined){
+                    // CHECK IF CHANGE ADDRESS IS VALID
+                    let checkchange = await wallet.request('validateaddress', [fields.change])
+                    if (checkchange['result'].isvalid === true) {
+                      outputs[fields.change] = change
+                      totaloutputs = math.sum(totaloutputs, change)
+                    }else{
+                      // IF NOT, SEND TO MAIN ADDRESS
+                      outputs[fields.from] = change
+                      totaloutputs = math.sum(totaloutputs, change)
+                    }
                   }
                 }else{
                   if (change > 0) {
@@ -1038,7 +1049,7 @@ export async function shares(req: express.Request, res: express.Response) {
         let decimals = check_sidechain[0].data.genesis.decimals
         if (check_sidechain[0] !== undefined) {
           
-          let unspents = await db.collection('sc_unspent').find({sidechain: fields.sidechain_address}).sort({ block: 1 }).toArray()
+          let unspents = await db.collection('sc_unspent').find({sidechain: fields.sidechain_address, redeemed: null}).sort({ block: 1 }).toArray()
           let addresses = {}
           let shares = {}
           let percentages = {}

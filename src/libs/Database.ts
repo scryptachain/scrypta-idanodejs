@@ -33,12 +33,12 @@ module Database {
                     },
                     {
                         name: "unspent",
-                        indexes: ["address", "txid"],
+                        indexes: ["address", "txid", "redeemblock", "redeemed"],
                         compound: [["txid","vout"]]
                     },
                     {
                         name: "sc_unspent",
-                        indexes: ["address", "sxid"],
+                        indexes: ["address", "sxid", "redeemblock", "redeemed"],
                         compound: [["sxid","vout"]]
                     },
                     {

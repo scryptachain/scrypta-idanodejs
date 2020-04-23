@@ -63,27 +63,34 @@ export function resync(req: express.Request, res: express.Response) {
     mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         
+        await db.collection('sc_unspent').deleteMany({ block: null })
+        await db.collection('sc_transactions').deleteMany({ block: null })
+        await db.collection('written').deleteMany({ block: null })
+        await db.collection('received').deleteMany({ block: null })
+
         let sc_unspent = await db.collection('sc_unspent').find().sort({block: 1}).toArray(1)
         for(let x in sc_unspent){
-            if(sc_unspent[x].block > block || sc_unspent[x].block === null){
+            if(sc_unspent[x].block > block){
                 await db.collection('sc_unspent').deleteOne({"_id": sc_unspent[x]._id})
+            }else{
+                await db.collection('sc_unspent').updateOne({"_id": sc_unspent[x]._id}, {$set: {redeemed: null, redeemblock: null}})
             }
         }
         let sc_transactions = await db.collection('sc_transactions').find().sort({block: 1}).toArray(1)
         for(let x in sc_transactions){
-            if(sc_transactions[x].block > block || sc_transactions[x].block === null){
+            if(sc_transactions[x].block > block){
                 await db.collection('sc_transactions').deleteOne({"_id": sc_transactions[x]._id})
             }
         }
         let written = await db.collection('written').find().sort({block: 1}).toArray(1)
         for(let x in written){
-            if(written[x].block > block || written[x].block === null){
+            if(written[x].block > block){
                 await db.collection('written').deleteOne({"_id": written[x]._id})
             }
         }
         let received = await db.collection('received').find().sort({block: 1}).toArray(1)
         for(let x in received){
-            if(received[x].block > block || received[x].block === null){
+            if(received[x].block > block){
                 await db.collection('received').deleteOne({"_id": received[x]._id})
             }
         }
