@@ -63,11 +63,20 @@ export function resync(req: express.Request, res: express.Response) {
     mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         
+        await db.collection('unspent').deleteMany({ block: null })
         await db.collection('sc_unspent').deleteMany({ block: null })
         await db.collection('sc_transactions').deleteMany({ block: null })
         await db.collection('written').deleteMany({ block: null })
         await db.collection('received').deleteMany({ block: null })
-
+        
+        let unspent = await db.collection('sc_unspent').find().sort({block: 1}).toArray(1)
+        for(let x in unspent){
+            if(unspent[x].block > block){
+                await db.collection('sc_unspent').deleteOne({"_id": unspent[x]._id})
+            }else{
+                await db.collection('sc_unspent').updateOne({"_id": unspent[x]._id}, {$set: {redeemed: null, redeemblock: null}})
+            }
+        }
         let sc_unspent = await db.collection('sc_unspent').find().sort({block: 1}).toArray(1)
         for(let x in sc_unspent){
             if(sc_unspent[x].block > block){
