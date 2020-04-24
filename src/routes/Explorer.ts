@@ -73,7 +73,8 @@ export function resync(req: express.Request, res: express.Response) {
         for(let x in unspent){
             if(unspent[x].block > block){
                 await db.collection('sc_unspent').deleteOne({"_id": unspent[x]._id})
-            }else{
+            }
+            if(unspent[x].redeemblock > block){
                 await db.collection('sc_unspent').updateOne({"_id": unspent[x]._id}, {$set: {redeemed: null, redeemblock: null}})
             }
         }
@@ -81,7 +82,8 @@ export function resync(req: express.Request, res: express.Response) {
         for(let x in sc_unspent){
             if(sc_unspent[x].block > block){
                 await db.collection('sc_unspent').deleteOne({"_id": sc_unspent[x]._id})
-            }else{
+            }
+            if(sc_unspent[x].redeeblock > block){
                 await db.collection('sc_unspent').updateOne({"_id": sc_unspent[x]._id}, {$set: {redeemed: null, redeemblock: null}})
             }
         }

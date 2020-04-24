@@ -12,7 +12,7 @@ module SideChain {
                 const db = client.db(global['db_name'])
                 let res = []
                 let uniq = []
-                let unspent = await db.collection('sc_unspent').find({address: address, sidechain: sidechain, redeemed: null}).sort({ block: -1 }).toArray()
+                let unspent = await db.collection('sc_unspent').find({address: address, sidechain: sidechain, redeemed: null, redeemblock: null}).sort({ block: -1 }).toArray()
                 for(let x in unspent){
                     delete unspent[x]._id
                     if(uniq.indexOf(unspent[x].sxid+':'+unspent[x].vout) === -1){
@@ -66,7 +66,7 @@ module SideChain {
                 }
                 
                 // CHECKING IF UNSPENT EXISTS
-                let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
+                let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid, redeemed: null, redeemblock: null }).sort({ block: 1 }).limit(1).toArray()
                 let voutx = 0
                 if(sxidcheck[0] !== undefined){
                     if(sxidcheck[0].transaction !== undefined){
@@ -94,32 +94,32 @@ module SideChain {
                         }
                     }
                 }
-                console.log('DOUBLE SPENDING', valid)
+                console.log('IS NOT DOUBLE SPENDED', valid)
                 client.close()
                 response(valid)
             })
         })
     }
 
-    public async checkdoublespending(sxid, vout, sidechain, mainTx){
+    public async checkdoublespending(sxid, vout, sidechain, incomingSxid){
         return new Promise <boolean> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                 const db = client.db(global['db_name'])
-                let valid = false
+                let invalid = false
                 // CHECKING IF UNSPENT IS NOT DOUBLE SPENDED
                 let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ block: 1 }).toArray()
                 for(let x in sidechain_datas){
                     let transaction = sidechain_datas[x]
                     for(let y in transaction.transaction.inputs){
                         let input = transaction.transaction.inputs[y]
-                        if(input.sxid === sxid && input.vout === vout && transaction.transaction.sxid !== mainTx.sxid){
-                            valid = true
+                        if(input.sxid === sxid && input.vout === vout && transaction.transaction.sxid !== incomingSxid){
+                            invalid = true
                         }
                     }
                 }
-                console.log('DOUBLE SPENDING', valid)
+                console.log('DOUBLE SPENDING', invalid)
                 client.close()
-                response(valid)
+                response(invalid)
             })
         })
     }

@@ -476,12 +476,13 @@ module Daemon {
                                     console.log('SIDECHAIN TRANSACTION IS VALID')
                                 }else{
                                     console.log('SIDECHAIN TRANSACTION IS INVALID')
+                                    await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
+                                    await db.collection('sc_transactions').deleteMany({sxid: datastore.data.sxid})
                                 }
                             }else{
-                                console.log('SIDECHAIN UNSPENT ALREADY STORED.')
-                                let checkTx = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
+                                console.log('SIDECHAIN TRANSACTION ALREADY STORED.')
                                 let doublespending = false
-                                if(checkTx[0].block === null){
+                                if(check[0].block === null){
                                     await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
                                 }
 
@@ -491,11 +492,12 @@ module Daemon {
                                     await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                     console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
                                     if(!isMempool){
-                                        let checkdoublespended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, checkTx)
-                                        if(checkdoublespended === true){
+                                        let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, check[0].sxid)
+                                        if(isDoubleSpended === true){
                                             console.log('INPUT IS DOUBLE SPENDED')
                                             doublespending = true
-                                            await db.collection('sc_transactions').deleteOne({sxid: datastore.data.sxid})
+                                            await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
+                                            await db.collection('sc_transactions').deleteMany({sxid: datastore.data.sxid})
                                         }
                                     }
                                 }
@@ -509,8 +511,6 @@ module Daemon {
                                                 await db.collection('sc_unspent').updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
                                             }
                                         }
-                                    }else{
-                                        // await db.collection('sc_unspent').deleteOne({sxid: datastore.data.sxid, vout: vout})
                                     }
                                     vout++
                                 }

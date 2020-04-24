@@ -210,6 +210,8 @@ export async function send(req: express.Request, res: express.Response) {
                       let toadd = math.round(unspent[i].amount, decimals)
                       amountinput = math.sum(amountinput, toadd)
                       amountinput = math.round(amountinput, decimals)
+                    }else{
+                      await db.collection('sc_unspent').deleteOne({"sxid": unspent[i].sxid, "vout": unspent[i].vout})
                     }
                   }
                 }
