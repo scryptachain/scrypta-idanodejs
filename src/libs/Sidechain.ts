@@ -69,7 +69,7 @@ module SideChain {
 
                 // CHECKING IF UNSPENT EXISTS IN LOCAL DATABASE
                 let unspentcheck = await db.collection('sc_unspent').find({ "sidechain": sidechain, "sxid": sxid, "vout": vout }).sort({ block: 1 }).limit(1).toArray()
-                if(unspentcheck[0].redeemed === null && unspentcheck[0].reedemblock === null){
+                if(unspentcheck[0]!== undefined && unspentcheck[0].redeemed === null && unspentcheck[0].reedemblock === null){
                     // CHECKING IF UNSPENT EXISTS IN TRANSACTION
                     let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
                     let voutx = 0
