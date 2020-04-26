@@ -198,6 +198,17 @@ module Daemon {
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX FOR ' + address + '.')
                 for(var dix in data){
                     var task = new Daemon.Sync
+                    let datastore = data[dix]
+                    mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+                        var db = client.db(global['db_name'])
+                        // MAKE SURE ALL UNSPENT ARE NOT REDEEMED TO AVOID ANY TIME-BASED ERROR
+                        for(let x in datastore.data.transaction.inputs){
+                            let sxid = datastore.data.transaction.inputs[x].sxid
+                            let vout = datastore.data.transaction.inputs[x].vout
+                            await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: null, redeemblock: null}})
+                        }
+                        client.close()
+                    })
                     await task.storewritten(data[dix], false)
                 }
             }
@@ -478,7 +489,8 @@ module Daemon {
                                             sidechain: datastore.data.transaction.sidechain,
                                             block: datastore.block,
                                             redeemed: null,
-                                            redeemblock: null
+                                            redeemblock: null,
+                                            time: datastore.data.transaction.time
                                         }
                                         let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
                                         if(checkUsxo[0] === undefined){
@@ -486,10 +498,10 @@ module Daemon {
                                         }
                                         vout++
                                     }
-                                    utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN '+datastore.data.transaction.sidechain+' AT BLOCK  ' +datastore.block + ' IS VALID')
+                                    utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN '+datastore.data.transaction.sidechain+' AT BLOCK ' +datastore.block + ' IS VALID')
                                     // TRANSACTION STORED CORRECTLY
                                 }else{
-                                    utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN '+datastore.data.transaction.sidechain+' AT BLOCK  ' +datastore.block + ' IS INVALID')
+                                    utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN '+datastore.data.transaction.sidechain+' AT BLOCK ' +datastore.block + ' IS INVALID')
                                 }
                             }else{
                                 // VALIDATING DATA ALREADY STORED FROM MEMPOOL
@@ -508,6 +520,8 @@ module Daemon {
                                                 // DOUBLE SPENDING FOUND, DELETING ALL UNSPENTS AND TRANSACTION
                                                 await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
                                                 await db.collection('sc_transactions').deleteOne({sxid: datastore.data.sxid})
+                                            }else{
+                                                await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                             }
                                         }
 
