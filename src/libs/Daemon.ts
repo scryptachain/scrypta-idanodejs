@@ -383,6 +383,7 @@ module Daemon {
                                 var amountinput = 0
                                 var amountoutput = 0
                                 var isGenesis = false
+
                                 if(datastore.data.transaction.inputs.length > 0){
                                     for(let x in datastore.data.transaction.inputs){
                                         let sxid = datastore.data.transaction.inputs[x].sxid
@@ -418,6 +419,7 @@ module Daemon {
                                 }else{
                                     valid = false
                                 }
+
                                 if(check_sidechain[0].data.genesis !== undefined){
                                     if(valid === true){
                                         for(let x in datastore.data.transaction.outputs){
@@ -425,24 +427,20 @@ module Daemon {
                                             amountoutput = math.sum(amountoutput, fixed)
                                         }
                                     }
-                                }else{
-                                    valid = false
-                                    console.log(JSON.stringify(check_sidechain[0]))
-                                }
-                                if(check_sidechain[0].data.genesis !== undefined){
                                     amountoutput = math.round(amountoutput, check_sidechain[0].data.genesis.decimals)
                                     amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
                                 }else{
                                     valid = false
-                                    console.log(JSON.stringify(check_sidechain[0]))
                                 }
+
                                 if(!isGenesis){
                                     if(valid === true && amountoutput > amountinput){
                                         valid = false
-                                        utils.log('AMOUNT IS INVALID IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' OUT:' + amountoutput +  ' IN: ' + amountinput)
+                                        utils.log('AMOUNT IS INVALID IN SC TRANSACTION ' + datastore.data.transaction.sidechain + ' ' + datastore.data.sxid +' > OUT:' + amountoutput +  ' IN: ' + amountinput)
                                     }
                                 }
 
+                                // CHECK SIGNATURE
                                 var wallet = new Crypto.Wallet;
                                 if(valid === true && datastore.data.pubkey !== undefined && datastore.data.signature !== undefined && datastore.data.transaction !== undefined){
                                     let validatesign = await wallet.verifymessage(datastore.data.pubkey,datastore.data.signature,JSON.stringify(datastore.data.transaction))
@@ -460,12 +458,15 @@ module Daemon {
                                         await db.collection("sc_transactions").insertOne(datastore.data)
                                     }
 
+                                    // REEDIMING UNSPENT FOR EACH INPUT
                                     for(let x in datastore.data.transaction.inputs){
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
                                         await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                         utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout)
                                     }
+
+                                    // CREATING UNSPENT FOR EACH VOUT
                                     let vout = 0
                                     for(let x in datastore.data.transaction.outputs){
                                         let amount = datastore.data.transaction.outputs[x]
@@ -485,40 +486,42 @@ module Daemon {
                                         }
                                         vout++
                                     }
-                                    console.log('SIDECHAIN TRANSACTION IS VALID')
+                                    utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN '+datastore.data.transaction.sidechain+' IS VALID')
+                                    // TRANSACTION STORED CORRECTLY
                                 }else{
                                     utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN '+datastore.data.transaction.sidechain+' IS INVALID')
                                 }
                             }else{
                                 // VALIDATING DATA ALREADY STORED FROM MEMPOOL
                                 let doublespending = false
-                                if(!isMempool){
-                                    if(check[0].block === null || check[0].block === undefined){
+                                if(!isMempool){ // IGNORING IF WE'RE STILL WORKING WITH MEMPOOL
+                                    if(check[0].block === null || check[0].block === undefined){ // BE SURE THAT STORED IS NOT VALIDATED
                                         console.log('SIDECHAIN TRANSACTION ALREADY STORED FROM MEMPOOL, VALIDATING.')
                                         for(let x in datastore.data.transaction.inputs){
                                             let sxid = datastore.data.transaction.inputs[x].sxid
                                             let vout = datastore.data.transaction.inputs[x].vout
+                                            // CHECKING FOR DOUBLE SPENDING
                                             let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
                                             if(isDoubleSpended === true){
                                                 utils.log('INPUT ' + sxid + ':' + vout + ' IS DOUBLE SPENDED')
                                                 doublespending = true
+                                                // DOUBLE SPENDING FOUND, DELETING ALL UNSPENTS AND TRANSACTION
                                                 await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
-                                                await db.collection('sc_transactions').deleteMany({sxid: datastore.data.sxid})
+                                                await db.collection('sc_transactions').deleteOne({sxid: datastore.data.sxid})
                                             }
                                         }
 
                                         if(!doublespending){
+                                            // UPDATING BLOCK
                                             for(let x in datastore.data.transaction.inputs){
                                                 let sxid = datastore.data.transaction.inputs[x].sxid
                                                 let vout = datastore.data.transaction.inputs[x].vout
                                                 await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                                 utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain +' ' + sxid + ':' + vout)
                                             }
-                                            // UPDATING BLOCK
                                             await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
                                             let vout = 0
                                             for(let x in datastore.data.transaction.outputs){
-                                                // UPDATING UNSPENT BLOCK
                                                 await db.collection('sc_unspent').updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
                                                 vout++
                                             }
