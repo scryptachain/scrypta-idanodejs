@@ -520,8 +520,6 @@ module Daemon {
                                                 // DOUBLE SPENDING FOUND, DELETING ALL UNSPENTS AND TRANSACTION
                                                 await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
                                                 await db.collection('sc_transactions').deleteOne({sxid: datastore.data.sxid})
-                                            }else{
-                                                await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                             }
                                         }
 
