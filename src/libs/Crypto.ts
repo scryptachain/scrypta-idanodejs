@@ -859,8 +859,8 @@ module Crypto {
                             var data = written[wix]
                             var checkhead = data.substr(0,3)
                             var checkfoot = data.substr(-3)
-                            console.log('CHECKING HEAD ' + checkhead)
-                            console.log('CHECKING FOOT ' + checkfoot)
+                            // console.log('CHECKING HEAD ' + checkhead)
+                            // console.log('CHECKING FOOT ' + checkfoot)
 
                             if(singledata === '' && checkhead === checkfoot && checkhead === '*!*' && checkfoot === '*!*'){
                                 singledata = data;
@@ -958,7 +958,7 @@ module Crypto {
                             checkfoot = singledata.substr(-3)
 
                             if(endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*'){
-                                console.log('COMPLETED DATA ' + singledata)
+                                // console.log('COMPLETED DATA ' + singledata)
                                 if(global['chunkcache'][addressdata] !== undefined){
                                     // RESETTING CACHE DATA
                                     global['chunkcache'][addressdata] = []

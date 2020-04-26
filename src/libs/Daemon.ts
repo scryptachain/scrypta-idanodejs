@@ -404,12 +404,12 @@ module Daemon {
                                             let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.sidechain, datastore.address)
                                             if(validateinput === false){
                                                 valid = false
-                                                utils.log('INPUT ' + sxid + ':'+ vout +' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK  ' +datastore.block + ' IS INVALID.')
+                                                utils.log('INPUT ' + sxid + ':'+ vout +' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' +datastore.block + ' IS INVALID.')
                                             }else if(validateinput === true){
                                                 let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
                                                 if(isDoubleSpended === true){
                                                     valid = false
-                                                    utils.log('INPUT ' + sxid + ':'+ vout +' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK  ' +datastore.block + ' IS A DOUBLE SPEND.')
+                                                    utils.log('INPUT ' + sxid + ':'+ vout +' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' +datastore.block + ' IS A DOUBLE SPEND.')
                                                 }
                                             }
                                         }
@@ -447,7 +447,7 @@ module Daemon {
                                 if(!isGenesis){
                                     if(valid === true && amountoutput > amountinput){
                                         valid = false
-                                        utils.log('AMOUNT IS INVALID IN SIDECHAIN TRANSACTION ' + datastore.data.transaction.sidechain + ' ' + datastore.data.sxid +' AT BLOCK  ' +datastore.block + ' > OUT:' + amountoutput +  ' IN: ' + amountinput)
+                                        utils.log('AMOUNT IS INVALID IN SIDECHAIN TRANSACTION ' + datastore.data.transaction.sidechain + ' ' + datastore.data.sxid +' AT BLOCK ' +datastore.block + ' > OUT:' + amountoutput +  ' IN: ' + amountinput)
                                     }
                                 }
 
@@ -474,7 +474,7 @@ module Daemon {
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
                                         await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
-                                        utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK  ' +datastore.block)
+                                        utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' +datastore.block)
                                     }
 
                                     // CREATING UNSPENT FOR EACH VOUT
@@ -515,7 +515,7 @@ module Daemon {
                                             // CHECKING FOR DOUBLE SPENDING
                                             let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
                                             if(isDoubleSpended === true){
-                                                utils.log('INPUT ' + sxid + ':' + vout + ' AT BLOCK  ' +datastore.block + ' IS DOUBLE SPENDED')
+                                                utils.log('INPUT ' + sxid + ':' + vout + ' AT BLOCK ' +datastore.block + ' IS DOUBLE SPENDED')
                                                 doublespending = true
                                                 // DOUBLE SPENDING FOUND, DELETING ALL UNSPENTS AND TRANSACTION
                                                 await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
