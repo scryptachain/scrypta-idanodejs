@@ -107,13 +107,13 @@ module SideChain {
                 const db = client.db(global['db_name'])
                 let invalid = false
                 // CHECKING IF UNSPENT IS NOT DOUBLE SPENDED
-                let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ block: 1 }).toArray()
+                let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ "transaction.time": 1 }).toArray()
                 for(let x in sidechain_datas){
                     let transaction = sidechain_datas[x]
                     for(let y in transaction.transaction.inputs){
                         let input = transaction.transaction.inputs[y]
                         if(input.sxid === sxid && input.vout === vout && transaction.sxid !== incomingSxid){
-                            invalid = true
+                            invalid = true                            
                         }
                     }
                 }
