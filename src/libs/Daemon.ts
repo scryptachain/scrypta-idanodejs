@@ -2,6 +2,7 @@
 import express = require("express")
 import * as Crypto from './Crypto'
 import * as Sidechain from './Sidechain'
+import * as Utilities from './Utilities'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 import { create, all } from 'mathjs'
@@ -305,11 +306,12 @@ module Daemon {
 
     private async storewritten(datastore, isMempool = false){
         return new Promise (async response => {
+            const utils = new Utilities.Parser
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 var db = client.db(global['db_name'])
                 let check = await db.collection('written').find({uuid: datastore.uuid, block: datastore.block}).limit(1).toArray()
                 if(check[0] === undefined){
-                    console.log('STORING DATA NOW!', datastore.data)
+                    console.log('STORING DATA NOW!')
                     if(JSON.stringify(datastore.data).indexOf('ipfs:') !== -1){
                         let parsed = datastore.data.split('***')
                         if(parsed[0] !== undefined){
@@ -367,11 +369,12 @@ module Daemon {
                     //SEARCHING FOR TRANSACTION
                     if(datastore.data.transaction !== undefined){
                         var scwallet = new Sidechain.Wallet;
-                        console.log('SC TRANSACTION FOUND.', JSON.stringify(datastore.data))
+                        console.log('PLANUM TRANSACTION FOUND.')
                         let check = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
                         let check_sidechain = await db.collection('written').find({ address: datastore.data.transaction.sidechain, "data.genesis": {$exists: true} }).sort({ block: 1 }).limit(1).toArray()
                         if(check_sidechain[0] !== undefined){
                             if(check[0] === undefined){
+                                // TRANSACTION NEVER STORED
                                 let valid = true
                                 var amountinput = 0
                                 var amountoutput = 0
@@ -385,9 +388,16 @@ module Daemon {
                                             let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.sidechain, datastore.address)
                                             if(validateinput === false){
                                                 valid = false
-                                                console.log('INPUT IS INVALID.')
+                                                utils.log('INPUT ' + sxid + ':'+ vout +' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' IS INVALID.')
+                                            }else if(validateinput === true){
+                                                let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
+                                                if(isDoubleSpended === true){
+                                                    valid = false
+                                                    utils.log('INPUT ' + sxid + ':'+ vout +' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' IS A DOUBLE SPEND.')
+                                                }
                                             }
                                         }
+                                        // CHECKING GENESIS
                                         if(datastore.data.transaction.inputs[x].vout === 'genesis' || datastore.data.transaction.inputs[x].vout === 'reissue'){
                                             isGenesis = true
                                         }
@@ -398,7 +408,7 @@ module Daemon {
                                             }
                                         }else{
                                             valid = false
-                                            console.log(JSON.stringify(check_sidechain[0]))
+                                            console.log('SIDECHAIN DOES NOT EXIST.')
                                         }
                                     }
                                 }else{
@@ -425,7 +435,7 @@ module Daemon {
                                 if(!isGenesis){
                                     if(valid === true && amountoutput > amountinput){
                                         valid = false
-                                        console.log('AMOUNT IS INVALID', amountoutput, amountinput)
+                                        utils.log('AMOUNT IS INVALID IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' OUT:' + amountoutput +  ' IN: ' + amountinput)
                                     }
                                 }
 
@@ -444,15 +454,13 @@ module Daemon {
                                     let checkTx = await db.collection('sc_transactions').find({sxid: datastore.data.sxid}).limit(1).toArray()
                                     if(checkTx[0] === undefined){
                                         await db.collection("sc_transactions").insertOne(datastore.data)
-                                    }else{
-                                        console.log('SXID STORED YET')
                                     }
 
                                     for(let x in datastore.data.transaction.inputs){
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
                                         await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
-                                        console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
+                                        utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout)
                                     }
                                     let vout = 0
                                     for(let x in datastore.data.transaction.outputs){
@@ -475,44 +483,43 @@ module Daemon {
                                     }
                                     console.log('SIDECHAIN TRANSACTION IS VALID')
                                 }else{
-                                    console.log('SIDECHAIN TRANSACTION IS INVALID')
-                                    await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
-                                    await db.collection('sc_transactions').deleteMany({sxid: datastore.data.sxid})
+                                    utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN '+datastore.data.transaction.sidechain+' IS INVALID')
                                 }
                             }else{
-                                console.log('SIDECHAIN TRANSACTION ALREADY STORED.')
+                                // VALIDATING DATA ALREADY STORED FROM MEMPOOL
                                 let doublespending = false
-                                if(check[0].block === null){
-                                    await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
-                                }
-
-                                for(let x in datastore.data.transaction.inputs){
-                                    let sxid = datastore.data.transaction.inputs[x].sxid
-                                    let vout = datastore.data.transaction.inputs[x].vout
-                                    await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
-                                    console.log('REDEEMING UNSPENT SIDECHAIN ' + sxid + ':' + vout)
-                                    if(!isMempool){
-                                        let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, check[0].sxid)
-                                        if(isDoubleSpended === true){
-                                            console.log('INPUT IS DOUBLE SPENDED')
-                                            doublespending = true
-                                            await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
-                                            await db.collection('sc_transactions').deleteMany({sxid: datastore.data.sxid})
+                                if(!isMempool){
+                                    if(check[0].block === null || check[0].block === undefined){
+                                        console.log('SIDECHAIN TRANSACTION ALREADY STORED FROM MEMPOOL, VALIDATING.')
+                                        for(let x in datastore.data.transaction.inputs){
+                                            let sxid = datastore.data.transaction.inputs[x].sxid
+                                            let vout = datastore.data.transaction.inputs[x].vout
+                                            let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
+                                            if(isDoubleSpended === true){
+                                                utils.log('INPUT ' + sxid + ':' + vout + ' IS DOUBLE SPENDED')
+                                                doublespending = true
+                                                await db.collection('sc_unspent').deleteMany({sxid: datastore.data.sxid})
+                                                await db.collection('sc_transactions').deleteMany({sxid: datastore.data.sxid})
+                                            }
                                         }
-                                    }
-                                }
 
-                                let vout = 0
-                                for(let x in datastore.data.transaction.outputs){
-                                    if(!doublespending){
-                                        let checkUsxo = await db.collection('sc_unspent').find({sxid: datastore.data.sxid, vout: vout}).limit(1).toArray()
-                                        if(checkUsxo[0] !== undefined){
-                                            if(checkUsxo[0].block === undefined || checkUsxo[0].block === null){
+                                        if(!doublespending){
+                                            for(let x in datastore.data.transaction.inputs){
+                                                let sxid = datastore.data.transaction.inputs[x].sxid
+                                                let vout = datastore.data.transaction.inputs[x].vout
+                                                await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
+                                                utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain +' ' + sxid + ':' + vout)
+                                            }
+                                            // UPDATING BLOCK
+                                            await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                                            let vout = 0
+                                            for(let x in datastore.data.transaction.outputs){
+                                                // UPDATING UNSPENT BLOCK
                                                 await db.collection('sc_unspent').updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
+                                                vout++
                                             }
                                         }
                                     }
-                                    vout++
                                 }
                             }
                         }else{

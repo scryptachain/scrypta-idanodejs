@@ -1,6 +1,7 @@
 "use strict";
 const mongo = require('mongodb').MongoClient
 import * as Crypto from './Crypto'
+import * as Utilities from './Utilities'
 
 module SideChain {
 
@@ -64,37 +65,28 @@ module SideChain {
                     let request = await wallet.request('getinfo')
                     block = request['result'].blocks
                 }
-                
+                let utils = new Utilities.Parser
+
                 // CHECKING IF UNSPENT EXISTS
-                let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid, redeemed: null, redeemblock: null }).sort({ block: 1 }).limit(1).toArray()
+                let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
                 let voutx = 0
+                let existat = ''
                 if(sxidcheck[0] !== undefined){
                     if(sxidcheck[0].transaction !== undefined){
                         for(let x in sxidcheck[0].transaction.outputs){
                             if(voutx === vout){
                                 if(x === address){
                                     valid = true
+                                    existat = sxidcheck[0].sxid + ':' + vout
                                 }
                             }
                             voutx++
                         }
                     }
                 }
-                console.log('UNSPENT EXIST', valid)
-                // CHECKING IF UNSPENT IS NOT DOUBLE SPENDED
-                let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ block: 1 }).toArray()
-                for(let x in sidechain_datas){
-                    let transaction = sidechain_datas[x]
-                    if(transaction.block < block){
-                        for(let y in transaction.transaction.inputs){
-                            let input = transaction.transaction.inputs[y]
-                            if(input.sxid === sxid && input.vout === vout){
-                                valid = false
-                            }
-                        }
-                    }
+                if(existat === ''){
+                    utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
                 }
-                console.log('IS NOT DOUBLE SPENDED', valid)
                 client.close()
                 response(valid)
             })
@@ -112,12 +104,11 @@ module SideChain {
                     let transaction = sidechain_datas[x]
                     for(let y in transaction.transaction.inputs){
                         let input = transaction.transaction.inputs[y]
-                        if(input.sxid === sxid && input.vout === vout && transaction.transaction.sxid !== incomingSxid){
+                        if(input.sxid === sxid && input.vout === vout && transaction.sxid !== incomingSxid){
                             invalid = true
                         }
                     }
                 }
-                console.log('DOUBLE SPENDING', invalid)
                 client.close()
                 response(invalid)
             })

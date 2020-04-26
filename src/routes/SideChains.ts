@@ -891,6 +891,7 @@ export async function verifychain(req: express.Request, res: express.Response) {
                     if(validateinput === false){
                       verified = false
                       await db.collection('sc_transactions').deleteOne({ "sxid": sidechain_datas[x].sxid })
+                      await db.collection('sc_unspent').deleteMany({ "sxid": sidechain_datas[x].sxid })
                       errors.push(sidechain_datas[x].sxid + ':' + sidechain_datas[x].block)
                       console.log('ERROR VALIDATING INPUT ' + input.sxid + ':' + input.vout)
                     }
@@ -1060,7 +1061,7 @@ export async function shares(req: express.Request, res: express.Response) {
           let sxids = []
           for(let x in unspents){
             let unspent = unspents[x]
-            if(unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid) === -1 && unspent.block > 0){
+            if(unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid) === -1){
               sxids.push(unspent.sxid + ':' + unspent.vout)
               if(addresses[unspent.address] === undefined){
                 addresses[unspent.address] = 0
