@@ -61,7 +61,8 @@ module Daemon {
 
             // ANALYZING MEMPOOL ONLY IF SYNC IS FINISHED
             var remains = blocks - analyze
-            if(remains === 0){
+            console.log(remains)
+            if(remains <= 2){
                 console.log('\x1b[33m%s\x1b[0m', 'ANALYZING MEMPOOL')
                 var wallet = new Crypto.Wallet
                 var mempool = await wallet.analyzeMempool()
