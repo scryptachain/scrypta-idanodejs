@@ -1,7 +1,6 @@
 import app from './App'
 import * as Crypto from './libs/Crypto'
 import * as Daemon from "./libs/Daemon"
-import * as Bootstrap from "./libs/Bootstrap"
 import * as Database from "./libs/Database"
 import SysTray from 'systray'
 const open = require('opn')

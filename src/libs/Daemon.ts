@@ -59,59 +59,63 @@ module Daemon {
                 analyze = 1
             }
 
-            // ANALYZING MEMPOOL
-            console.log('\x1b[32m%s\x1b[0m', 'ANALYZING MEMPOOL')
-            var wallet = new Crypto.Wallet
-            var mempool = await wallet.analyzeMempool()
-            for(var address in mempool['data_written']){
-                var data = mempool['data_written'][address]
-                console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
-                for(var dix in data){
-                    var task = new Daemon.Sync
-                    await task.storewritten(data[dix], true)
-                }
-            }
-
-            for(var address in mempool['data_received']){
-                var data = mempool['data_received'][address]
-                console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
-                for(var dix in data){
-                    var task = new Daemon.Sync
-                    await task.storereceived(data[dix])
-                }
-            }
-
-            for(var txid in mempool['analysis']){
-                for(var address in mempool['analysis'][txid]['balances']){
-                    var tx = mempool['analysis'][txid]['balances'][address]
-                    var movements = mempool['analysis'][txid]['movements']
-                    var task = new Daemon.Sync
-                    console.log('STORING '+ tx.type +' OF '+ tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
-                    await task.store(address, mempool, txid, tx, movements)
-                }
-            }
-
-            for(var i in mempool['outputs']){
-                let unspent = mempool['outputs'][i]
-                var found = false
-                for(var i in mempool['inputs']){
-                    let input = mempool['inputs'][i]
-                    if(input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']){
-                        found = true
+            // ANALYZING MEMPOOL ONLY IF SYNC IS FINISHED
+            var remains = blocks - analyze
+            if(remains === 0){
+                console.log('\x1b[33m%s\x1b[0m', 'ANALYZING MEMPOOL')
+                var wallet = new Crypto.Wallet
+                var mempool = await wallet.analyzeMempool()
+                for(var address in mempool['data_written']){
+                    var data = mempool['data_written'][address]
+                    console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                    for(var dix in data){
+                        var task = new Daemon.Sync
+                        await task.storewritten(data[dix], true)
                     }
                 }
-                if(found === false){
-                    await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
-                }else{
-                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+
+                for(var address in mempool['data_received']){
+                    var data = mempool['data_received'][address]
+                    console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
+                    for(var dix in data){
+                        var task = new Daemon.Sync
+                        await task.storereceived(data[dix])
+                    }
                 }
+
+                for(var txid in mempool['analysis']){
+                    for(var address in mempool['analysis'][txid]['balances']){
+                        var tx = mempool['analysis'][txid]['balances'][address]
+                        var movements = mempool['analysis'][txid]['movements']
+                        var task = new Daemon.Sync
+                        console.log('STORING '+ tx.type +' OF '+ tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
+                        await task.store(address, mempool, txid, tx, movements)
+                    }
+                }
+
+                for(var i in mempool['outputs']){
+                    let unspent = mempool['outputs'][i]
+                    var found = false
+                    for(var i in mempool['inputs']){
+                        let input = mempool['inputs'][i]
+                        if(input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']){
+                            found = true
+                        }
+                    }
+                    if(found === false){
+                        await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
+                    }else{
+                        console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                    }
+                }
+
+                for(var i in mempool['inputs']){
+                    let input = mempool['inputs'][i]
+                    await task.redeemunspent(input['txid'], input['vout'], null)
+                }
+            
             }
 
-            for(var i in mempool['inputs']){
-                let input = mempool['inputs'][i]
-                await task.redeemunspent(input['txid'], input['vout'], null)
-            }
-            
             client.close()
 
             if(analyze <= blocks){
@@ -133,6 +137,7 @@ module Daemon {
         
         // ANLYZING BLOCK
         if(analyze > 0){
+            process.stdout.write("\u001b[3J\u001b[2J\u001b[1J"); console.clear();
             console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
             
             var wallet = new Crypto.Wallet
