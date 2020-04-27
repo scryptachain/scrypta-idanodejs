@@ -73,6 +73,7 @@ module Daemon {
                         if(data[dix].protocol !== 'chain://'){
                             await task.storewritten(data[dix], true)
                         }else{
+                            await task.storewritten(data[dix], true)
                             await task.storeplanum(data[dix], true)
                         }
                     }
@@ -198,6 +199,7 @@ module Daemon {
             for(var dix in block['planum']){
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX.')
                 var task = new Daemon.Sync
+                await task.storewritten(block['planum'][dix], false)
                 await task.storeplanum(block['planum'][dix], false)
             }
 
