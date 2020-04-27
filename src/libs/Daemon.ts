@@ -202,11 +202,11 @@ module Daemon {
                     mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                         var db = client.db(global['db_name'])
                         // MAKE SURE ALL UNSPENT ARE NOT REDEEMED TO AVOID ANY TIME-BASED ERROR
-                        for(let x in datastore.data.transaction.inputs){
+                        /*for(let x in datastore.data.transaction.inputs){
                             let sxid = datastore.data.transaction.inputs[x].sxid
                             let vout = datastore.data.transaction.inputs[x].vout
                             await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: null, redeemblock: null}})
-                        }
+                        }*/
                         client.close()
                     })
                     await task.storewritten(data[dix], false)
@@ -531,7 +531,10 @@ module Daemon {
                                                 await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                                 utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain +' ' + sxid + ':' + vout)
                                             }
+                                            
                                             await db.collection("sc_transactions").updateOne({sxid: datastore.data.sxid}, {$set: {block: datastore.block}})
+                                            utils.log('TRANSACTION IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + datastore.data.sxid + ' AT BLOCK ' +datastore.block + ' IS VALID')
+
                                             let vout = 0
                                             for(let x in datastore.data.transaction.outputs){
                                                 await db.collection('sc_unspent').updateOne({sxid: datastore.data.sxid, vout: vout}, {$set: {block: datastore.block}})
