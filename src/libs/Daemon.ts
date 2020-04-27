@@ -70,7 +70,11 @@ module Daemon {
                     console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
                     for(var dix in data){
                         var task = new Daemon.Sync
-                        await task.storewritten(data[dix], true)
+                        if(data[dix].protocol !== 'chain://'){
+                            await task.storewritten(data[dix], true)
+                        }else{
+                            await task.storeplanum(data[dix], true)
+                        }
                     }
                 }
 
@@ -187,30 +191,14 @@ module Daemon {
                     if(data[dix].protocol !== 'chain://'){
                         var task = new Daemon.Sync
                         await task.storewritten(data[dix], false)
-                    }else{
-                        console.log('IS PLANUM, IGNORING')
                     }
                 }
             }
 
-            for(var address in block['planum']){
-                var data = block['planum'][address]
-                console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX FOR ' + address + '.')
-                for(var dix in data){
-                    var task = new Daemon.Sync
-                    let datastore = data[dix]
-                    mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
-                        var db = client.db(global['db_name'])
-                        // MAKE SURE ALL UNSPENT ARE NOT REDEEMED TO AVOID ANY TIME-BASED ERROR
-                        /*for(let x in datastore.data.transaction.inputs){
-                            let sxid = datastore.data.transaction.inputs[x].sxid
-                            let vout = datastore.data.transaction.inputs[x].vout
-                            await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: null, redeemblock: null}})
-                        }*/
-                        client.close()
-                    })
-                    await task.storewritten(data[dix], false)
-                }
+            for(var dix in block['planum']){
+                console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX.')
+                var task = new Daemon.Sync
+                await task.storeplanum(block['planum'][dix], false)
             }
 
             for(var address in block['data_received']){
@@ -351,6 +339,18 @@ module Daemon {
                         console.log('DATA ALREADY STORED FROM MEMPOOL.')
                     }
                 }
+
+                client.close()
+                response('STORED')
+            })
+        })
+    }
+
+    private async storeplanum(datastore, isMempool = false){
+        return new Promise (async response => {
+            const utils = new Utilities.Parser
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+                var db = client.db(global['db_name'])
 
                 if(datastore.protocol === 'chain://'){
                     // SEARCHING FOR GENESIS
@@ -507,7 +507,7 @@ module Daemon {
                                 // VALIDATING DATA ALREADY STORED FROM MEMPOOL
                                 let doublespending = false
                                 if(!isMempool){ // IGNORING IF WE'RE STILL WORKING WITH MEMPOOL
-                                    if(check[0].block === null || check[0].block === undefined){ // BE SURE THAT STORED IS NOT VALIDATED
+                                    if(datastore.block !== null){ // BE SURE THAT STORED IS NOT VALIDATED
                                         console.log('SIDECHAIN TRANSACTION ALREADY STORED FROM MEMPOOL, VALIDATING.')
                                         for(let x in datastore.data.transaction.inputs){
                                             let sxid = datastore.data.transaction.inputs[x].sxid

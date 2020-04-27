@@ -204,7 +204,8 @@ export async function send(req: express.Request, res: express.Response) {
                     delete unspent[i].redeemblock
                     delete unspent[i].redeemed
                     let validateinput = await scwallet.validateinput(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, fields.from)
-                    if(validateinput === true){
+                    let isDoubleSpended = await scwallet.checkdoublespending(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, "")
+                    if(validateinput === true && isDoubleSpended === false){
                       inputs.push(unspent[i])
                       usedtx.push(unspent[i].sxid)
                       let toadd = math.round(unspent[i].amount, decimals)
@@ -888,7 +889,8 @@ export async function verifychain(req: express.Request, res: express.Response) {
                   if(input.vout !== "genesis" && input.vout !== "reissue"){
                     let block = sidechain_datas[x].block
                     let validateinput = await sidechain.validateinput(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
-                    if(validateinput === false){
+                    let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address,  sidechain_datas[x].sxid)
+                    if(validateinput === false || isdoublespended === true){
                       verified = false
                       await db.collection('sc_transactions').deleteOne({ "sxid": sidechain_datas[x].sxid })
                       await db.collection('sc_unspent').deleteMany({ "sxid": sidechain_datas[x].sxid })

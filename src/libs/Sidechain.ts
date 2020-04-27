@@ -32,11 +32,11 @@ module SideChain {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
                 let check_genesis = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
-                console.log('CHECK_GENESIS')
+                // console.log('CHECK_GENESIS')
                 if(check_genesis !== undefined && check_genesis[0] !== undefined && check_genesis[0].genesis !== undefined && check_genesis[0].sxid === sxid){
                     response(true)
                 }else{
-                    console.log('CHECK_REISSUE')
+                    // console.log('CHECK_REISSUE')
                     let check_reissue = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
                     if(check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined){
                         let check_sidechain = await db.collection('written').find({ address: check_reissue[0].reissue.sidechain }).sort({ block: 1 }).limit(1).toArray()
@@ -108,15 +108,18 @@ module SideChain {
                 let invalid = false
                 // CHECKING IF UNSPENT IS NOT DOUBLE SPENDED
                 let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ "transaction.time": 1 }).toArray()
+                let doublespends = []
                 for(let x in sidechain_datas){
                     let transaction = sidechain_datas[x]
                     for(let y in transaction.transaction.inputs){
                         let input = transaction.transaction.inputs[y]
                         if(input.sxid === sxid && input.vout === vout && transaction.sxid !== incomingSxid){
-                            invalid = true                            
+                            invalid = true
+                            doublespends.push(transaction)                      
                         }
                     }
                 }
+                
                 client.close()
                 response(invalid)
             })
