@@ -47,15 +47,6 @@ sudo apt-get update
 sudo apt-get install -y mongodb-org
 mkdir mongodb_data
 
-#RESTORE MONGODB BOOTSTRAP
-wget https://scrypta.sfo2.digitaloceanspaces.com/mongo_bootstrap_191001.tar.gz
-mongod --dbpath=./mongodb_data &
-sleep 20s
-tar -xvzf mongo_bootstrap_191001.tar.gz
-sudo mongorestore --db idanodejs --drop idanodejs
-rm -rf idanodejs
-pkill mongod
-
 #DOWNLOADING NODE MODULES
 npm install
 cp example.env .env

@@ -14,3 +14,4 @@ mongodb_data_testnet
 keys/public.pem
 keys/private.pem
 log
+idanode_bootstrap.gz
