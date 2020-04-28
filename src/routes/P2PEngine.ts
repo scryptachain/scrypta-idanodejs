@@ -66,11 +66,16 @@ export async function initP2P (){
     global['io'].server.on('connection', function (socket) {
         console.log('New peer connected: ' + socket.id)
         global['io'].sockets[socket.id] = socket
+
         //PROTOCOLS
-        socket.on('message', function (data) {
-            console.log('Relaying received message to peers.');
-            messages.relay(data)
-        })
+        try{
+          socket.on('message', function (data) {
+              console.log('Relaying received message to peers.');
+              messages.relay(data)
+          })
+        }catch(e){
+          console.log('ERROR ON P2P RECEIVED DATA')
+        }
 
     });
   }else{
