@@ -1,6 +1,6 @@
 #!/bin/bash
 
-wget https://scrypta.sfo2.digitaloceanspaces.com/idanode_bootstrap.tar.gz
+wget https://sfo2.digitaloceanspaces.com/scrypta/idanode_bootstrap.gz
 pkill mongod
 rm -rf mongodb_data
 mkdir mongodb_data
