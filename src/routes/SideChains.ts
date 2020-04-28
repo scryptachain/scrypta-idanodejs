@@ -1010,10 +1010,13 @@ export function listchains(req: express.Request, res: express.Response) {
                   sidechain_datas[x].data.last_24++
                 }
               }
-              sidechain_datas[x].data.last_tx = {
-                time: parser.timeToDate(last.transaction.time),
-                sxid: last.sxid,
-                block: last.block
+              
+              if(last !== undefined){
+                sidechain_datas[x].data.last_tx = {
+                  time: parser.timeToDate(last.transaction.time),
+                  sxid: last.sxid,
+                  block: last.block
+                }
               }
 
               sidechains.push(sidechain_datas[x].data)
