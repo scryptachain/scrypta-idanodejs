@@ -888,8 +888,8 @@ export async function verifychain(req: express.Request, res: express.Response) {
                     let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address,  sidechain_datas[x].sxid)
                     if(validateinput === false || isdoublespended === true){
                       verified = false
-                      await db.collection('sc_transactions').deleteOne({ "sxid": sidechain_datas[x].sxid })
-                      await db.collection('sc_unspent').deleteMany({ "sxid": sidechain_datas[x].sxid })
+                      // await db.collection('sc_transactions').deleteOne({ "sxid": sidechain_datas[x].sxid })
+                      // await db.collection('sc_unspent').deleteMany({ "sxid": sidechain_datas[x].sxid })
                       errors.push(sidechain_datas[x].sxid + ':' + sidechain_datas[x].block)
                       console.log('ERROR VALIDATING INPUT ' + input.sxid + ':' + input.vout)
                     }
