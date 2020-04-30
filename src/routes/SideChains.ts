@@ -869,7 +869,7 @@ export async function verifychain(req: express.Request, res: express.Response) {
     if (fields.sidechain_address !== undefined) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
-        let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: 1 }).toArray()
+        let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ "transaction.time": 1 }).toArray()
         let verified = true
         var wallet = new Crypto.Wallet;
         var sidechain = new Sidechain.Wallet;
@@ -884,7 +884,7 @@ export async function verifychain(req: express.Request, res: express.Response) {
                   let input = inputs[y]
                   if(input.vout !== "genesis" && input.vout !== "reissue"){
                     let block = sidechain_datas[x].block
-                    let validateinput = await sidechain.validateinput(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
+                    let validateinput = await sidechain.checkinputspent(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
                     let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address,  sidechain_datas[x].sxid)
                     if(validateinput === false || isdoublespended === true){
                       verified = false

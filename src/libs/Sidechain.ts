@@ -55,6 +55,52 @@ module SideChain {
         });
     }
 
+    public async checkinputspent(sxid, vout, sidechain, address, block = ''){
+        return new Promise <boolean> (async response => {
+            mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                const db = client.db(global['db_name'])
+                let valid = false
+                if(block === ''){
+                    let wallet = new Crypto.Wallet
+                    let request = await wallet.request('getinfo')
+                    block = request['result'].blocks
+                }
+                let utils = new Utilities.Parser
+
+                // CHECKING IF UNSPENT EXISTS IN LOCAL DATABASE
+                let unspentcheck = await db.collection('sc_unspent').find({ "sidechain": sidechain, "sxid": sxid, "vout": vout }).sort({ block: 1 }).limit(1).toArray()
+                if(unspentcheck[0] !== undefined){
+                    // CHECKING IF UNSPENT EXISTS IN TRANSACTION
+                    let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
+                    let voutx = 0
+                    let existat = ''
+                    if(sxidcheck[0] !== undefined){
+                        if(sxidcheck[0].transaction !== undefined){
+                            for(let x in sxidcheck[0].transaction.outputs){
+                                if(voutx === vout){
+                                    if(x === address){
+                                        valid = true
+                                        existat = sxidcheck[0].sxid + ':' + vout
+                                    }
+                                }
+                                voutx++
+                            }
+                        }
+                    }
+                    if(existat === ''){
+                        utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
+                    }
+                }else{
+                    valid = false
+                    utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
+                }
+                
+                client.close()
+                response(valid)
+            })
+        })
+    }
+
     public async validateinput(sxid, vout, sidechain, address, block = ''){
         return new Promise <boolean> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
