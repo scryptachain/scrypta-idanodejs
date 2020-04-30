@@ -22,7 +22,7 @@ global['syncTimeout'] = null
 global['limit'] = 200
 
 if(process.env.TESTNET !== undefined){
-  if(process.env.TESTNET === 'true' || process.env.TESTNET === true){
+  if(process.env.TESTNET === 'true'){
     // TESTNET BLOCKCHAIN PARAMS
     global['lyraInfo'] = {
       private: 0xae,

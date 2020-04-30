@@ -4,6 +4,7 @@ import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
 import * as ipfs from '../routes/Ipfs'
 require('dotenv').config()
+import { v4 as uuidv4 } from 'uuid';
 
 export async function init(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
@@ -67,8 +68,7 @@ export async function write(req: express.Request, res: express.Response) {
               if(request['body']['uuid'] !== undefined && request['body']['uuid'] !== ''){
                   uuid = request['body']['uuid']
               }else{
-                  var Uuid = require('uuid/v4')
-                  uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+                  uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
               }
 
               var collection

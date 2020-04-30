@@ -145,11 +145,11 @@ export function ls(req: express.Request, res: express.Response) {
 export function getfolder(req: express.Request, res: express.Response) {
     const hash = req.params.hash
     const folder = req.params.folder
-    global['ipfs'].cat(hash + '/' + folder, function (err, file) {
+    global['ipfs'].cat(hash + '/' + folder, async function (err, file) {
       if (err) {
           throw err
       }
-      var mimetype = fileType(file)
+      var mimetype = await fileType.fromBuffer(file)
       if(mimetype){
         res.setHeader('Content-Type', mimetype.mime);
       }
@@ -179,7 +179,7 @@ export function getfilebuffer(req: express.Request, res: express.Response) {
 
 export function getfile(req: express.Request, res: express.Response) {
     const hash = req.params.hash
-    global['ipfs'].cat(hash, function (err, file) {
+    global['ipfs'].cat(hash, async function (err, file) {
       if (err) {
         global['ipfs'].ls(hash, function (err, result) {
             if (err) {
@@ -192,7 +192,7 @@ export function getfile(req: express.Request, res: express.Response) {
             }
         })
       }else{
-        var mimetype = fileType(file)
+        var mimetype = await fileType.fromBuffer(file)
         if(mimetype){
             res.setHeader('Content-Type', mimetype.mime);
         }
@@ -203,14 +203,14 @@ export function getfile(req: express.Request, res: express.Response) {
 
 export function filetype(req: express.Request, res: express.Response) {
     const hash = req.params.hash
-    global['ipfs'].cat(hash, function (err, file) {
+    global['ipfs'].cat(hash, async function (err, file) {
       if (err) {
         res.send({
             message: 'CAN\'T RETRIEVE FILE',
             status: 400
         })
       }else{
-        var mimetype = fileType(file)
+        var mimetype = await fileType.fromBuffer(file)
         if(mimetype){
             let details = mimetype.mime.split('/')
             mimetype.type = details[0]

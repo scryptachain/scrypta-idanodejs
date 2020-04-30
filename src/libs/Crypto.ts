@@ -17,7 +17,7 @@ module Crypto {
         return new Promise(response => {
             var rpcport = process.env.RPCPORT
             if(process.env.TESTNET !== undefined && process.env.RPCPORT_TESTNET !== undefined){
-              if(process.env.TESTNET === 'true' || process.env.TESTNET === true){
+              if(process.env.TESTNET === 'true'){
                 rpcport = process.env.RPCPORT_TESTNET
               }
             }
@@ -59,15 +59,15 @@ module Crypto {
             let hash = CryptoJS.SHA256(message);
             let msg = Buffer.from(hash.toString(CryptoJS.enc.Hex), 'hex');
             let privKey = ck.privateKey
-            const sigObj = secp256k1.sign(msg, privKey)
+            const sigObj = secp256k1.ecdsaSign(msg, privKey)
             const pubKey = secp256k1.publicKeyCreate(privKey)
-            let id = CryptoJS.SHA256(sigObj.signature.toString('hex'));
+            let id = CryptoJS.SHA256(Buffer.from(sigObj.signature).toString('hex'));
             response({
                 message: message,
                 hash: hash.toString(CryptoJS.enc.Hex),
-                signature: sigObj.signature.toString('hex'),
+                signature: Buffer.from(sigObj.signature).toString('hex'),
                 id: id.toString(CryptoJS.enc.Hex),
-                pubkey: pubKey.toString('hex'),
+                pubkey: Buffer.from(pubKey).toString('hex'),
                 address: ck.publicAddress
             })
         })
@@ -75,10 +75,10 @@ module Crypto {
 
     public async getAddressFromPubKey(pubKey){
         return new Promise(response => {
-            let pubkeybuffer = new Buffer(pubKey,'hex')
+            let pubkeybuffer = Buffer.from(pubKey,'hex')
             var sha = crypto.createHash('sha256').update(pubkeybuffer).digest()
             let pubKeyHash = crypto.createHash('rmd160').update(sha).digest()
-            var hash160Buf = new Buffer(pubKeyHash, 'hex')
+            var hash160Buf = Buffer.from(pubKeyHash, 'hex')
             response(cs.encode(hash160Buf, global['lyraInfo'].public)) 
         })
     }
@@ -92,7 +92,7 @@ module Crypto {
             //VERIFY MESSAGE
             let buf = Buffer.from(signature,'hex')
             let pubKey = Buffer.from(pubkey,'hex')
-            let verified = secp256k1.verify(msg, buf, pubKey)
+            let verified = secp256k1.ecdsaVerify(buf, msg, pubKey)
             let address = await wallet.getAddressFromPubKey(pubkey)
             if(verified === true){
                 response({
@@ -191,7 +191,7 @@ module Crypto {
                                         scriptPubKey: decoded.vout[voutchange].scriptPubKey.hex,
                                         amount: decoded.vout[voutchange].value
                                     }
-                                    console.log("UNSPENT IS: ",unspent)
+                                    // console.log("UNSPENT IS: ",unspent)
                                     global['utxocache'][decoded.txid] = unspent
                                 }
                             }
@@ -389,7 +389,7 @@ module Crypto {
                                     amount: decoded.vout[voutchange].value
                                 }
                                 global['utxocache'][decoded.txid] = unspent
-                                console.log("UNSPENT IS",unspent)
+                                // console.log("UNSPENT IS",unspent)
                             }
                         }
                         response(txid['result'])

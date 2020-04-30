@@ -6,6 +6,7 @@ let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
 import { create, all } from 'mathjs'
+import { v4 as uuidv4 } from 'uuid';
 
 const config = {
   epsilon: 1e-12,
@@ -81,8 +82,7 @@ export async function issue(req: express.Request, res: express.Response) {
               // WRITING SIDECHAIN TO BLOCKCHAIN
               var private_keys = fields.private_key + "," + lyraprv
               var redeemScript = init['result']['redeemScript']
-              var Uuid = require('uuid/v4')
-              var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+              var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
               var collection = '!*!'
               var refID = '!*!'
               var protocol = '!*!chain://'
@@ -91,8 +91,7 @@ export async function issue(req: express.Request, res: express.Response) {
               let write = await wallet.writemultisig(private_keys, trustlink, redeemScript, dataToWrite, uuid, collection, refID, protocol)
 
               // MOVE ALL FUNDS FROM SIDECHAIN ADDRESS TO OWNER ADDRESS
-              var UuidTx = require('uuid/v4')
-              var uuidtx = UuidTx().replace(new RegExp('-', 'g'), '.')
+              var uuidtx = uuidv4().replace(new RegExp('-', 'g'), '.')
 
               let transaction = {}
               transaction["sidechain"] = trustlink
@@ -284,8 +283,7 @@ export async function send(req: express.Request, res: express.Response) {
                     pubkey: fields.pubkey,
                     sxid: signtx.id
                   }
-                  var Uuid = require('uuid/v4')
-                  var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+                  var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
                   var collection = '!*!'
                   var refID = '!*!'
                   var protocol = '!*!chain://'
@@ -408,8 +406,7 @@ export async function reissue(req: express.Request, res: express.Response) {
               }
 
               // WRITE REISSUE
-              var Uuid = require('uuid/v4')
-              var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+              var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
               var collection = '!*!'
               var refID = '!*!'
               var protocol = '!*!chain://'
@@ -417,8 +414,7 @@ export async function reissue(req: express.Request, res: express.Response) {
               let write = await wallet.write(fields.private_key, fields.dapp_address, dataToWrite, uuid, collection, refID, protocol)
 
               // CREATE REISSUE UNSPENT
-              var UuidTx = require('uuid/v4')
-              var uuidtx = UuidTx().replace(new RegExp('-', 'g'), '.')
+              var uuidtx = uuidv4().replace(new RegExp('-', 'g'), '.')
 
               let transaction = {}
               transaction["sidechain"] = fields.sidechain_address

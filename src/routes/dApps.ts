@@ -3,6 +3,7 @@ const fileType = require('file-type')
 var fs = require('fs')
 var formidable = require('formidable')
 import * as Crypto from '../libs/Crypto'
+import { v4 as uuidv4 } from 'uuid';
 
 export function upload(req: express.Request, res: express.Response) {
     var form = new formidable.IncomingForm();
@@ -27,8 +28,7 @@ export function upload(req: express.Request, res: express.Response) {
                   var totalfees = 0
                   var error = false
                   var wallet = new Crypto.Wallet;
-                  var Uuid = require('uuid/v4')
-                  var uuid = Uuid().replace(new RegExp('-', 'g'), '.')
+                  var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
                   var dataToWrite = '*!*' + uuid+'!*!'+'!*!'+'!*!dapp://'+ '*=>' + hash['hash'] + '*!*'
                   let write = await wallet.write(fields.private_key, fields.dapp_address, dataToWrite, uuid, '', '', 'dapp://')
                   res.json(write)

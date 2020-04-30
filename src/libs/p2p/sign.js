@@ -19,12 +19,12 @@ module.exports = {
             //GETTING PUBKEY FROM PRIVATEKEY
             let privKey = ck.privateKey
             //SIGNING MESSAGE
-            const sigObj = secp256k1.sign(msg, privKey)
+            const sigObj = secp256k1.ecdsaSign(msg, privKey)
             const pubKey = secp256k1.publicKeyCreate(privKey)
 
             response({
-                signature: sigObj.signature.toString('hex'),
-                pubKey: pubKey.toString('hex'),
+                signature: Buffer.from(sigObj.signature).toString('hex'),
+                pubKey: Buffer.from(pubKey).toString('hex'),
                 address: ck.publicAddress
             })
         })
@@ -36,7 +36,7 @@ module.exports = {
             //GETTING PUBKEY FROM PRIVATEKEY
             let privKey = ck.privateKey
             const pubKey = secp256k1.publicKeyCreate(privKey)
-            response(pubKey)
+            response(Buffer.from(pubKey).toString('hex'))
         })
     },
     returnAddress: async function(key){
@@ -55,7 +55,7 @@ module.exports = {
             //VERIFY MESSAGE
             let signature = Buffer.from(sighex,'hex')
             let pubKey = Buffer.from(keyhex,'hex')
-            verified = secp256k1.verify(msg, signature, pubKey)
+            verified = secp256k1.ecdsaVerify(signature, msg, pubKey)
             response(verified)
         })
     }
