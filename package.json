@@ -4,7 +4,7 @@
   "description": "NodeJS implementation of Scrypta IdaNode",
   "main": "index.js",
   "scripts": {
-    "dev": "tsc --watch & nodemon dist",
+    "dev": "tsc --watch & node dist/index.js",
     "test": "tsc && mocha dist/**/*.spec.js",
     "lint": "eslint src --ext ts",
     "tsc": "tsc",
