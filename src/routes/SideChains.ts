@@ -861,6 +861,125 @@ export async function scanchain(req: express.Request, res: express.Response) {
   }
 }
 
+export async function validatetransaction(req: express.Request, res: express.Response) {
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
+    let transactionToValidate = fields.transaction.transaction
+    if(transactionToValidate !== undefined){
+      mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+        var db = client.db(global['db_name'])
+        var scwallet = new Sidechain.Wallet;
+        let check_sidechain = await db.collection('written').find({ address: transactionToValidate.sidechain, "data.genesis": {$exists: true} }).sort({ block: 1 }).limit(1).toArray()
+        if(check_sidechain[0] !== undefined){
+          let valid = true
+          var amountinput = 0
+          var amountoutput = 0
+          var isGenesis = false
+
+          if(transactionToValidate.inputs.length > 0){
+              for(let x in transactionToValidate.inputs){
+                  let sxid = transactionToValidate.inputs[x].sxid
+                  let vout = transactionToValidate.inputs[x].vout
+                  let validategenesis = await scwallet.validategenesis(sxid, transactionToValidate.sidechain)
+                  if(validategenesis === false){
+                      let validateinput = await scwallet.validateinput(sxid, vout, transactionToValidate.sidechain, fields.address)
+                      if(validateinput === false){
+                          valid = false
+                          res.send({
+                            message: "Input " + sxid + ':'+ vout + " not valid.",
+                            error: true,
+                            status: 404
+                          })
+                      }else if(validateinput === true){
+                          let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, transactionToValidate.sidechain, fields.sxid)
+                          if(isDoubleSpended === true){
+                              valid = false
+                              res.send({
+                                message: "Input " + sxid + ':'+ vout + " is spended yet.",
+                                error: true,
+                                status: 404
+                              })
+                          }
+                      }
+                  }
+                  // CHECKING GENESIS
+                  if(transactionToValidate.inputs[x].vout === 'genesis' || transactionToValidate.inputs[x].vout === 'reissue'){
+                      isGenesis = true
+                  }
+                  if(check_sidechain[0].data.genesis !== undefined){
+                      if(valid === true && transactionToValidate.inputs[x].amount !== undefined){
+                          let fixed = math.round(transactionToValidate.inputs[x].amount,check_sidechain[0].data.genesis.decimals)
+                          amountinput = math.sum(amountinput, fixed)
+                      }
+                  }else{
+                      valid = false
+                      res.send({
+                        message: "Sidechain doesn't exist.",
+                        error: true,
+                        status: 404
+                      })
+                  }
+              }
+          }else{
+              valid = false
+          }
+
+          if(check_sidechain[0].data.genesis !== undefined){
+              if(valid === true){
+                  for(let x in transactionToValidate.outputs){
+                      let fixed = math.round(transactionToValidate.outputs[x], check_sidechain[0].data.genesis.decimals)
+                      amountoutput = math.sum(amountoutput, fixed)
+                  }
+              }
+              amountoutput = math.round(amountoutput, check_sidechain[0].data.genesis.decimals)
+              amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
+          }else{
+              valid = false
+          }
+
+          if(!isGenesis){
+              if(valid === true && amountoutput > amountinput){
+                  valid = false
+                  res.send({
+                    message: "Output amount is higher than input amount",
+                    error: true,
+                    status: 404
+                  })
+              }
+          }
+
+          // CHECK SIGNATURE
+          var wallet = new Crypto.Wallet;
+          if(valid === true && fields.pubkey !== undefined && fields.signature !== undefined && transactionToValidate !== undefined){
+              let validatesign = await wallet.verifymessage(fields.pubkey,fields.signature,JSON.stringify(transactionToValidate))
+              if(validatesign === false){
+                  valid = false
+              }
+          }else{
+              valid = false
+          }
+          
+          if(valid === true){
+            res.send({
+              message: "Transaction is valid",
+              valid: true,
+              status: 200
+            })
+          }
+        }else{
+          res.send({
+            message: "Sidechain doesn't exist",
+            error: true,
+            status: 404
+          })
+        }
+      })
+  }
+  }
+}
+
 export async function verifychain(req: express.Request, res: express.Response) {
   var parser = new Utilities.Parser
   var request = await parser.body(req)

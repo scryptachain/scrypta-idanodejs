@@ -191,7 +191,7 @@ module Daemon {
                 for(var dix in data){
                     if(data[dix].protocol !== 'chain://'){
                         var task = new Daemon.Sync
-                        await task.storewritten(data[dix], false)
+                        await task.storewritten(data[dix], false, block['height'])
                     }
                 }
             }
@@ -199,8 +199,8 @@ module Daemon {
             for(var dix in block['planum']){
                 console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX.')
                 var task = new Daemon.Sync
-                await task.storewritten(block['planum'][dix], false)
-                await task.storeplanum(block['planum'][dix], false)
+                await task.storewritten(block['planum'][dix], false, block['height'])
+                await task.storeplanum(block['planum'][dix], false, block['height'])
             }
 
             for(var address in block['data_received']){
@@ -309,9 +309,9 @@ module Daemon {
         })
     }
 
-    private async storewritten(datastore, isMempool = false){
+    private async storewritten(datastore, isMempool = false, block = null){
         return new Promise (async response => {
-            const utils = new Utilities.Parser
+            datastore.block = block
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 var db = client.db(global['db_name'])
                 let check = await db.collection('written').find({uuid: datastore.uuid, block: datastore.block}).limit(1).toArray()
@@ -335,7 +335,7 @@ module Daemon {
                         await db.collection("written").insertOne(datastore)
                     }
                 }else{
-                    if(datastore.block !== undefined){
+                    if(datastore.block !== null){
                         console.log('DATA ALREADY STORED AT BLOCK '+ datastore.block +'.')
                     }else{
                         console.log('DATA ALREADY STORED FROM MEMPOOL.')
@@ -348,12 +348,12 @@ module Daemon {
         })
     }
 
-    private async storeplanum(datastore, isMempool = false){
+    private async storeplanum(datastore, isMempool = false, block = null){
         return new Promise (async response => {
             const utils = new Utilities.Parser
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 var db = client.db(global['db_name'])
-
+                datastore.block = block
                 if(datastore.protocol === 'chain://'){
                     // SEARCHING FOR GENESIS
                     if(datastore.data.genesis !== undefined){
@@ -475,7 +475,11 @@ module Daemon {
                                     for(let x in datastore.data.transaction.inputs){
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
-                                        await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
+                                        if(datastore.block !== null){
+                                            await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
+                                        }else{
+                                            await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid}})
+                                        }
                                         utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' +datastore.block)
                                     }
 
