@@ -198,7 +198,7 @@ export async function send(req: express.Request, res: express.Response) {
                 delete unspent[i].address
                 let checkinput = await db.collection('sc_transactions').find({ sxid: unspent[i].sxid }).limit(1).toArray()
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
-                  if (global['sxidcache'].indexOf(unspent[i].sxid) === -1) {
+                  if (global['sxidcache'].indexOf(unspent[i].sxid + ':' + unspent[i].vout) === -1) {
                     delete unspent[i].block
                     delete unspent[i].redeemblock
                     delete unspent[i].redeemed
@@ -206,7 +206,7 @@ export async function send(req: express.Request, res: express.Response) {
                     let isDoubleSpended = await scwallet.checkdoublespending(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, "")
                     if(validateinput === true && isDoubleSpended === false){
                       inputs.push(unspent[i])
-                      usedtx.push(unspent[i].sxid)
+                      usedtx.push(unspent[i].sxid + ':' + unspent[i].vout)
                       let toadd = math.round(unspent[i].amount, decimals)
                       amountinput = math.sum(amountinput, toadd)
                       amountinput = math.round(amountinput, decimals)
