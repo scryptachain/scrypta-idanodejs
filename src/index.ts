@@ -82,8 +82,8 @@ async function checkConnections(){
             var task = new Daemon.Sync
             task.init()
           }
+          client.close()
         }
-        client.close()
       });
     }else{
       console.log('Can\'t communicate with wallet, running process now.')
