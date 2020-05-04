@@ -9,8 +9,14 @@ global['broadcasted'] = {
 }
 
 global['feed'] = {}
+require('dotenv').config()
 
 module.exports = {
+    signandbroadcast: async function(protocol, message){
+        let signed = await sign.signWithKey(process.env.NODE_KEY, message)
+        signed.message = message
+        await messages.broadcast(protocol, signed)
+    },
     broadcast: async function(protocol, message, socketID = '', nodeID = '') {
         //console.log('Broadcasting to network..')
         return new Promise(async response => {

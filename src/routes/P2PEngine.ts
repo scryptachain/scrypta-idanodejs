@@ -55,6 +55,16 @@ export async function initP2P (){
                       console.log('Received message from ' + data.address + '.')
                     }
                 })
+
+                global['nodes'][bootstrap[k]].on('planum-unspent', async function (data) {
+                  let verified = await sign.verifySign(data.pubKey, data.signature, data.message)
+                  if(verified === true){
+                    if (global['sxidcache'].indexOf(data.message) === -1) {
+                      // global['sxidcache'].push(data.message)
+                    }
+                    console.log('Received used unspent ' + data.message)
+                  }
+                })
             }
         }
     }
@@ -68,24 +78,13 @@ export async function initP2P (){
         global['io'].sockets[socket.id] = socket
 
         //PROTOCOLS
-        try{
-          socket.on('message', function (data) {
-            messages.relay(data, 'message')
-          })
-        }catch(e){
-          console.log('ERROR ON P2P RECEIVED DATA')
-        }
+        socket.on('message', function (data) {
+          messages.relay(data, 'message')
+        })
 
-        try{
-          socket.on('planum-unspent', function (data) {
-            if (global['sxidcache'].indexOf(data) === -1) {
-              global['sxidcache'].push(data)
-            }
-            messages.relay(data, 'planum-unspent')
-          })
-        }catch(e){
-          console.log('ERROR ON P2P RECEIVED DATA')
-        }
+        socket.on('planum-unspent', function (data) {
+          messages.relay(data, 'planum-unspent')
+        })
 
     });
   }else{

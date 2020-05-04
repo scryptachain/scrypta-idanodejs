@@ -478,7 +478,7 @@ module Daemon {
                                         let vout = datastore.data.transaction.inputs[x].vout
                                         if (global['sxidcache'].indexOf(sxid + ':' + vout) === -1 && isMempool) {
                                             global['sxidcache'].push(sxid + ':' + vout)
-                                            await messages.broadcast('planum-unspent', sxid + ':' + vout)
+                                            await messages.signandbroadcast('planum-unspent', sxid + ':' + vout)
                                         }
                                         if(datastore.block !== null){
                                             await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})

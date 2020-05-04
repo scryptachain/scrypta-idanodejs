@@ -295,7 +295,7 @@ export async function send(req: express.Request, res: express.Response) {
                     res.send(write)
                     for (let x in usedtx) {
                       global['sxidcache'].push(usedtx[x])
-                      await messages.broadcast('planum-unspent', usedtx[x])
+                      await messages.signandbroadcast('planum-unspent', usedtx[x])
                     }
                     let vout = 0
                     for (let x in outputs) {
