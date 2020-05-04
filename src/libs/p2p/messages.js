@@ -10,6 +10,7 @@ global['broadcasted'] = {
 
 global['feed'] = {}
 require('dotenv').config()
+const sign = require('./sign.js')
 
 module.exports = {
     signandbroadcast: async function(protocol, message){
