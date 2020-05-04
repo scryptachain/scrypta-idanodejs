@@ -140,7 +140,7 @@ module Daemon {
         if(toAnalyze !== null){
             analyze = toAnalyze
         }
-        
+        console.clear()
         // ANLYZING BLOCK
         if(analyze > 0){
             console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
@@ -179,10 +179,10 @@ module Daemon {
                 let input = block['inputs'][i]
                 await task.redeemunspent(input['txid'], input['vout'], analyze)
             }
-            console.log('CLEANING UTXO CACHE')
+            // console.log('CLEANING UTXO CACHE')
             global['utxocache'] = []
             global['txidcache'] = []
-            console.log('CLEANING USXO CACHE')
+            // console.log('CLEANING USXO CACHE')
             global['usxocache'] = []
             global['sxidcache'] = []
 
@@ -234,7 +234,7 @@ module Daemon {
                 var db = client.db(global['db_name'])
                 let check = await db.collection('transactions').find({address: address, txid: txid}).limit(1).toArray();
                 if(check[0] === undefined){
-                        console.log('STORING TX NOW!')
+                        // console.log('STORING TX NOW!')
                         await db.collection("transactions").insertOne(
                             {
                                 address: address,

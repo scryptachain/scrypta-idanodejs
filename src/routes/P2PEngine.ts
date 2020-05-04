@@ -60,7 +60,7 @@ export async function initP2P (){
                   let verified = await sign.verifySign(data.pubKey, data.signature, data.message)
                   if(verified === true){
                     if (global['sxidcache'].indexOf(data.message) === -1) {
-                      // global['sxidcache'].push(data.message)
+                      global['sxidcache'].push(data.message)
                     }
                     console.log('Received used unspent ' + data.message)
                   }
