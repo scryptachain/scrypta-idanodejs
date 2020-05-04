@@ -38,7 +38,7 @@ module.exports = {
             response(message)
         })
     },
-    relay: async function(message){
+    relay: async function(message, protocol = 'message'){
         console.log('Relaying message to clients...')
         global['io'].server.sockets.clients((error, clients) => {
             for(var k in clients){
@@ -48,7 +48,7 @@ module.exports = {
                 }
                 if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
                     global['relayed']['messages'][client].push(message.signature)
-                    this.broadcast('message', message, client)
+                    this.broadcast(protocol, message, client)
                 }
             }
         })

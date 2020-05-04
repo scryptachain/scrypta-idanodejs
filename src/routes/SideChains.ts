@@ -7,6 +7,7 @@ const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
 import { create, all } from 'mathjs'
 import { v4 as uuidv4 } from 'uuid';
+const messages = require('../libs/p2p/messages.js')
 
 const config = {
   epsilon: 1e-12,
@@ -294,6 +295,7 @@ export async function send(req: express.Request, res: express.Response) {
                     res.send(write)
                     for (let x in usedtx) {
                       global['sxidcache'].push(usedtx[x])
+                      await messages.broadcast('planum-unspent', usedtx[x])
                     }
                     let vout = 0
                     for (let x in outputs) {

@@ -70,8 +70,18 @@ export async function initP2P (){
         //PROTOCOLS
         try{
           socket.on('message', function (data) {
-              console.log('Relaying received message to peers.');
-              messages.relay(data)
+            messages.relay(data, 'message')
+          })
+        }catch(e){
+          console.log('ERROR ON P2P RECEIVED DATA')
+        }
+
+        try{
+          socket.on('planum-unspent', function (data) {
+            if (global['sxidcache'].indexOf(data) === -1) {
+              global['sxidcache'].push(data)
+            }
+            messages.relay(data, 'planum-unspent')
           })
         }catch(e){
           console.log('ERROR ON P2P RECEIVED DATA')

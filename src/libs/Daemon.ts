@@ -6,6 +6,7 @@ import * as Utilities from './Utilities'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 import { create, all } from 'mathjs'
+const messages = require('./p2p/messages.js')
 
 const config = {
     epsilon: 1e-12,
@@ -475,6 +476,10 @@ module Daemon {
                                     for(let x in datastore.data.transaction.inputs){
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
+                                        if (global['sxidcache'].indexOf(sxid + ':' + vout) === -1 && isMempool) {
+                                            global['sxidcache'].push(sxid + ':' + vout)
+                                            await messages.broadcast('planum-unspent', sxid + ':' + vout)
+                                        }
                                         if(datastore.block !== null){
                                             await db.collection('sc_unspent').updateOne({sxid: sxid, vout: vout}, {$set: {redeemed: datastore.data.sxid, redeemblock: datastore.block}})
                                         }else{
