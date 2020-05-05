@@ -77,29 +77,11 @@ async function checkConnections(){
             runIdaNode()
           }
           var sync = (process.env.SYNC === 'true')
-          const db = client.db(global['db_name'])
-          let result = await db.collection('settings').find({setting: 'sync'}).toArray()
-          var lastindexed = "0"
-          if(result[0].value !== undefined){
-              lastindexed = result[0].value
+          if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
+            console.log('Starting sync.')
+            var task = new Daemon.Sync
+            task.init()
           }
-  
-          wallet.request('getinfo').then(function(info){
-              if(info['result'] !== undefined && info['result'] !== null){
-                info['result']['indexed'] = parseInt(lastindexed)
-                var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
-                info['result']['toindex'] = toindex
-                if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
-                  console.log('Starting sync.')
-                  var task = new Daemon.Sync
-                  task.init()
-                } else if(info['result']['toindex'] > 5 && global['isSyncing'] === true && sync === true){
-                  console.log('Starting sync.')
-                  var task = new Daemon.Sync
-                  task.init()
-                }
-              }
-          })
           client.close()
         }
       });
