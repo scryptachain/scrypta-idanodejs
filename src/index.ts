@@ -89,12 +89,11 @@ async function checkConnections(){
                 info['result']['indexed'] = parseInt(lastindexed)
                 var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
                 info['result']['toindex'] = toindex
-
                 if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
                   console.log('Starting sync.')
                   var task = new Daemon.Sync
                   task.init()
-                } else if(info['result']['toindex'] > 1 && global['isSyincing'] === false && sync === true){
+                } else if(info['result']['toindex'] > 5 && global['isSyncing'] === true && sync === true){
                   console.log('Starting sync.')
                   var task = new Daemon.Sync
                   task.init()
