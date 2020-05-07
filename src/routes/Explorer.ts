@@ -1,9 +1,6 @@
 import express = require("express")
-import * as Utilities from '../libs/Utilities'
-import * as Daemon from '../libs/Daemon'
 import * as Crypto from '../libs/Crypto'
 const mongo = require('mongodb').MongoClient
-var watchlist = []
 
 export function info(req: express.Request, res: express.Response) {
     res.json({status: "ONLINE"})

@@ -6,24 +6,31 @@ var CoinKey = require('coinkey')
 
 export async function getinfo(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
-    mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
-        const db = client.db(global['db_name'])
-        let result = await db.collection('settings').find({setting: 'sync'}).toArray()
-        client.close()
-        var lastindexed = "0"
-        if(result[0].value !== undefined){
-            lastindexed = result[0].value
-        }
-
-        wallet.request('getinfo').then(function(info){
-            if(info['result'] !== undefined && info['result'] !== null){
-                info['result']['indexed'] = parseInt(lastindexed)
-                var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
-                info['result']['toindex'] = toindex
-                res.json(info['result'])
+    try{
+        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+            const db = client.db(global['db_name'])
+            let result = await db.collection('settings').find({setting: 'sync'}).toArray()
+            client.close()
+            var lastindexed = "0"
+            if(result[0].value !== undefined){
+                lastindexed = result[0].value
             }
+
+            wallet.request('getinfo').then(function(info){
+                if(info['result'] !== undefined && info['result'] !== null){
+                    info['result']['indexed'] = parseInt(lastindexed)
+                    var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
+                    info['result']['toindex'] = toindex
+                    res.json(info['result'])
+                }
+            })
         })
-    })
+    }catch(e){
+        res.json({
+            error: true,
+            message: "Can't connect to wallet"
+        })
+    }
 };
 
 export async function getmasternodelist(req: express.Request, res: express.Response) {
