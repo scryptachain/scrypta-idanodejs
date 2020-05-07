@@ -45,6 +45,7 @@ async function checkConnections(){
     }
   }
 
+  let blockstosync = []
   var wallet = new Crypto.Wallet;
   wallet.request('getinfo').then( async function(info){
     if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
@@ -80,8 +81,39 @@ async function checkConnections(){
             var sync = (process.env.SYNC === 'true')
             if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
               console.log('Starting sync.')
+              blockstosync = []
               var task = new Daemon.Sync
               task.init()
+            }
+            if(sync === true && global['isSyncing'] === true && global['state'] === 'ON'){
+              // CHECKING IF IDANODE IS STOPPED
+              const db = client.db(global['db_name'])
+              let result = await db.collection('settings').find({setting: 'sync'}).toArray()
+              let lastindexed = "0"
+              if(result[0].value !== undefined){
+                  lastindexed = result[0].value
+              }
+              wallet.request('getinfo').then(function(info){
+                if(info['result'] !== undefined && info['result'] !== null){
+                    info['result']['indexed'] = parseInt(lastindexed)
+                    var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
+                    blockstosync.push(toindex)
+                    let same = ''
+                    let count
+                    for(let x in blockstosync){
+                      if(same === ''){
+                        same = blockstosync[x]
+                      }
+                      if(blockstosync[x] === same){
+                        count++
+                      }
+                    }
+                    if(count > 5){
+                      global['isSyncing'] = false
+                      console.log('Restarting sync.')
+                    }
+                }
+              })
             }
             client.close()
           }
