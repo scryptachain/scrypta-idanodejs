@@ -49,42 +49,59 @@ async function checkConnections(){
   wallet.request('getinfo').then( async function(info){
     if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
       console.log(process.env.COIN + ' wallet successfully connected.')
-      mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
-        if(err){
-          console.log('Database not connected, starting process now.')
-          try{
-            var mongo_path = './mongodb_data'
-            if(is_testnet){
-              console.log('RUNNING DATABASE IN TESTNET FOLDER')
-              mongo_path += '_testnet'
+      try{
+        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+          if(err){
+            console.log('Database not connected, starting process now.')
+            try{
+              var mongo_path = './mongodb_data'
+              if(is_testnet){
+                console.log('RUNNING DATABASE IN TESTNET FOLDER')
+                mongo_path += '_testnet'
+              }
+              if (!fs.existsSync(mongo_path)) {
+                fs.mkdirSync(mongo_path);
+              }
+              exec.exec('mongod --dbpath=' + mongo_path,{
+                stdio: 'ignore',
+                detached: true
+              }).unref()
+              console.log('Waiting 5 seconds, then try again.')
+              await sleep(5000)
+              checkConnections()
+            }catch(err){
+              console.log(err)
             }
-            if (!fs.existsSync(mongo_path)) {
-              fs.mkdirSync(mongo_path);
+          }else{
+            console.log('Database connected successfully.')
+            if(global['state'] === 'OFF'){
+              runIdaNode()
             }
-            exec.exec('mongod --dbpath=' + mongo_path,{
-              stdio: 'ignore',
-              detached: true
-            }).unref()
-            console.log('Waiting 5 seconds, then try again.')
-            await sleep(5000)
-            checkConnections()
-          }catch(err){
-            console.log(err)
+            var sync = (process.env.SYNC === 'true')
+            if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
+              console.log('Starting sync.')
+              var task = new Daemon.Sync
+              task.init()
+            }
+            client.close()
           }
-        }else{
-          console.log('Database connected successfully.')
-          if(global['state'] === 'OFF'){
-            runIdaNode()
-          }
-          var sync = (process.env.SYNC === 'true')
-          if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
-            console.log('Starting sync.')
-            var task = new Daemon.Sync
-            task.init()
-          }
-          client.close()
+        });
+      }catch(e){
+        var mongo_path = './mongodb_data'
+        if(is_testnet){
+          console.log('RUNNING DATABASE IN TESTNET FOLDER')
+          mongo_path += '_testnet'
         }
-      });
+        if (!fs.existsSync(mongo_path)) {
+          fs.mkdirSync(mongo_path);
+        }
+        exec.exec('mongod --dbpath=' + mongo_path,{
+          stdio: 'ignore',
+          detached: true
+        }).unref()
+        console.log('Waiting 5 seconds, then try again.')
+        await sleep(5000)
+      }
     }else{
       console.log('Can\'t communicate with wallet, running process now.')
       var testnet_flag = ''
