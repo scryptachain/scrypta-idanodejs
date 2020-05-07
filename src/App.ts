@@ -128,7 +128,6 @@ class App {
     app.express.get('/block/:block',explorer.getblock)
     app.express.get('/analyze/mempool',explorer.analyzemempool)
     app.express.get('/analyze/:block',explorer.analyzeblock)
-    app.express.get('/resync/:block',explorer.resync)
     app.express.get('/transactions/:address', explorer.transactions)
     app.express.get('/balance/:address', explorer.balance)
     app.express.get('/validate/:address', explorer.validate)
