@@ -38,7 +38,9 @@ module Daemon {
     }
 
     public async process(){
-        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+        let utils = new Utilities.Parser
+        try{
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
             var db = client.db(global['db_name'])
             global['isSyncing'] = true
             var reset = '' //CHECK FOR RESET VALUE
@@ -160,113 +162,124 @@ module Daemon {
                 global['isSyncing'] = false
                 console.log('SYNC FINISHED')
             }
-        })
+            })
+        }catch(e){
+            utils.log(e)
+            setTimeout(function(){
+                var task = new Daemon.Sync
+                task.process()
+            },10)
+        }
     }
 
     public async analyze(toAnalyze = null){
         return new Promise(async response => {
-            if(toAnalyze !== null){
-                analyze = toAnalyze
-            }
-            console.clear()
-            // ANLYZING BLOCK
-            if(analyze > 0){
-                console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
-                
-                var wallet = new Crypto.Wallet
-                var blockhash = await wallet.request('getblockhash',[analyze])
-                var block = await wallet.analyzeBlock(blockhash['result'])
-                
-                for(var txid in block['analysis']){
-                    for(var address in block['analysis'][txid]['balances']){
-                        var tx = block['analysis'][txid]['balances'][address]
-                        var movements = block['analysis'][txid]['movements']
-                        var task = new Daemon.Sync
-                        console.log('STORING '+ tx.type +' OF '+ tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
-                        let storedtx = await task.store(address, block, txid, tx, movements)
-                        if(storedtx === false){
-                            response(false)
-                        }
-                    }
+            try{
+                if(toAnalyze !== null){
+                    analyze = toAnalyze
                 }
-
-                for(var i in block['outputs']){
-                    let unspent = block['outputs'][i]
-                    var found = false
-                    for(var i in block['inputs']){
-                        let input = block['inputs'][i]
-                        if(input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']){
-                            found = true
-                        }
-                    }
-                    if(found === false){
-                        let storedunspent = await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
-                        if(storedunspent === false){
-                            response(false)
-                        }
-                    }else{
-                        console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
-                    }
-                }
-
-                for(var i in block['inputs']){
-                    let input = block['inputs'][i]
-                    let redeemedunspent = await task.redeemunspent(input['txid'], input['vout'], analyze)
-                    if(redeemedunspent === false){
-                        response(false)
-                    }
-                }
-                // console.log('CLEANING UTXO CACHE')
-                global['utxocache'] = []
-                global['txidcache'] = []
-                // console.log('CLEANING USXO CACHE')
-                global['usxocache'] = []
-                global['sxidcache'] = []
-
-                for(var address in block['data_written']){
-                    var data = block['data_written'][address]
-                    console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
-                    for(var dix in data){
-                        if(data[dix].protocol !== 'chain://'){
+                console.clear()
+                // ANLYZING BLOCK
+                if(analyze > 0){
+                    console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
+                    
+                    var wallet = new Crypto.Wallet
+                    var blockhash = await wallet.request('getblockhash',[analyze])
+                    var block = await wallet.analyzeBlock(blockhash['result'])
+                    
+                    for(var txid in block['analysis']){
+                        for(var address in block['analysis'][txid]['balances']){
+                            var tx = block['analysis'][txid]['balances'][address]
+                            var movements = block['analysis'][txid]['movements']
                             var task = new Daemon.Sync
-                            let storedwritten = await task.storewritten(data[dix], false, block['height'])
-                            if(storedwritten === false){
+                            console.log('STORING '+ tx.type +' OF '+ tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
+                            let storedtx = await task.store(address, block, txid, tx, movements)
+                            if(storedtx === false){
                                 response(false)
                             }
                         }
                     }
-                }
 
-                for(var dix in block['planum']){
-                    console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX.')
-                    var task = new Daemon.Sync
-                    let storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
-                    if(storedwritten === false){
-                        response(false)
+                    for(var i in block['outputs']){
+                        let unspent = block['outputs'][i]
+                        var found = false
+                        for(var i in block['inputs']){
+                            let input = block['inputs'][i]
+                            if(input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']){
+                                found = true
+                            }
+                        }
+                        if(found === false){
+                            let storedunspent = await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
+                            if(storedunspent === false){
+                                response(false)
+                            }
+                        }else{
+                            console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                        }
                     }
-                    let storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
-                    if(storedplanum === false){
-                        response(false)
-                    }
-                }
 
-                for(var address in block['data_received']){
-                    var data = block['data_received'][address]
-                    console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
-                    for(var dix in data){
-                        var task = new Daemon.Sync
-                        let storedreceived = await task.storereceived(data[dix])
-                        if(storedreceived === false){
+                    for(var i in block['inputs']){
+                        let input = block['inputs'][i]
+                        let redeemedunspent = await task.redeemunspent(input['txid'], input['vout'], analyze)
+                        if(redeemedunspent === false){
                             response(false)
                         }
                     }
+                    // console.log('CLEANING UTXO CACHE')
+                    global['utxocache'] = []
+                    global['txidcache'] = []
+                    // console.log('CLEANING USXO CACHE')
+                    global['usxocache'] = []
+                    global['sxidcache'] = []
+
+                    for(var address in block['data_written']){
+                        var data = block['data_written'][address]
+                        console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                        for(var dix in data){
+                            if(data[dix].protocol !== 'chain://'){
+                                var task = new Daemon.Sync
+                                let storedwritten = await task.storewritten(data[dix], false, block['height'])
+                                if(storedwritten === false){
+                                    response(false)
+                                }
+                            }
+                        }
+                    }
+
+                    for(var dix in block['planum']){
+                        console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX.')
+                        var task = new Daemon.Sync
+                        let storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
+                        if(storedwritten === false){
+                            response(false)
+                        }
+                        let storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
+                        if(storedplanum === false){
+                            response(false)
+                        }
+                    }
+
+                    for(var address in block['data_received']){
+                        var data = block['data_received'][address]
+                        console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
+                        for(var dix in data){
+                            var task = new Daemon.Sync
+                            let storedreceived = await task.storereceived(data[dix])
+                            if(storedreceived === false){
+                                response(false)
+                            }
+                        }
+                    }
+
+                    var remains = blocks - analyze
+                    console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
+
+                    response(block['height'])
+                }else{
+                    response(false)
                 }
-
-                var remains = blocks - analyze
-                console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
-
-                response(block['height'])
-            }else{
+            }catch(e){
                 response(false)
             }
         })
