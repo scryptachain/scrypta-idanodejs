@@ -28,122 +28,140 @@ module SideChain {
     }
 
     public async validategenesis(sxid, sidechain){
+        let utils = new Utilities.Parser
         return new Promise <boolean> (async response => {
-            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
-                const db = client.db(global['db_name'])
-                let check_genesis = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
-                // console.log('CHECK_GENESIS')
-                if(check_genesis !== undefined && check_genesis[0] !== undefined && check_genesis[0].genesis !== undefined && check_genesis[0].sxid === sxid){
-                    response(true)
-                }else{
-                    // console.log('CHECK_REISSUE')
-                    let check_reissue = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
-                    if(check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined){
-                        let check_sidechain = await db.collection('written').find({ address: check_reissue[0].reissue.sidechain }).sort({ block: 1 }).limit(1).toArray()
-                        client.close()
-                        if(check_reissue !== undefined && check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined && check_reissue[0].sxid === sxid && check_reissue[0].reissue.owner === check_sidechain[0].data.genesis.owner && check_sidechain[0].data.genesis.reissuable === true){
-                            response(true)
+            try{
+                mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+                    const db = client.db(global['db_name'])
+                    let check_genesis = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
+                    // console.log('CHECK_GENESIS')
+                    if(check_genesis !== undefined && check_genesis[0] !== undefined && check_genesis[0].genesis !== undefined && check_genesis[0].sxid === sxid){
+                        response(true)
+                    }else{
+                        // console.log('CHECK_REISSUE')
+                        let check_reissue = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
+                        if(check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined){
+                            let check_sidechain = await db.collection('written').find({ address: check_reissue[0].reissue.sidechain }).sort({ block: 1 }).limit(1).toArray()
+                            client.close()
+                            if(check_reissue !== undefined && check_reissue[0] !== undefined && check_reissue[0].reissue !== undefined && check_reissue[0].sxid === sxid && check_reissue[0].reissue.owner === check_sidechain[0].data.genesis.owner && check_sidechain[0].data.genesis.reissuable === true){
+                                response(true)
+                            }else{
+                                response(false)
+                            }
                         }else{
+                            client.close()
                             response(false)
                         }
-                    }else{
-                        client.close()
-                        response(false)
                     }
-                }
-            })
+                })
+            }catch(e){
+                utils.log(e)
+                response(false)
+            }
         });
     }
 
     public async checkinputspent(sxid, vout, sidechain, address, block = ''){
         return new Promise <boolean> (async response => {
-            mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                const db = client.db(global['db_name'])
-                let valid = false
-                if(block === ''){
-                    let wallet = new Crypto.Wallet
-                    let request = await wallet.request('getinfo')
-                    block = request['result'].blocks
-                }
-                let utils = new Utilities.Parser
+            let utils = new Utilities.Parser
+            try{
+                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                    const db = client.db(global['db_name'])
+                    let valid = false
+                    if(block === ''){
+                        let wallet = new Crypto.Wallet
+                        let request = await wallet.request('getinfo')
+                        block = request['result'].blocks
+                    }
+                    let utils = new Utilities.Parser
 
-                // CHECKING IF UNSPENT EXISTS IN LOCAL DATABASE
-                let unspentcheck = await db.collection('sc_unspent').find({ "sidechain": sidechain, "sxid": sxid, "vout": vout }).sort({ block: 1 }).limit(1).toArray()
-                if(unspentcheck[0] !== undefined){
-                    // CHECKING IF UNSPENT EXISTS IN TRANSACTION
-                    let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
-                    let voutx = 0
-                    let existat = ''
-                    if(sxidcheck[0] !== undefined){
-                        if(sxidcheck[0].transaction !== undefined){
-                            for(let x in sxidcheck[0].transaction.outputs){
-                                if(voutx === vout){
-                                    if(x === address){
-                                        valid = true
-                                        existat = sxidcheck[0].sxid + ':' + vout
+                    // CHECKING IF UNSPENT EXISTS IN LOCAL DATABASE
+                    let unspentcheck = await db.collection('sc_unspent').find({ "sidechain": sidechain, "sxid": sxid, "vout": vout }).sort({ block: 1 }).limit(1).toArray()
+                    if(unspentcheck[0] !== undefined){
+                        // CHECKING IF UNSPENT EXISTS IN TRANSACTION
+                        let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
+                        let voutx = 0
+                        let existat = ''
+                        if(sxidcheck[0] !== undefined){
+                            if(sxidcheck[0].transaction !== undefined){
+                                for(let x in sxidcheck[0].transaction.outputs){
+                                    if(voutx === vout){
+                                        if(x === address){
+                                            valid = true
+                                            existat = sxidcheck[0].sxid + ':' + vout
+                                        }
                                     }
+                                    voutx++
                                 }
-                                voutx++
                             }
                         }
-                    }
-                    if(existat === ''){
+                        if(existat === ''){
+                            utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
+                        }
+                    }else{
+                        valid = false
                         utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
                     }
-                }else{
-                    valid = false
-                    utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
-                }
-                
-                client.close()
-                response(valid)
-            })
+                    
+                    client.close()
+                    response(valid)
+                })
+            }catch(e){
+                utils.log(e)
+                response(false)
+            }
         })
     }
 
     public async validateinput(sxid, vout, sidechain, address, block = ''){
         return new Promise <boolean> (async response => {
-            mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                const db = client.db(global['db_name'])
-                let valid = false
-                if(block === ''){
-                    let wallet = new Crypto.Wallet
-                    let request = await wallet.request('getinfo')
-                    block = request['result'].blocks
-                }
-                let utils = new Utilities.Parser
+            let utils = new Utilities.Parser
+            try{
+                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                    const db = client.db(global['db_name'])
+                    let valid = false
+                    if(block === ''){
+                        let wallet = new Crypto.Wallet
+                        let request = await wallet.request('getinfo')
+                        block = request['result'].blocks
+                    }
+                    let utils = new Utilities.Parser
 
-                // CHECKING IF UNSPENT EXISTS IN LOCAL DATABASE
-                let unspentcheck = await db.collection('sc_unspent').find({ "sidechain": sidechain, "sxid": sxid, "vout": vout }).sort({ block: 1 }).limit(1).toArray()
-                if(unspentcheck[0] !== undefined && unspentcheck[0].redeemed === null && unspentcheck[0].redeemblock === null){
-                    // CHECKING IF UNSPENT EXISTS IN TRANSACTION
-                    let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
-                    let voutx = 0
-                    let existat = ''
-                    if(sxidcheck[0] !== undefined){
-                        if(sxidcheck[0].transaction !== undefined){
-                            for(let x in sxidcheck[0].transaction.outputs){
-                                if(voutx === vout){
-                                    if(x === address){
-                                        valid = true
-                                        existat = sxidcheck[0].sxid + ':' + vout
+                    // CHECKING IF UNSPENT EXISTS IN LOCAL DATABASE
+                    let unspentcheck = await db.collection('sc_unspent').find({ "sidechain": sidechain, "sxid": sxid, "vout": vout }).sort({ block: 1 }).limit(1).toArray()
+                    if(unspentcheck[0] !== undefined && unspentcheck[0].redeemed === null && unspentcheck[0].redeemblock === null){
+                        // CHECKING IF UNSPENT EXISTS IN TRANSACTION
+                        let sxidcheck = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain, "sxid": sxid }).sort({ block: 1 }).limit(1).toArray()
+                        let voutx = 0
+                        let existat = ''
+                        if(sxidcheck[0] !== undefined){
+                            if(sxidcheck[0].transaction !== undefined){
+                                for(let x in sxidcheck[0].transaction.outputs){
+                                    if(voutx === vout){
+                                        if(x === address){
+                                            valid = true
+                                            existat = sxidcheck[0].sxid + ':' + vout
+                                        }
                                     }
+                                    voutx++
                                 }
-                                voutx++
                             }
                         }
-                    }
-                    if(existat === ''){
+                        if(existat === ''){
+                            utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
+                        }
+                    }else{
+                        valid = false
                         utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
                     }
-                }else{
-                    valid = false
-                    utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
-                }
-                
-                client.close()
-                response(valid)
-            })
+                    
+                    client.close()
+                    response(valid)
+                })
+            }catch(e){
+                utils.log(e)
+                response(false)
+            }
         })
     }
 
