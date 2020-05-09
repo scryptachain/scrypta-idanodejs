@@ -1,5 +1,6 @@
 .env
 node_modules/
+db/
 sync.lock
 dist/
 rethinkdb_data/
