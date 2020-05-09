@@ -52,7 +52,7 @@ export async function initP2P (){
                 global['nodes'][bootstrap[k]].on('message', async function (data) {
                     let verified = await sign.verifySign(data.pubKey, data.signature, data.message)
                     if(verified === true){
-                      console.log('Received message from ' + data.address + '.')
+                      console.log('Received message from ' + data.address + ': ' + data.message + '.')
                     }
                 })
 

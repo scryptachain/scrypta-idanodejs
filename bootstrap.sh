@@ -1,6 +1,6 @@
 #!/bin/bash
 
-wget https://sfo2.digitaloceanspaces.com/scrypta/idanode_bootstrap.gz
+# wget https://sfo2.digitaloceanspaces.com/scrypta/idanode_bootstrap.gz
 killall mongod
 rm -rf mongodb_data
 mkdir mongodb_data

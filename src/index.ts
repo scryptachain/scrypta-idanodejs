@@ -45,7 +45,7 @@ async function checkConnections(){
     }
   }
 
-  let blockstosync = []
+  let retrysync = 0
   var wallet = new Crypto.Wallet;
   wallet.request('getinfo').then( async function(info){
     if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
@@ -79,41 +79,19 @@ async function checkConnections(){
               runIdaNode()
             }
             var sync = (process.env.SYNC === 'true')
+            retrysync ++
             if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
               console.log('Starting sync.')
-              blockstosync = []
+              retrysync = 0
               var task = new Daemon.Sync
               task.init()
             }
-            if(sync === true && global['isSyncing'] === true && global['state'] === 'ON'){
-              // CHECKING IF IDANODE IS STOPPED
-              const db = client.db(global['db_name'])
-              let result = await db.collection('settings').find({setting: 'sync'}).toArray()
-              let lastindexed = "0"
-              if(result[0].value !== undefined){
-                  lastindexed = result[0].value
-              }
-              wallet.request('getinfo').then(function(info){
-                if(info['result'] !== undefined && info['result'] !== null){
-                    info['result']['indexed'] = parseInt(lastindexed)
-                    var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
-                    blockstosync.push(toindex)
-                    let same = ''
-                    let count
-                    for(let x in blockstosync){
-                      if(same === ''){
-                        same = blockstosync[x]
-                      }
-                      if(blockstosync[x] === same){
-                        count++
-                      }
-                    }
-                    if(count > 5){
-                      global['isSyncing'] = false
-                      console.log('Restarting sync.')
-                    }
-                }
-              })
+            if(retrysync > 59){
+              console.log('Forcing sync.')
+              retrysync = 0
+              var task = new Daemon.Sync
+              task.init()
+              global['isSyncing'] = false
             }
             client.close()
           }
@@ -167,10 +145,10 @@ async function runIdaNode(){
   var result = await DB.check()
   console.log(result)
   var sync = (process.env.SYNC === 'true')
-  // CHECKING CONNETIONS EVERY 5 SECONDS
+  // CHECKING CONNETIONS EVERY 1 SECONDS
   setInterval(function(){
     checkConnections()
-  },5000)
+  },1000)
   
   if(sync === true){
     global['state'] = 'ON'
