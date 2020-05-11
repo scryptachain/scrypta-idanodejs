@@ -26,6 +26,8 @@ export async function getinfo(req: express.Request, res: express.Response) {
                         folders: { exclude: ['.*', 'node_modules', 'test_coverage'] },
                         files: { include: ['*.js', '*.json'] }
                     };
+                    let pkg = require('../../package.json')
+                    info['result']['version'] = pkg.version
                     hashElement('./dist', options).then(hash => {
                         info['result']['checksum'] = hash.hash
                         res.json(info['result'])
