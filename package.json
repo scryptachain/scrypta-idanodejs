@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsc --watch & nodemon --delay 3 dist",
+    "build": "rm -rf dist & tsc",
     "test": "tsc && mocha dist/**/*.spec.js",
     "lint": "eslint src --ext ts",
     "tsc": "tsc",
