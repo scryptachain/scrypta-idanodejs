@@ -6,6 +6,7 @@ dist/
 rethinkdb_data/
 ipfs_data/
 mongodb_data/
+package-lock.json
 lyrad
 lyra-cli
 mongo_*

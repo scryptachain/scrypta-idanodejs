@@ -8,6 +8,8 @@ const exec = require('child_process')
 var publicIp = require('public-ip')
 let {nextAvailable} = require('node-port-check')
 require('dotenv').config()
+const { hashElement } = require('folder-hash')
+
 var server
 global['state'] = 'OFF'
 global['db_url'] = 'mongodb://localhost:27017'
@@ -139,6 +141,21 @@ async function checkConnections(){
   })
 }
 
+async function checkIntegrity(){
+  console.log('Start identity check.')
+  const options = {
+    folders: { exclude: ['.*', 'node_modules', 'test_coverage'] },
+    files: { include: ['*.js', '*.json'] }
+  };
+  hashElement('./dist', options)
+    .then(hash => {
+      console.log("INTEGRITY HASH IS " + hash.hash) // u1+3TpFGgG//VqSRLZkMPqjo1UY=
+    })
+    .catch(error => {
+      return console.error('hashing failed:', error);
+    })
+}
+
 async function runIdaNode(){
   console.log('Starting database check.')
   var DB = new Database.Management
@@ -148,6 +165,7 @@ async function runIdaNode(){
   // CHECKING CONNETIONS EVERY 1 SECONDS
   setInterval(function(){
     checkConnections()
+    checkIntegrity()
   },1000)
   
   if(sync === true){

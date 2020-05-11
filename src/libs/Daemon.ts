@@ -29,6 +29,7 @@ module Daemon {
     
     public async init() {
         var wallet = new Crypto.Wallet
+        console.clear()
         wallet.request('getinfo').then(info => {
             blocks = info['result'].blocks
             console.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
@@ -178,7 +179,6 @@ module Daemon {
                 if(toAnalyze !== null){
                     analyze = toAnalyze
                 }
-                console.clear()
                 // ANALYZING BLOCK
                 if(analyze > 0){
                     console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)

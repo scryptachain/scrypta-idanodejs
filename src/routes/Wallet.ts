@@ -3,6 +3,7 @@ import * as Crypto from '../libs/Crypto'
 import * as Utilities from '../libs/Utilities'
 const mongo = require('mongodb').MongoClient
 var CoinKey = require('coinkey')
+const { hashElement } = require('folder-hash')
 
 export async function getinfo(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
@@ -21,7 +22,16 @@ export async function getinfo(req: express.Request, res: express.Response) {
                     info['result']['indexed'] = parseInt(lastindexed)
                     var toindex = parseInt(info['result']['blocks']) - parseInt(lastindexed)
                     info['result']['toindex'] = toindex
-                    res.json(info['result'])
+                    const options = {
+                        folders: { exclude: ['.*', 'node_modules', 'test_coverage'] },
+                        files: { include: ['*.js', '*.json'] }
+                    };
+                    hashElement('./dist', options).then(hash => {
+                        info['result']['checksum'] = hash.hash
+                        res.json(info['result'])
+                    }).catch(error => {
+                        res.json(info['result'])
+                    })
                 }
             })
         })
