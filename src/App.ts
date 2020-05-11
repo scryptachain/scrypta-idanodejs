@@ -80,6 +80,7 @@ class App {
     app.express.get('/wallet/getnewaddress/:internal',wallet.getnewaddress)
     app.express.get('/wallet/getnewaddress',wallet.getnewaddress)
     app.express.get('/wallet/masternodelist',wallet.getmasternodelist)
+    app.express.get('/wallet/integritycheck',wallet.integritycheck)
 
     //PROGRESSIVE DATA MANAGEMENT
     app.express.post('/write', pdm.write)

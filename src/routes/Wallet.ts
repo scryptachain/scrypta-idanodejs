@@ -45,6 +45,25 @@ export async function getinfo(req: express.Request, res: express.Response) {
     }
 };
 
+export async function integritycheck(req: express.Request, res: express.Response) {
+    const options = {
+        folders: { exclude: ['.*', 'node_modules', 'test_coverage'] },
+        files: { include: ['*.js', '*.json'] }
+    };
+    let pkg = require('../../package.json')
+    let response = {}
+    response['version'] = pkg.version
+    hashElement('./dist', options).then(hash => {
+        response['checksum'] = hash
+        res.json(response)
+    }).catch(error => {
+        res.json({
+            error: true,
+            message: "Can't verify hashes"
+        })
+    })
+};
+
 export async function getmasternodelist(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
 
