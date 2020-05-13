@@ -31,7 +31,8 @@ export async function getinfo(req: express.Request, res: express.Response) {
                     let pkg = require('../../package.json')
                     info['result']['version'] = pkg.version
                     hashElement('./dist', options).then(hash => {
-                        info['result']['checksum'] = hash.hash
+                        let checksum_hash = CryptoJS.SHA256(hash.hash).toString(CryptoJS.enc.Hex)
+                        info['result']['checksum'] = checksum_hash
                         res.json(info['result'])
                     }).catch(error => {
                         res.json(info['result'])
