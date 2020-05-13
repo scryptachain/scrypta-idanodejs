@@ -4,6 +4,8 @@ import * as Utilities from '../libs/Utilities'
 const mongo = require('mongodb').MongoClient
 var CoinKey = require('coinkey')
 const { hashElement } = require('folder-hash')
+const CryptoJS = require('crypto-js')
+require('dotenv').config()
 
 export async function getinfo(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
@@ -46,6 +48,8 @@ export async function getinfo(req: express.Request, res: express.Response) {
 };
 
 export async function integritycheck(req: express.Request, res: express.Response) {
+    var parser = new Utilities.Parser
+    var request = await parser.body(req)
     const options = {
         folders: { exclude: ['.*', 'node_modules', 'test_coverage'] },
         files: { include: ['*.js', '*.json'] }
@@ -53,8 +57,28 @@ export async function integritycheck(req: express.Request, res: express.Response
     let pkg = require('../../package.json')
     let response = {}
     response['version'] = pkg.version
-    hashElement('./dist', options).then(hash => {
-        response['checksum'] = hash
+    hashElement('./dist', options).then(async hash => {
+        let sha256 = CryptoJS.SHA256(hash.hash).toString(CryptoJS.enc.Hex)
+        if(request['body']['signcheck'] !== undefined && process.env.NODE_KEY !== undefined){
+            const wallet = new Crypto.Wallet
+            let toSign = {
+                secphrase: request['body']['signcheck'],
+                checksum: sha256,
+                timestamp: new Date().getTime()
+            }
+            let signcheck = await wallet.signmessage(process.env.NODE_KEY, JSON.stringify(toSign))
+            response['signcheck'] = signcheck
+        }else{
+            const wallet = new Crypto.Wallet
+            let toSign = {
+                checksum: sha256,
+                timestamp: new Date().getTime()
+            }
+            let signcheck = await wallet.signmessage(process.env.NODE_KEY, JSON.stringify(toSign))
+            response['signcheck'] = signcheck
+        }
+        response['checksum'] = sha256
+        response['hashes'] = hash
         res.json(response)
     }).catch(error => {
         res.json({

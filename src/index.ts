@@ -9,7 +9,9 @@ var publicIp = require('public-ip')
 let {nextAvailable} = require('node-port-check')
 require('dotenv').config()
 const { hashElement } = require('folder-hash')
-
+const CryptoJS = require('crypto-js')
+const axios = require('axios')
+var console = require('better-console')
 var server
 global['state'] = 'OFF'
 global['db_url'] = 'mongodb://localhost:27017'
@@ -142,18 +144,46 @@ async function checkConnections(){
 }
 
 async function checkIntegrity(){
-  console.log('Start identity check.')
-  const options = {
-    folders: { exclude: ['.*', 'node_modules', 'test_coverage'] },
-    files: { include: ['*.js', '*.json'] }
-  };
-  hashElement('./dist', options)
-    .then(hash => {
-      console.log("INTEGRITY HASH IS " + hash.hash) // u1+3TpFGgG//VqSRLZkMPqjo1UY=
-    })
-    .catch(error => {
-      return console.error('hashing failed:', error);
-    })
+  return new Promise(response => {
+    let pkg = require('../package.json')
+    console.log('Start identity check, version is ' + pkg.version)
+    const options = {
+      folders: { exclude: ['.*', 'node_modules', 'test_coverage'] },
+      files: { include: ['*.js', '*.json'] }
+    };
+    hashElement('./dist', options)
+      .then(async hash => {
+        let sha256 = CryptoJS.SHA256(hash.hash).toString(CryptoJS.enc.Hex)
+        let online_check = await returnGitChecksum(pkg.version)
+        if(online_check === sha256){
+          response(true)
+        }else{
+          response(false)
+        }
+      })
+      .catch(error => {
+        return console.error('hashing failed:', error);
+      })
+  })
+}
+
+async function returnGitChecksum(version){
+  const app = this
+  return new Promise(async response => {
+    try{
+        let checksums_git = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanodejs/master/checksum')
+        let checksums = checksums_git.data.split("\n")
+        for(let x in checksums){
+            let checksum = checksums[x].split(':')
+            if(checksum[0] === version){
+                response(checksum[1])
+            }
+        }
+    }catch(e){
+        console.log(e)
+        response(false)
+    }
+  })
 }
 
 async function runIdaNode(){
@@ -163,15 +193,20 @@ async function runIdaNode(){
   console.log(result)
   var sync = (process.env.SYNC === 'true')
   // CHECKING CONNETIONS EVERY 1 SECONDS
-  setInterval(function(){
-    checkConnections()
-    checkIntegrity()
-  },1000)
-  
-  if(sync === true){
-    global['state'] = 'ON'
+  let valid = await checkIntegrity()
+  if(valid){
+    console.log('IdaNode is validated')
+    setInterval(function(){
+      checkConnections()
+    },1000)
+    
+    if(sync === true){
+      global['state'] = 'ON'
+    }else{
+      console.log('Automatic sync is turned off.')
+    }
   }else{
-    console.log('Automatic sync is turned off.')
+    console.error('IdaNode is corrupted.')
   }
 }
 
