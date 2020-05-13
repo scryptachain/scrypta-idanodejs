@@ -171,7 +171,10 @@ async function returnGitChecksum(version){
   const app = this
   return new Promise(async response => {
     try{
-        let checksums_git = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanodejs/master/checksum')
+        let checksums_git = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanodejs/master/checksum').catch(e => {
+          console.error(e)
+          response(false)
+        })
         let checksums = checksums_git.data.split("\n")
         for(let x in checksums){
             let checksum = checksums[x].split(':')
@@ -179,6 +182,7 @@ async function returnGitChecksum(version){
                 response(checksum[1])
             }
         }
+        response(false)
     }catch(e){
         console.log(e)
         response(false)
@@ -194,19 +198,19 @@ async function runIdaNode(){
   var sync = (process.env.SYNC === 'true')
   // CHECKING CONNETIONS EVERY 1 SECONDS
   let valid = await checkIntegrity()
-  if(valid){
-    console.log('IdaNode is validated')
-    setInterval(function(){
-      checkConnections()
-    },1000)
-    
-    if(sync === true){
-      global['state'] = 'ON'
-    }else{
-      console.log('Automatic sync is turned off.')
-    }
+  if(!valid){
+    console.error('IDANODE IS CORRUPTED, PLEASE CHECK FILES!')
   }else{
-    console.error('IdaNode is corrupted.')
+    console.info('IDANODE IS VALID.')
+  }
+  setInterval(function(){
+    checkConnections()
+  },1000)
+  
+  if(sync === true){
+    global['state'] = 'ON'
+  }else{
+    console.log('Automatic sync is turned off.')
   }
 }
 

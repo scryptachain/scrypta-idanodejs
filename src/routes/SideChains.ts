@@ -8,6 +8,7 @@ import * as Utilities from '../libs/Utilities'
 import { create, all } from 'mathjs'
 import { v4 as uuidv4 } from 'uuid';
 const messages = require('../libs/p2p/messages.js')
+const CryptoJS = require('crypto-js')
 
 const config = {
   epsilon: 1e-12,
@@ -1212,11 +1213,14 @@ export async function shares(req: express.Request, res: express.Response) {
             burned = addresses[fields.sidechain_address]
           }
 
+          let sidechain_hash = CryptoJS.SHA256(JSON.stringify(shares)).toString(CryptoJS.enc.Hex)
+
           res.json({
             shares: shares,
             cap: math.round(cap, decimals),
             burned: math.round(burned, decimals),
-            sidechain: check_sidechain[0].address
+            sidechain: check_sidechain[0].address,
+            hash: sidechain_hash
           })
           
         } else {
