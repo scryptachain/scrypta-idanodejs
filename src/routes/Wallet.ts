@@ -12,11 +12,11 @@ export async function getinfo(req: express.Request, res: express.Response) {
     try{
         mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
             const db = client.db(global['db_name'])
-            let result = await db.collection('settings').find({setting: 'sync'}).toArray()
+            let result = await db.collection('blocks').find().sort({block: -1}).limit(1).toArray()
             client.close()
             var lastindexed = "0"
             if(result[0].value !== undefined){
-                lastindexed = result[0].value
+                lastindexed = result[0].block
             }
 
             wallet.request('getinfo').then(function(info){
