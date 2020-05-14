@@ -1,6 +1,6 @@
 {
   "name": "scrypta-idanodejs",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "NodeJS implementation of Scrypta IdaNode Technology",
   "main": "index.js",
   "scripts": {

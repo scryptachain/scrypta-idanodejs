@@ -15,10 +15,9 @@ export async function getinfo(req: express.Request, res: express.Response) {
             let result = await db.collection('blocks').find().sort({block: -1}).limit(1).toArray()
             client.close()
             var lastindexed = "0"
-            if(result[0].value !== undefined){
+            if(result[0].block !== undefined){
                 lastindexed = result[0].block
             }
-
             wallet.request('getinfo').then(function(info){
                 if(info['result'] !== undefined && info['result'] !== null){
                     info['result']['indexed'] = parseInt(lastindexed)
