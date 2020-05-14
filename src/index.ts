@@ -11,7 +11,7 @@ require('dotenv').config()
 const { hashElement } = require('folder-hash')
 const CryptoJS = require('crypto-js')
 const axios = require('axios')
-var console = require('better-console')
+const console = require('better-console')
 var server
 global['state'] = 'OFF'
 global['db_url'] = 'mongodb://localhost:27017'

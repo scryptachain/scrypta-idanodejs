@@ -51,6 +51,11 @@ module Database {
                         indexes: ["address", "txid"],
                         compound: []
                     },
+                    {
+                        name: "blocks",
+                        indexes: ["block", "time"],
+                        compound: []
+                    },
                 ]
                 //CHECKING COLLECTIONS
                 for(let tdk in collections){

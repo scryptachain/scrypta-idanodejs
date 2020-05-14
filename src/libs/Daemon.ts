@@ -8,6 +8,7 @@ const mongo = require('mongodb').MongoClient
 import { create, all } from 'mathjs'
 import { utils } from "mocha";
 const messages = require('./p2p/messages.js')
+const console = require('better-console')
 
 const config = {
     epsilon: 1e-12,
@@ -44,22 +45,22 @@ module Daemon {
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
             var db = client.db(global['db_name'])
             global['isSyncing'] = true
-            var reset = '' //CHECK FOR RESET VALUE
-            const sync = await db.collection('settings').find({setting:'sync'}).limit(1).toArray();
+            const sync = await db.collection('blocks').find().sort({ block: -1 }).limit(2).toArray()
             var last
             if(sync[0] === undefined){
                 console.log('Sync lock not found, creating')
-                await db.collection('settings').insertOne({setting:'sync', value: 0});
+                await db.collection('blocks').insertOne({block: 0, time: new Date().getTime() });
                 last = 0
             }else{
-                last = sync[0].value
-            }
-            if(reset !== undefined && reset === ''){
-                if(last !== null && last !== undefined){
-                    analyze = parseInt(last) + 1
-                }else{
-                    analyze = 1
+                last = sync[0].block
+                let continuitycheck = last - 1
+                if(continuitycheck !== sync[1].block){
+                    last = sync[1].block + 1
                 }
+            }
+
+            if(last !== null && last !== undefined){
+                analyze = parseInt(last) + 1
             }else{
                 analyze = 1
             }
@@ -138,7 +139,7 @@ module Daemon {
                         if(synced !== false){
                             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                                 var db = client.db(global['db_name'])
-                                await db.collection('settings').updateOne({setting: "sync"}, {$set: {value: synced}})
+                                await db.collection('blocks').insertOne({block: synced, time: new Date().getTime()})
                                 client.close()
                                 setTimeout(function(){
                                     var task = new Daemon.Sync
