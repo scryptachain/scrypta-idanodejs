@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsc --watch & nodemon --delay 3 dist",
     "build": "rm -rf dist && tsc",
-    "pub": "node update_checksum.js",
+    "pub": "node publish_idanode.js",
     "mongodump": "node create_bootstrap.js",
     "update": "pm2 stop npm && git pull && npm run build && npm install && pm2 start npm",
     "test": "tsc && mocha dist/**/*.spec.js",
@@ -18,6 +18,7 @@
   "author": "Scrypta Foundation",
   "license": "MIT",
   "dependencies": {
+    "@scrypta/core": "^1.7.6",
     "@types/mathjs": "^6.0.5",
     "@types/node": "13.13.4",
     "archiver": "^4.0.1",

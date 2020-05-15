@@ -4,6 +4,7 @@ const fs = require('fs')
 let pkg = require('./package.json')
 const ScryptaCore = require('@scrypta/core')
 const scrypta = new ScryptaCore
+require('dotenv').config()
 
 let version = pkg.version
 const options = {
@@ -11,7 +12,7 @@ const options = {
     files: { include: ['*.js', '*.json'] }
 }
 
-hashElement('./dist', options).then(hash => {
+hashElement('./dist', options).then(async hash => {
     let checksum_hash = CryptoJS.SHA256(hash.hash).toString(CryptoJS.enc.Hex)
     const data = fs.readFileSync('checksum', 'utf8')
     let checksums = data.split("\n")
@@ -23,14 +24,19 @@ hashElement('./dist', options).then(hash => {
         }
     }
     if(!found){
-        fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
         if(process.env.PUBLISHER_KEY !== undefined){
+            console.log('WRITING CHECKSUM INTO THE BLOCKCHAIN')
             let privkey = process.env.PUBLISHER_KEY
             let pubkey = await scrypta.getPublicKey(privkey)
             let address = await scrypta.getAddressFromPubKey(pubkey)
             await scrypta.importPrivateKey(privkey, privkey)
-            await app.write(address, privkey, checksum_hash, '', version, '')
-            console.log('WRITTEN CHECKSUM ON THE BLOCKCHAIN')
+            let result = await scrypta.write(address, privkey, checksum_hash, '', version, '')
+            if(result.uuid !== undefined){
+                console.log('WRITTEN CHECKSUM ON THE BLOCKCHAIN')
+                fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
+            }
+        }else{
+            fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
         }
     }
 }).catch(error => {
