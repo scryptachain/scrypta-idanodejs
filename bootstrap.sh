@@ -11,4 +11,5 @@ mongod --dbpath=./mongodb_data &
 sleep 20s
 sudo mongorestore --db idanodejs --drop idanodejs
 rm -rf idanodejs
+rm idanode_bootstrap.gz
 killall mongod
