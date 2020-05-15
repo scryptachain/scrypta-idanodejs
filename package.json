@@ -1,11 +1,12 @@
 {
   "name": "scrypta-idanodejs",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "NodeJS implementation of Scrypta IdaNode Technology",
   "main": "index.js",
   "scripts": {
     "dev": "tsc --watch & nodemon --delay 3 dist",
-    "build": "rm -rf dist && tsc && node update_checksum.js && npm install",
+    "build": "rm -rf dist && tsc &&  npm install",
+    "pub": "node update_checksum.js",
     "mongodump": "node create_bootstrap.js",
     "update": "pm2 stop npm && git pull && npm run build && pm2 start npm",
     "test": "tsc && mocha dist/**/*.spec.js",

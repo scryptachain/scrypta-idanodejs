@@ -220,3 +220,35 @@ export async function stats(req: express.Request, res: express.Response) {
         })
     }
 };
+
+export async function networkstats(req: express.Request, res: express.Response) {
+    var totaladdresses = 0
+    var totalunspent = 0
+    var active24h = 0
+    var writtendata24h = 0
+    var writtendatatotal = 0
+    var planumtxs24h = 0
+    var planumtxstotal = 0
+    try{
+        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+            const db = client.db(global['db_name'])
+            let transactions = await db.collection('transactions').find().sort({blockheight: -1}).toArray()
+            
+            client.close()
+            res.json({
+                totaladdresses: totaladdresses,
+                totalunspent: totalunspent,
+                active24h: active24h,
+                writtendata24h: writtendata24h,
+                writtendatatotal: writtendatatotal,
+                planumtxs24h: planumtxs24h,
+                planumtxstotal: planumtxstotal
+            })
+        })
+    }catch(e){
+        res.json({
+            error: true,
+            message: "Can't fetch data"
+        })
+    }
+};

@@ -2,6 +2,8 @@ const { hashElement } = require('folder-hash')
 const CryptoJS = require('crypto-js')
 const fs = require('fs')
 let pkg = require('./package.json')
+const ScryptaCore = require('@scrypta/core')
+const scrypta = new ScryptaCore
 
 let version = pkg.version
 const options = {
@@ -22,6 +24,14 @@ hashElement('./dist', options).then(hash => {
     }
     if(!found){
         fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
+        if(process.env.PUBLISHER_KEY !== undefined){
+            let privkey = process.env.PUBLISHER_KEY
+            let pubkey = await scrypta.getPublicKey(privkey)
+            let address = await scrypta.getAddressFromPubKey(pubkey)
+            await scrypta.importPrivateKey(privkey, privkey)
+            await app.write(address, privkey, checksum_hash, '', version, '')
+            console.log('WRITTEN CHECKSUM ON THE BLOCKCHAIN')
+        }
     }
 }).catch(error => {
     console.log(error)

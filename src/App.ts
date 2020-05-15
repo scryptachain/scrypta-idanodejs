@@ -135,6 +135,7 @@ class App {
     app.express.get('/stats/:address', explorer.stats)
     app.express.get('/unspent/:address', explorer.unspent)
     app.express.get('/cleanmempool',explorer.cleanmempool)
+    app.express.get('/networkstats',explorer.networkstats)
 
     //P2P-NETWORK
     app.express.post('/broadcast', p2p.broadcast)

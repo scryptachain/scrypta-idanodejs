@@ -20,10 +20,17 @@ global['db_name'] = 'idanodejs'
 const rateLimit = require("express-rate-limit");
 const helmet = require('helmet')
 
-const limiter = rateLimit({
+// SETTING RATE LIMIT
+var limiter = rateLimit({
   windowMs: 10 * 60 * 1000, 
   max: 150 
 });
+if(process.env.RATELIMIT !== undefined){
+  limiter = rateLimit({
+    windowMs: 10 * 60 * 1000, 
+    max: process.env.RATELIMIT 
+  });
+}
 
 const nodeprocess = async () => {
   let port = await nextAvailable(3001, '0.0.0.0')
