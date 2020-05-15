@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsc --watch & nodemon --delay 3 dist",
     "build": "rm -rf dist && tsc && node update_checksum.js && npm install",
+    "mongodump": "node create_bootstrap.js",
     "test": "tsc && mocha dist/**/*.spec.js",
     "lint": "eslint src --ext ts",
     "tsc": "tsc",
