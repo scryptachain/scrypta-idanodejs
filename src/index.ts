@@ -17,10 +17,20 @@ global['state'] = 'OFF'
 global['db_url'] = 'mongodb://localhost:27017'
 global['db_options'] = {useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
+const rateLimit = require("express-rate-limit");
+const helmet = require('helmet')
+
+const limiter = rateLimit({
+  windowMs: 10 * 60 * 1000, 
+  max: 150 
+});
 
 const nodeprocess = async () => {
   let port = await nextAvailable(3001, '0.0.0.0')
   app.engine('html', require('ejs').renderFile)
+  app.use(limiter)
+  app.use(helmet())
+
   var ip = ''
   try{
     ip = await publicIp.v4()
@@ -123,7 +133,7 @@ async function checkConnections(){
           testnet_flag = '-testnet'
           console.log('RUNNING WALLET IN TESTNET MODE')
       }
-      if(process.env.LYRAFOLDER !== undefined){
+      if(process.env.LYRAPATH !== undefined && process.env.LYRAFOLDER !== undefined){
         exec.spawn(process.env.LYRAPATH + '/lyrad ' + '-datadir=' + process.env.LYRAFOLDER,{
           stdio: 'ignore',
           detached: true
@@ -131,10 +141,14 @@ async function checkConnections(){
           console.log(e)
         })
       }else{
-        exec.spawn(process.env.LYRAPATH + '/lyrad', [testnet_flag],{
-          stdio: 'ignore',
-          detached: true
-        }).unref()
+        if(process.env.LYRAPATH !== undefined){
+          exec.spawn(process.env.LYRAPATH + '/lyrad', [testnet_flag],{
+            stdio: 'ignore',
+            detached: true
+          }).unref()
+        }else{
+          console.error('LYRAD NOT RUNNING, PLEASE RUN IT.')
+        }
       }
       console.log('Waiting 5 seconds, then check again.')
       await sleep(5000)
