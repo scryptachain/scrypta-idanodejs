@@ -139,7 +139,10 @@ module Daemon {
                         if(synced !== false){
                             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                                 var db = client.db(global['db_name'])
-                                await db.collection('blocks').insertOne({block: synced, time: new Date().getTime()})
+                                const savecheck = await db.collection('blocks').find({ block: synced }).toArray()
+                                if(savecheck[0] === undefined){
+                                    await db.collection('blocks').insertOne({block: synced, time: new Date().getTime()})
+                                }
                                 client.close()
                                 setTimeout(function(){
                                     var task = new Daemon.Sync
