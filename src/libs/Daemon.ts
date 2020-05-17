@@ -55,7 +55,7 @@ module Daemon {
                 last = sync[0].block
                 let continuitycheck = last - 1
                 if(continuitycheck !== sync[1].block){
-                    last = sync[1].block + 1
+                    last = continuitycheck - 1
                 }
             }
 
