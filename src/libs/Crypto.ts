@@ -1018,7 +1018,11 @@ module Crypto {
                                     if(parsed['data']['transaction'] !== undefined && parsed['data']['transaction']['time'] !== undefined){
                                         parsed['tx_time'] = parsed['data']['transaction']['time']
                                     }else{
-                                        parsed['tx_time'] = parsed['data']['time']
+                                        if(parsed['data']['genesis'] !== undefined && parsed['data']['genesis']['time'] !== undefined){
+                                            parsed['tx_time'] = parsed['data']['genesis']['time']
+                                        }else{
+                                            parsed['tx_time'] = parsed['data']['time']
+                                        }    
                                     }
                                     if(block['result']['planum'].indexOf(parsed) === -1){
                                         block['result']['planum'].push(parsed)
