@@ -2,6 +2,7 @@ import express = require("express")
 const fileType = require('file-type')
 var formidable = require('formidable')
 var fs = require('fs')
+const axios = require('axios')
 
 export function info(req: express.Request, res: express.Response) {
   global['ipfs'].version(async function (err, version) {
@@ -10,9 +11,13 @@ export function info(req: express.Request, res: express.Response) {
     }
     const multiAddrs = await global['ipfs'].swarm.localAddrs()
     let listenerAddress = multiAddrs[1].toString('hex')
+
+    const connected = await global['ipfs'].swarm.peers()
+    
     res.send({
       info: version,
       peer: listenerAddress,
+      connected: connected,
       status: 200
     })
   })
@@ -200,6 +205,25 @@ export function getfilebuffer(req: express.Request, res: express.Response) {
 
 export function getfile(req: express.Request, res: express.Response) {
   const hash = req.params.hash
+  let response = false
+  let timeout = setTimeout(async function(){
+    let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
+    let bootstrap = nodes.data.split("\n")
+    for(let k in bootstrap){
+      let node = bootstrap[k].split(':')
+      try{
+        axios.get('http://' + node[1] + ':3001/ipfs/' + hash).then(file => {
+          if(!response){
+            response = true
+            res.send(file.data)
+          }
+        })
+      }catch(e){
+        console.log(e)
+      }
+    }
+  },500)
+  
   global['ipfs'].cat(hash, async function (err, file) {
     if (err) {
       global['ipfs'].ls(hash, function (err, result) {
@@ -209,15 +233,22 @@ export function getfile(req: express.Request, res: express.Response) {
             status: 400
           })
         } else {
-          res.send(result)
+          if(!response){
+            response = true
+            clearTimeout(timeout)
+            res.send(result)
+          }
         }
       })
     } else {
-      var mimetype = await fileType.fromBuffer(file)
-      if (mimetype) {
-        res.setHeader('Content-Type', mimetype.mime);
+      if(!response){
+        response = true
+        var mimetype = await fileType.fromBuffer(file)
+        if (mimetype) {
+          res.setHeader('Content-Type', mimetype.mime);
+        }
+        res.end(file)
       }
-      res.end(file)
     }
   })
 };
