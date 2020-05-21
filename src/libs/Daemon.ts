@@ -396,8 +396,7 @@ module Daemon {
                 let entry = hash.children[x]
                 if(entry.children !== undefined){
                     console.log('Pinning subfolder ' + entry.name)
-                    let hashedfolder = await this.pinipfsfolder(entry)
-                    hash.children[x] = hashedfolder
+                    await this.pinipfsfolder(entry)
                 }else{
                     if(entry.ipfs !== undefined){
                         console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + entry.ipfs)
