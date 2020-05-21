@@ -6,7 +6,7 @@ const utilities = require('../libs/p2p/utilities.js')
 const messages = require('../libs/p2p/messages.js')
 const app = require('express')()
 var server = require('http').Server(app)
-const axios = require('axios')
+
 global['io'] = { server: null, client: null, sockets: {} }
 global['io'].server = require('socket.io')(server)
 var dns = require('dns')
@@ -24,13 +24,8 @@ export async function initP2P (){
     global['identity'] = await sign.returnAddress(process.env.NODE_KEY)
 
     console.log('Identity loaded: ' + global['identity'])
-    let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
-    let peers = nodes.data.split("\n")
-    let bootstrap = []
-    for(let x in peers){
-      let peer = peers[x].split(':')
-      bootstrap.push('http://' + peer[1])
-    }
+
+    let bootstrap = process.env.BOOTSTRAP_NODES.split(',')
     for (var k in bootstrap) {
         if (!global['clients'][bootstrap[k]]) {
             //INIT CONNECTION
