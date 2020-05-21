@@ -209,10 +209,10 @@ export function getfile(req: express.Request, res: express.Response) {
   let timeout = setTimeout(async function(){
     let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
     let bootstrap = nodes.data.split("\n")
-    /*for(let k in bootstrap){
+    for(let k in bootstrap){
       let node = bootstrap[k].split(':')
       try{
-        axios.get('http://' + node[1] + ':3001/ipfs/' + hash).then(file => {
+        axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(file => {
           if(!response){
             response = true
             res.send(file.data)
@@ -221,7 +221,7 @@ export function getfile(req: express.Request, res: express.Response) {
       }catch(e){
         console.log("Can't connect to node.")
       }
-    }*/
+    }
   },500)
   
   global['ipfs'].cat(hash, async function (err, file) {
@@ -249,6 +249,31 @@ export function getfile(req: express.Request, res: express.Response) {
         }
         res.end(file)
       }
+    }
+  })
+};
+
+export function fallbackfile(req: express.Request, res: express.Response) {
+  const hash = req.params.hash
+  
+  global['ipfs'].cat(hash, async function (err, file) {
+    if (err) {
+      global['ipfs'].ls(hash, function (err, result) {
+        if (err) {
+          res.send({
+            message: 'CAN\'T RETRIEVE FILE OR FOLDER',
+            status: 400
+          })
+        } else {
+            res.send(result)
+        }
+      })
+    } else {
+        var mimetype = await fileType.fromBuffer(file)
+        if (mimetype) {
+          res.setHeader('Content-Type', mimetype.mime);
+        }
+        res.end(file)
     }
   })
 };

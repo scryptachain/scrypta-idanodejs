@@ -119,10 +119,11 @@ class App {
     app.express.post('/ipfs/verify/:hash', ipfs.verify)
     app.express.get('/ipfs/type/:hash', ipfs.filetype)
     app.express.get('/ipfs/ls/:hash', ipfs.ls)
+    app.express.get('/ipfs/pins', ipfs.pins)
+    app.express.get('/ipfs-fallback/:hash', ipfs.fallbackfile)
     app.express.get('/ipfs/:hash', ipfs.getfile)
     app.express.get('/ipfs/buffer/:hash', ipfs.getfilebuffer)
     app.express.get('/ipfs/:hash/:folder', ipfs.getfolder)
-    app.express.get('/ipfs/pins', ipfs.pins)
 
     //EXPLORER 
     app.express.get('/block/last',explorer.getlastblock)
