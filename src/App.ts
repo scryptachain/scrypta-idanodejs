@@ -7,10 +7,14 @@ import * as pdm from "./routes/Pdm"
 import * as dapps from "./routes/dApps"
 import * as sidechains from "./routes/SideChains"
 import * as p2p from "./routes/P2PEngine"
-
+const messages = require('./libs/p2p/messages.js')
+const axios = require('axios')
+var Multiaddr = require('multiaddr')
 var bodyParser = require('body-parser')
 var cors = require('cors')
 const IPFS = require('ipfs')
+const console = require('better-console')
+
 global['txidcache'] = []
 global['utxocache'] = []
 global['sxidcache'] = []
@@ -143,6 +147,29 @@ class App {
 
   async initIPFS() {
     global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
+    setTimeout(async function(){
+      console.info('Connecting to other peers via IPFS')
+      const multiAddrs = await global['ipfs'].swarm.localAddrs()
+      let listenerAddress = multiAddrs[1].toString('hex')
+      await messages.signandbroadcast('ipfs-swarm', listenerAddress)
+      let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
+      let bootstrap = nodes.data.split("\n")
+      for(let k in bootstrap){
+        let node = bootstrap[k].split(':')
+        try{
+          console.info('Asking IPFS peer to ' + node[1])
+          let ipfsinfo = await axios.get('http://' + node[1] + ':3001/ipfs/info')
+          if(ipfsinfo.data.peer !== undefined){
+            let ipfs_peer = new Multiaddr(ipfsinfo.data.peer)
+            global['ipfs'].swarm.connect(ipfs_peer)
+          }else{
+            console.error('No IPFS peer found at ' + node[1])
+          }
+        }catch(e){
+          console.log(e)
+        }
+      }
+    },10000)
   }
 }
 

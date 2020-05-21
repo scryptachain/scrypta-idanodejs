@@ -6,7 +6,6 @@ import * as Utilities from './Utilities'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 import { create, all } from 'mathjs'
-import { utils } from "mocha";
 const messages = require('./p2p/messages.js')
 const console = require('better-console')
 

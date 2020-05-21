@@ -4,12 +4,15 @@ var formidable = require('formidable')
 var fs = require('fs')
 
 export function info(req: express.Request, res: express.Response) {
-  global['ipfs'].version(function (err, version) {
+  global['ipfs'].version(async function (err, version) {
     if (err) {
       throw err
     }
+    const multiAddrs = await global['ipfs'].swarm.localAddrs()
+    let listenerAddress = multiAddrs[1].toString('hex')
     res.send({
       info: version,
+      peer: listenerAddress,
       status: 200
     })
   })
