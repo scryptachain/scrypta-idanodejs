@@ -6,6 +6,7 @@ import * as Utilities from './Utilities'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 import { create, all } from 'mathjs'
+import { utils } from "mocha";
 const messages = require('./p2p/messages.js')
 const console = require('better-console')
 
@@ -395,7 +396,8 @@ module Daemon {
                 let entry = hash.children[x]
                 if(entry.children !== undefined){
                     console.log('Pinning subfolder ' + entry.name)
-                    await this.pinipfsfolder(entry)
+                    let hashedfolder = await this.pinipfsfolder(entry)
+                    hash.children[x] = hashedfolder
                 }else{
                     if(entry.ipfs !== undefined){
                         console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + entry.ipfs)

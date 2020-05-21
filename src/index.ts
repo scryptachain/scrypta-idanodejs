@@ -218,16 +218,15 @@ async function runIdaNode(){
   console.log(result)
   var sync = (process.env.SYNC === 'true')
   // CHECKING CONNETIONS EVERY 1 SECONDS
-  setInterval(function(){
-    checkConnections()
-  },1000)
-
   let valid = await checkIntegrity()
   if(!valid){
     console.error('IDANODE IS CORRUPTED, PLEASE CHECK FILES!')
   }else{
     console.info('IDANODE IS VALID.')
   }
+  setInterval(function(){
+    checkConnections()
+  },1000)
   
   if(sync === true){
     global['state'] = 'ON'
