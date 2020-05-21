@@ -14,6 +14,7 @@ var bodyParser = require('body-parser')
 var cors = require('cors')
 const IPFS = require('ipfs')
 const console = require('better-console')
+const publicIp = require('public-ip');
 
 global['txidcache'] = []
 global['utxocache'] = []
@@ -156,18 +157,23 @@ class App {
       let bootstrap = nodes.data.split("\n")
       for(let k in bootstrap){
         let node = bootstrap[k].split(':')
-        try{
-          console.info('Asking IPFS peer to ' + node[1])
-          axios.get('http://' + node[1] + ':3001/ipfs/info').then(ipfsinfo => {
-            if(ipfsinfo.data.peer !== undefined){
-              let ipfs_peer = new Multiaddr(ipfsinfo.data.peer)
-              global['ipfs'].swarm.connect(ipfs_peer)
-            }else{
-              console.error('No IPFS peer found at ' + node[1])
-            }
-          })
-        }catch(e){
-          console.log(e)
+        let publicip = await publicIp.v4().catch(err => {
+          console.log('Public IP not available')
+        })
+        if (node[1] !== publicip) {
+          try{
+            console.info('Asking IPFS peer to ' + node[1])
+            axios.get('http://' + node[1] + ':3001/ipfs/info').then(ipfsinfo => {
+              if(ipfsinfo.data.peer !== undefined){
+                let ipfs_peer = new Multiaddr(ipfsinfo.data.peer)
+                global['ipfs'].swarm.connect(ipfs_peer)
+              }else{
+                console.error('No IPFS peer found at ' + node[1])
+              }
+            })
+          }catch(e){
+            console.log(e)
+          }
         }
       }
     },10000)
