@@ -24,6 +24,7 @@ hashElement('./dist', options).then(async hash => {
         }
     }
     if(!found){
+        fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
         if(process.env.PUBLISHER_KEY !== undefined){
             console.log('WRITING CHECKSUM INTO THE BLOCKCHAIN')
             let privkey = process.env.PUBLISHER_KEY
@@ -33,7 +34,6 @@ hashElement('./dist', options).then(async hash => {
             let result = await scrypta.write(address, privkey, checksum_hash, '', version, '')
             if(result.uuid !== undefined){
                 console.log('WRITTEN CHECKSUM ON THE BLOCKCHAIN')
-                fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
             }
         }else{
             fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
