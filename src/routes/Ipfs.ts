@@ -217,6 +217,8 @@ export function getfile(req: express.Request, res: express.Response) {
             response = true
             res.send(file.data)
           }
+        }).catch(e => {
+          console.log("Can't connect to node")
         })
       }catch(e){
         console.log("Can't connect to node.")
