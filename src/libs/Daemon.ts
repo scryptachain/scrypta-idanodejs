@@ -389,6 +389,29 @@ module Daemon {
             }
         })
     }
+    
+    private pinipfsfolder(hash){
+        return new Promise(async response => {
+            for(let x in hash.children){
+                let entry = hash.children[x]
+                if(entry.children !== undefined){
+                    console.log('Pinning subfolder ' + entry.name)
+                    let hashedfolder = await this.pinipfsfolder(entry)
+                    hash.children[x] = hashedfolder
+                }else{
+                    if(entry.ipfs !== undefined){
+                        console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + entry.ipfs)
+                        global['ipfs'].pin.add(entry.ipfs, function (err) {
+                            if (err) {
+                                throw err
+                            }
+                        })
+                    }
+                }
+            }
+            response(true)
+        })
+    }
 
     private async storewritten(datastore, isMempool = false, block = null){
         return new Promise (async response => {
@@ -414,6 +437,12 @@ module Daemon {
                                 }
                             }
                         }
+                        
+                        if(datastore.protocol === 'bvc://'){
+                            var task = new Daemon.Sync
+                            await task.pinipfsfolder(datastore.data)
+                        }
+
                         if(datastore.uuid !== undefined && datastore.uuid !== ''){
                             await db.collection("written").insertOne(datastore)
                         }
