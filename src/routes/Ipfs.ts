@@ -4,41 +4,58 @@ var formidable = require('formidable')
 var fs = require('fs')
 
 export function info(req: express.Request, res: express.Response) {
-    global['ipfs'].version(function (err, version) {
-        if (err) {
-          throw err
-        }
-        res.send({
-            info: version,
-            status: 200
-        })
+  global['ipfs'].version(function (err, version) {
+    if (err) {
+      throw err
+    }
+    res.send({
+      info: version,
+      status: 200
     })
+  })
 };
 
-export function add(req: express.Request, res: express.Response) {
-    var form = new formidable.IncomingForm();
-    form.maxFileSize = global['limit'] * 1024 * 1024
-    form.maxFieldsSize = global['limit'] * 1024 * 1024
-    form.multiples = true
-    form.parse(req, function(err, fields, files) {
-      if(fields.buffer !== undefined){
+export async function add(req: express.Request, res: express.Response) {
+  var form = new formidable.IncomingForm();
+  form.maxFileSize = global['limit'] * 1024 * 1024
+  form.maxFieldsSize = global['limit'] * 1024 * 1024
+  form.multiples = true
+  if (req.body.buffer !== undefined) {
+    let buf = Buffer.from(req.body.buffer, 'hex')
+    try {
+      let results = await global['ipfs'].add(buf)
+      console.log(results)
+      res.send({
+        data: results,
+        status: 200
+      })
+    } catch (e) {
+      res.send({
+        error: true,
+        status: 500
+      })
+    }
+  } else {
+    form.parse(req, async function (err, fields, files) {
+      if (fields.buffer !== undefined) {
         let buf = Buffer.from(fields.buffer, 'hex')
-        global['ipfs'].add(buf).then(results => {
+        try {
+          let results = await global['ipfs'].add(buf)
+          console.log(results)
           res.send({
             data: results,
             status: 200
           })
-        }).catch(error => {
-          console.log(error)
+        } catch (e) {
           res.send({
-            data: error,
-            status: 501
+            error: true,
+            status: 500
           })
-        })
-      }else if(files.files !== undefined){
-        if(fields.folder !== undefined){
+        }
+      } else if (files.files !== undefined) {
+        if (fields.folder !== undefined) {
           var ipfscontents = new Array()
-          for(var k in files.files){
+          for (var k in files.files) {
             var file = fs.readFileSync(files.files[k].path)
             var ipfsobj = {
               path: fields.folder + '/' + files.files[k].name,
@@ -52,7 +69,7 @@ export function add(req: express.Request, res: express.Response) {
               status: 200
             })
           })
-        }else{
+        } else {
           res.send({
             data: {
               error: "Specify folder first."
@@ -60,8 +77,8 @@ export function add(req: express.Request, res: express.Response) {
             status: 422
           })
         }
-      }else{
-        if(files.file !== undefined){
+      } else {
+        if (files.file !== undefined) {
           var content = fs.readFileSync(files.file.path)
           global['ipfs'].add(content).then(results => {
             const hash = results[0].hash
@@ -72,7 +89,7 @@ export function add(req: express.Request, res: express.Response) {
               status: 200
             })
           })
-        }else{
+        } else {
           res.send({
             data: {
               error: "Specify one or more file first."
@@ -82,22 +99,23 @@ export function add(req: express.Request, res: express.Response) {
         }
       }
     })
+  }
 };
 
 export function addfile(path) {
-  return new Promise (response => {
+  return new Promise(response => {
     var content = fs.readFileSync(path)
-      global['ipfs'].add(content).then(results => {
-        const hash = results[0].hash
-        response(hash)
-      })
+    global['ipfs'].add(content).then(results => {
+      const hash = results[0].hash
+      response(hash)
+    })
   })
 }
 
 export function addfolder(files, folder) {
-  return new Promise (response => {
+  return new Promise(response => {
     var ipfscontents = new Array()
-    for(var k in files){
+    for (var k in files) {
       var file = fs.readFileSync(files[k].path)
       var ipfsobj = {
         path: folder + '/' + files[k].name,
@@ -112,49 +130,49 @@ export function addfolder(files, folder) {
 }
 
 export function verify(req: express.Request, res: express.Response) {
-    var hash = req.params.hash
-    var form = new formidable.IncomingForm();
-    form.parse(req)
-    form.on('file', function (name, file){
-        fs.readFile(file.path, {onlyHash: true}, function(error, content){
-          global['ipfs'].add(content).then(results => {
-            var calculated = results[0].hash
-            if(calculated !== hash){
-              res.send(false)
-            }else{
-              res.send(true)
-            }
-          })
-        })
-    });
-    setTimeout(function(){
-        res.send(false)
-    },1000)
+  var hash = req.params.hash
+  var form = new formidable.IncomingForm();
+  form.parse(req)
+  form.on('file', function (name, file) {
+    fs.readFile(file.path, { onlyHash: true }, function (error, content) {
+      global['ipfs'].add(content).then(results => {
+        var calculated = results[0].hash
+        if (calculated !== hash) {
+          res.send(false)
+        } else {
+          res.send(true)
+        }
+      })
+    })
+  });
+  setTimeout(function () {
+    res.send(false)
+  }, 1000)
 };
 
 export function ls(req: express.Request, res: express.Response) {
-    const hash = req.params.hash
-    global['ipfs'].ls(hash, function (err, result) {
-      if (err) {
-          throw err
-      }
-      res.send(result)
-    })
+  const hash = req.params.hash
+  global['ipfs'].ls(hash, function (err, result) {
+    if (err) {
+      throw err
+    }
+    res.send(result)
+  })
 };
 
 export function getfolder(req: express.Request, res: express.Response) {
-    const hash = req.params.hash
-    const folder = req.params.folder
-    global['ipfs'].cat(hash + '/' + folder, async function (err, file) {
-      if (err) {
-          throw err
-      }
-      var mimetype = await fileType.fromBuffer(file)
-      if(mimetype){
-        res.setHeader('Content-Type', mimetype.mime);
-      }
-      res.end(file)
-    })
+  const hash = req.params.hash
+  const folder = req.params.folder
+  global['ipfs'].cat(hash + '/' + folder, async function (err, file) {
+    if (err) {
+      throw err
+    }
+    var mimetype = await fileType.fromBuffer(file)
+    if (mimetype) {
+      res.setHeader('Content-Type', mimetype.mime);
+    }
+    res.end(file)
+  })
 };
 
 export function getfilebuffer(req: express.Request, res: express.Response) {
@@ -168,7 +186,7 @@ export function getfilebuffer(req: express.Request, res: express.Response) {
         },
         status: 422
       })
-    }else{
+    } else {
       res.send({
         data: file,
         status: 200
@@ -178,64 +196,64 @@ export function getfilebuffer(req: express.Request, res: express.Response) {
 };
 
 export function getfile(req: express.Request, res: express.Response) {
-    const hash = req.params.hash
-    global['ipfs'].cat(hash, async function (err, file) {
-      if (err) {
-        global['ipfs'].ls(hash, function (err, result) {
-            if (err) {
-                res.send({
-                    message: 'CAN\'T RETRIEVE FILE OR FOLDER',
-                    status: 400
-                })
-            }else{
-                res.send(result)
-            }
-        })
-      }else{
-        var mimetype = await fileType.fromBuffer(file)
-        if(mimetype){
-            res.setHeader('Content-Type', mimetype.mime);
+  const hash = req.params.hash
+  global['ipfs'].cat(hash, async function (err, file) {
+    if (err) {
+      global['ipfs'].ls(hash, function (err, result) {
+        if (err) {
+          res.send({
+            message: 'CAN\'T RETRIEVE FILE OR FOLDER',
+            status: 400
+          })
+        } else {
+          res.send(result)
         }
-        res.end(file)
+      })
+    } else {
+      var mimetype = await fileType.fromBuffer(file)
+      if (mimetype) {
+        res.setHeader('Content-Type', mimetype.mime);
       }
-    })
+      res.end(file)
+    }
+  })
 };
 
 export function filetype(req: express.Request, res: express.Response) {
-    const hash = req.params.hash
-    global['ipfs'].cat(hash, async function (err, file) {
-      if (err) {
+  const hash = req.params.hash
+  global['ipfs'].cat(hash, async function (err, file) {
+    if (err) {
+      res.send({
+        message: 'CAN\'T RETRIEVE FILE',
+        status: 400
+      })
+    } else {
+      var mimetype = await fileType.fromBuffer(file)
+      if (mimetype) {
+        let details = mimetype.mime.split('/')
+        mimetype.type = details[0]
         res.send({
-            message: 'CAN\'T RETRIEVE FILE',
-            status: 400
+          data: mimetype,
+          status: 200
         })
-      }else{
-        var mimetype = await fileType.fromBuffer(file)
-        if(mimetype){
-            let details = mimetype.mime.split('/')
-            mimetype.type = details[0]
-            res.send({
-                data: mimetype,
-                status: 200
-            })
-        }else{
-            res.send({
-                message: 'CAN\'T RETRIEVE FILE',
-                status: 400
-            })
-        }
+      } else {
+        res.send({
+          message: 'CAN\'T RETRIEVE FILE',
+          status: 400
+        })
       }
-    })
+    }
+  })
 };
 
 export function pins(req: express.Request, res: express.Response) {
-    global['ipfs'].pin.ls({ type: 'recursive' }, function (err, pinset) {
-        if (err) {
-            throw err
-        }
-        res.send({
-            data: pinset,
-            status: 200
-        })
+  global['ipfs'].pin.ls({ type: 'recursive' }, function (err, pinset) {
+    if (err) {
+      throw err
+    }
+    res.send({
+      data: pinset,
+      status: 200
     })
+  })
 };

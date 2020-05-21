@@ -30,7 +30,7 @@ module Daemon {
     
     public async init() {
         var wallet = new Crypto.Wallet
-        console.clear()
+        // console.clear()
         wallet.request('getinfo').then(info => {
             blocks = info['result'].blocks
             console.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')

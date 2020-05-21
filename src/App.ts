@@ -57,7 +57,7 @@ class App {
     app.initIPFS()
     p2p.initP2P()
     app.express.use(bodyParser.urlencoded({extended: true, limit: global['limit'] + 'mb'}))
-    app.express.use(bodyParser.json())
+    app.express.use(bodyParser.json({limit: global['limit'] + 'mb'}))
     app.express.use(express.static('public'))
 
     var corsOptions = {
