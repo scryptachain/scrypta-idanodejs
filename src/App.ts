@@ -148,6 +148,7 @@ class App {
 
   async initIPFS() {
     global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
+    /*
     setTimeout(async function(){
       console.info('Connecting to other peers via IPFS')
       const multiAddrs = await global['ipfs'].swarm.localAddrs()
@@ -176,7 +177,7 @@ class App {
           }
         }
       }
-    },10000)
+    },10000)*/
   }
 }
 
