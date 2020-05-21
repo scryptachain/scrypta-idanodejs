@@ -58,13 +58,13 @@ export async function initP2P() {
             }
           })
 
-          global['nodes'][node].on('ipfs-swarm', async function (data) {
+          /*global['nodes'][node].on('ipfs-swarm', async function (data) {
             let verified = await sign.verifySign(data.pubKey, data.signature, data.message)
             if (verified === true) {
               let node = new Multiaddr(data.message)
               global['ipfs'].swarm.connect(node)
             }
-          })
+          })*/
 
           global['nodes'][node].on('planum-unspent', async function (data) {
             let verified = await sign.verifySign(data.pubKey, data.signature, data.message)
