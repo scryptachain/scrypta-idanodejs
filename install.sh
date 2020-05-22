@@ -53,6 +53,11 @@ cp example.env .env
 
 #UPDATING NPM
 npm install -g npm
+npm install -g pm2
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 100M
+pm2 set pm2-logrotate:compress true
+pm2 set pm2-logrotate:rotateInterval '0 * * * *'
 
 #SETTING UP FIREWALL
 ufw allow 22
