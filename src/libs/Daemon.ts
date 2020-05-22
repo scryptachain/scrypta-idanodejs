@@ -57,6 +57,9 @@ module Daemon {
                 if(continuitycheck !== sync[1].block){
                     last = continuitycheck - 1
                 }
+                if(sync[0].block === sync[1].block){
+                    await db.collection('blocks').deleteOne({_id: sync[0]._id})
+                }
             }
 
             if(last !== null && last !== undefined){
