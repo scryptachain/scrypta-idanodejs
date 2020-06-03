@@ -50,6 +50,7 @@ mkdir mongodb_data
 #DOWNLOADING NODE MODULES
 npm install
 cp example.env .env
+npm run build
 
 #UPDATING NPM
 npm install -g npm
