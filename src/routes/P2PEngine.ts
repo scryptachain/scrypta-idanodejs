@@ -9,6 +9,7 @@ var server = require('http').Server(app)
 
 global['io'] = { server: null, client: null, sockets: {} }
 global['io'].server = require('socket.io')(server)
+global['io'].server.set('origins', '*:*')
 var dns = require('dns')
 const publicIp = require('public-ip');
 const axios = require('axios')
