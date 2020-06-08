@@ -249,7 +249,6 @@ export async function fund(req: express.Request, res: express.Response) {
                             while(txid.length !== 64 && error == false){
                                 var fees = 0.001 + (i / 1000)
                                 txid = <string> await wallet.send2multisig(private_key, from, trustlink, amount, null, fees, true)
-
                                 if(txid !== null && txid.length === 64){
                                     console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
                                     totalfees += fees
