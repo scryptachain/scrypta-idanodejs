@@ -225,6 +225,84 @@ export async function send(req: express.Request, res: express.Response) {
     }
 }
 
+export async function fund(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet
+    var parser = new Utilities.Parser
+    var request = await parser.body(req)
+    if(request['body']['trustlink'] !== undefined && request['body']['private_key'] !== undefined && request['body']['amount'] !== undefined && request['body']['from'] !== undefined){
+        var amount = parseFloat(request['body']['amount'])
+        var private_key = request['body']['private_key']
+        var trustlink = request['body']['trustlink']
+        var from = request['body']['from']
+
+        wallet.request('validateaddress',[trustlink]).then(async response => {
+            var validation = response['result']
+            if(validation.isvalid === true){
+                wallet.request('validateaddress',[from]).then(async response => {
+                    var validation = response['result']
+                    if(validation.isvalid === true){
+                        if(amount > 0){
+                            var i = 0
+                            var totalfees = 0
+                            var error = false
+                            var txid = ''
+                            while(txid.length !== 64 && error == false){
+                                var fees = 0.001 + (i / 1000)
+                                txid = <string> await wallet.send2multisig(private_key, from, trustlink, amount, null, fees, true)
+
+                                if(txid !== null && txid.length === 64){
+                                    console.log('SEND SUCCESS, TXID IS: ' + txid +'. FEES ARE: ' + fees + 'LYRA')
+                                    totalfees += fees
+                                }else{
+                                  console.log('TX FAILED.')
+                                }
+
+                                i++;
+                                if(i > 20){
+                                    error = true
+                                    txid = '0000000000000000000000000000000000000000000000000000000000000000'
+                                }
+                            }
+                            if(error === false){
+                                res.json({
+                                    success: true,
+                                    fees: totalfees,
+                                    txid: txid
+                                })
+                            }else{
+                                res.json({
+                                    data: 'Can\'t send coins.',
+                                    status: 501
+                                })
+                            }
+                        }else{
+                            res.json({
+                                data: 'Amount must be grater than zero.',
+                                status: 402
+                            })
+                        }
+                    }else{
+                        res.json({
+                            data: 'Receiving address is invalid.',
+                            status: 402
+                        })
+                    }
+                })
+            }else{
+                res.json({
+                    data: 'Sending address is invalid.',
+                    status: 402
+                })
+            }
+        })
+    }else{
+        res.json({
+            data: 'Provide from, to, amount and private key first.',
+            status: 402
+        })
+    }
+}
+
 export async function invalidate(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)

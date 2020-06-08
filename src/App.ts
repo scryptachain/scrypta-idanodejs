@@ -92,6 +92,7 @@ class App {
     app.express.post('/trustlink/init', trustlink.init)
     app.express.post('/trustlink/write', trustlink.write)
     app.express.post('/trustlink/send', trustlink.send)
+    app.express.post('/trustlink/fund', trustlink.fund)
     app.express.post('/trustlink/invalidate', trustlink.invalidate)
 
     //SIDECHAINS
