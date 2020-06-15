@@ -27,5 +27,5 @@ if [ $# -eq 0 ]
     #RELOAD NGINX
     systemctl reload nginx
     #PRINT SUCCESS MESSAGE
-    echo "BASIC SETUP IS COMPLETE, PLEASE RUN: sudo certbot --nginx -d $1"
+    echo "BASIC SETUP IS COMPLETE, PLEASE RUN: sudo certbot --nginx -d $1 -d p2p.$1"
 fi
