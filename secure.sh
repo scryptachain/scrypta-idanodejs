@@ -10,6 +10,12 @@ if [ $# -eq 0 ]
     #CREATE NEW CONFIGURATION
     touch "/etc/nginx/sites-enabled/default"
     echo "server {
+            server_name p2p.$1;
+            location / {
+                proxy_pass http://127.0.0.1:42226;
+                client_max_body_size 20M;
+            }
+            server {
             server_name $1;
             location / {
                 proxy_pass http://127.0.0.1:3001;
