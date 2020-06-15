@@ -15,7 +15,8 @@ if [ $# -eq 0 ]
                 proxy_pass http://127.0.0.1:42226;
                 client_max_body_size 20M;
             }
-            server {
+          }
+          server {
             server_name $1;
             location / {
                 proxy_pass http://127.0.0.1:3001;
