@@ -185,20 +185,43 @@ export function getfolder(req: express.Request, res: express.Response) {
 
 export function getfilebuffer(req: express.Request, res: express.Response) {
   const hash = req.params.hash
+  let response = false
+  let timeout = setTimeout(async function(){
+    let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
+    let bootstrap = nodes.data.split("\n")
+    for(let k in bootstrap){
+      let node = bootstrap[k].split(':')
+      try{
+        axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
+          if(!response && file.data.status !== 400){
+            response = true
+            let buf = Buffer.from(file.data, 'hex')
+            res.send({
+              data: buf,
+              status: 200
+            })
+          }
+        }).catch(e => {
+          console.log("Can't connect to node")
+        })
+      }catch(e){
+        console.log("Can't connect to node.")
+      }
+    }
+  },500)
+
   global['ipfs'].get(hash, function (err, file) {
-    if (err) {
-      console.log(err)
-      res.send({
-        data: {
-          error: "Can't read file"
-        },
-        status: 422
-      })
-    } else {
-      res.send({
-        data: file,
-        status: 200
-      })
+    if(!response){
+      if (err) {
+        console.log(err)
+      } else {
+        response = true
+        clearTimeout(timeout)
+        res.send({
+          data: file,
+          status: 200
+        })
+      }
     }
   })
 };
