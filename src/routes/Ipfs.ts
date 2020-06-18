@@ -212,10 +212,12 @@ export function getfile(req: express.Request, res: express.Response) {
     for(let k in bootstrap){
       let node = bootstrap[k].split(':')
       try{
-        axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(file => {
+        axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
           if(!response){
             response = true
-            res.send(file.data)
+            res.setHeader('Content-Type', file.headers['content-type'])
+            let buf = Buffer.from(file.data, 'hex')
+            res.send(buf)
           }
         }).catch(e => {
           console.log("Can't connect to node")
@@ -275,7 +277,7 @@ export function fallbackfile(req: express.Request, res: express.Response) {
         if (mimetype) {
           res.setHeader('Content-Type', mimetype.mime);
         }
-        res.end(file)
+        res.end(file.toString('hex'))
     }
   })
 };
