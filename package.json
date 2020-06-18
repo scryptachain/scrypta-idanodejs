@@ -1,7 +1,7 @@
 {
   "name": "scrypta-idanodejs",
-  "version": "1.7.0",
-  "description": "NodeJS implementation of Scrypta IdaNode Technology",
+  "version": "1.7.1",
+  "description": "NodeJS implementation of Scrypta IdANode Technology",
   "main": "index.js",
   "scripts": {
     "dev": "tsc --watch & nodemon --delay 3 dist",

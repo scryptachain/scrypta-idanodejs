@@ -213,7 +213,7 @@ export function getfile(req: express.Request, res: express.Response) {
       let node = bootstrap[k].split(':')
       try{
         axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
-          if(!response && file.data.status === undefined){
+          if(!response && file.data.status !== 400){
             response = true
             res.setHeader('Content-Type', file.headers['content-type'])
             let buf = Buffer.from(file.data, 'hex')
@@ -289,7 +289,7 @@ export function filetype(req: express.Request, res: express.Response) {
       let node = bootstrap[k].split(':')
       try{
         axios.get('http://' + node[1] + ':3001/ipfs-fallback-type/' + hash).then(file => {
-          if(!response){
+          if(!response && file.data.status === undefined){
             response = true
             res.send(file.data)
           }
@@ -300,13 +300,14 @@ export function filetype(req: express.Request, res: express.Response) {
         console.log("Can't connect to node.")
       }
     }
+    setTimeout(function(){
+      res.send({message: "FileType not available", status: 400})
+    },5000)
   },500)
+
   global['ipfs'].cat(hash, async function (err, file) {
     if (err) {
-      res.send({
-        message: 'CAN\'T RETRIEVE FILE',
-        status: 400
-      })
+      console.log(err)
     } else {
       var mimetype = await fileType.fromBuffer(file)
       if (mimetype) {
@@ -320,11 +321,6 @@ export function filetype(req: express.Request, res: express.Response) {
             status: 200
           })
         }
-      } else {
-        res.send({
-          message: 'CAN\'T RETRIEVE FILE',
-          status: 400
-        })
       }
     }
   })
