@@ -213,7 +213,7 @@ export function getfile(req: express.Request, res: express.Response) {
       let node = bootstrap[k].split(':')
       try{
         axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
-          if(!response){
+          if(!response && file.data.status === undefined){
             response = true
             res.setHeader('Content-Type', file.headers['content-type'])
             let buf = Buffer.from(file.data, 'hex')
