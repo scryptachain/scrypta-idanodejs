@@ -122,6 +122,7 @@ class App {
     app.express.get('/ipfs/ls/:hash', ipfs.ls)
     app.express.get('/ipfs/pins', ipfs.pins)
     app.express.get('/ipfs-fallback/:hash', ipfs.fallbackfile)
+    app.express.get('/ipfs-fallback-type/:hash', ipfs.fallbackfiletype)
     app.express.get('/ipfs/:hash', ipfs.getfile)
     app.express.get('/ipfs/buffer/:hash', ipfs.getfilebuffer)
     app.express.get('/ipfs/:hash/:folder', ipfs.getfolder)

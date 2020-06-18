@@ -282,6 +282,57 @@ export function fallbackfile(req: express.Request, res: express.Response) {
 
 export function filetype(req: express.Request, res: express.Response) {
   const hash = req.params.hash
+  let response = false
+  let timeout = setTimeout(async function(){
+    let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
+    let bootstrap = nodes.data.split("\n")
+    for(let k in bootstrap){
+      let node = bootstrap[k].split(':')
+      try{
+        axios.get('http://' + node[1] + ':3001/ipfs-fallback-type/' + hash).then(file => {
+          if(!response){
+            response = true
+            res.send(file.data)
+          }
+        }).catch(e => {
+          console.log("Can't connect to node")
+        })
+      }catch(e){
+        console.log("Can't connect to node.")
+      }
+    }
+  },500)
+  global['ipfs'].cat(hash, async function (err, file) {
+    if (err) {
+      res.send({
+        message: 'CAN\'T RETRIEVE FILE',
+        status: 400
+      })
+    } else {
+      var mimetype = await fileType.fromBuffer(file)
+      if (mimetype) {
+        let details = mimetype.mime.split('/')
+        mimetype.type = details[0]
+        if(!response){
+          response = true
+          clearTimeout(timeout)
+          res.send({
+            data: mimetype,
+            status: 200
+          })
+        }
+      } else {
+        res.send({
+          message: 'CAN\'T RETRIEVE FILE',
+          status: 400
+        })
+      }
+    }
+  })
+};
+
+export function fallbackfiletype(req: express.Request, res: express.Response) {
+  const hash = req.params.hash
   global['ipfs'].cat(hash, async function (err, file) {
     if (err) {
       res.send({
