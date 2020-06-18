@@ -232,10 +232,7 @@ export function getfile(req: express.Request, res: express.Response) {
     if (err) {
       global['ipfs'].ls(hash, function (err, result) {
         if (err) {
-          res.send({
-            message: 'CAN\'T RETRIEVE FILE OR FOLDER',
-            status: 400
-          })
+          console.log(err)
         } else {
           if(!response){
             response = true
