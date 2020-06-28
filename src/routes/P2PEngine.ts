@@ -17,7 +17,6 @@ global['clients'] = {}
 global['nodes'] = {}
 global['connected'] = {}
 
-
 export async function initP2P (){
   
   console.log('Starting P2P client.')
@@ -52,14 +51,6 @@ export async function initP2P (){
                 global['nodes'][node].on('disconnect', function () {
                     console.log('Disconnected from peer: ' + global['nodes'][node].io.uri)
                     global['connected'][node] = false
-                })
-
-                //PROTOCOLS
-                global['nodes'][bootstrap[k]].on('message', async function (data) {
-                    let verified = await sign.verifySign(data.pubKey, data.signature, data.message)
-                    if(verified === true){
-                      console.log('Received message from ' + data.address + ': ' + data.message + '.')
-                    }
                 })
 
                 global['nodes'][bootstrap[k]].on('planum-unspent', async function (data) {

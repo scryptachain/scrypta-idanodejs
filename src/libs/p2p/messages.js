@@ -3,6 +3,8 @@ global['relayed'] = {
     keys: {}
 }
 
+global['limits'] = {}
+
 global['broadcasted'] = {
     nodes: [],
     clients: []
@@ -53,9 +55,21 @@ module.exports = {
                 if(!global['relayed']['messages'][client]){
                     global['relayed']['messages'][client] = []
                 }
-                if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
-                    global['relayed']['messages'][client].push(message.signature)
-                    this.broadcast(protocol, message, client)
+                let relay = true
+                if(global['limits'][message.address] === undefined){
+                    global['limits'][message.address] = new Date().getTime()
+                }else{
+                    let now = new Date().getTime()
+                    let elapsed = now - global['limits'][message.address]
+                    if(elapsed < 1000){
+                        relay = false
+                    }
+                }
+                if(relay){
+                    if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
+                        global['relayed']['messages'][client].push(message.signature)
+                        this.broadcast(protocol, message, client)
+                    }
                 }
             }
         })
