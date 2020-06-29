@@ -59,14 +59,14 @@ module.exports = {
                 }
                 if(global['limits'][message.address] === undefined){
                     global['limits'][message.address] = new Date().getTime()
+                }else{
+                    let now = new Date().getTime()
+                    let elapsed = now - global['limits'][message.address]
+                    if(elapsed < 1000){
+                        relay = false
+                    }
                 }
 
-                let now = new Date().getTime()
-                let elapsed = now - global['limits'][message.address]
-                if(elapsed < 1000){
-                    relay = false
-                    console.log(elapsed, global['limits'])
-                }
             
                 if(relay === true){
                     if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
