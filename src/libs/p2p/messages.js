@@ -51,7 +51,7 @@ module.exports = {
     },
     relay: async function(message, protocol = 'message'){
         global['io'].server.sockets.clients((error, clients) => {
-
+            var limit = 1000
             for(var k in clients){
                 var client = clients[k]
                 var elapsed = 0
@@ -64,7 +64,7 @@ module.exports = {
                 if(global['limits'][message.address] !== undefined){
                     let now = new Date().getTime()
                     elapsed = parseFloat(now) - parseFloat(global['limits'][message.address])
-                    if(parseFloat(elapsed) > 1000){
+                    if(parseFloat(elapsed) > parseFloat(limit)){
                         relay = true
                     }else{
                         relay = false
