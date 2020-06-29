@@ -8,7 +8,7 @@
     "build": "rm -rf dist && tsc",
     "pub": "node publish_idanode.js",
     "mongodump": "node create_bootstrap.js",
-    "update": "pm2 stop npm && git pull && npm run build && npm install && pm2 start npm",
+    "update": "pm2 stop npm && git checkout . && git pull && npm run build && npm install && pm2 start npm",
     "test": "tsc && mocha dist/**/*.spec.js",
     "lint": "eslint src --ext ts",
     "tsc": "tsc",
