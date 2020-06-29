@@ -51,15 +51,16 @@ module.exports = {
     relay: async function(message, protocol = 'message'){
         global['io'].server.sockets.clients((error, clients) => {
             var relay = true
+            
             for(var k in clients){
                 var client = clients[k]
                 var elapsed = 0
+
                 if(!global['relayed']['messages'][client]){
                     global['relayed']['messages'][client] = []
                 }
-                if(global['limits'][message.address] === undefined){
-                    global['limits'][message.address] = new Date().getTime()
-                }else{
+
+                if(global['limits'][message.address] !== undefined){
                     let now = new Date().getTime()
                     elapsed = now - global['limits'][message.address]
                     if(elapsed < 1000){
@@ -67,7 +68,6 @@ module.exports = {
                     }
                 }
 
-            
                 if(relay === true){
                     console.log('Relaying message to client: ' + client)
                     if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
@@ -75,10 +75,10 @@ module.exports = {
                         global['relayed']['messages'][client].push(message.signature)
                         this.broadcast(protocol, message, client)
                     }
-                }else{
-                    console.log(elapsed, global['limits'][message.address])
                 }
             }
+
+            global['limits'][message.address] = new Date().getTime()
         })
     }
 };
