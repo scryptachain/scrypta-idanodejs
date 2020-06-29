@@ -63,10 +63,11 @@ module.exports = {
 
                 if(global['limits'][message.address] !== undefined){
                     let now = new Date().getTime()
-                    elapsed = now - global['limits'][message.address]
-                    if(parseFloat(elapsed) < 1000){
-                        relay = false
+                    elapsed = parseFloat(now) - parseFloat(global['limits'][message.address])
+                    if(parseFloat(elapsed) > 1000){
+                        relay = true
                     }else{
+                        relay = false
                         console.log('ELAPSED ' + elapsed + ' FOR ADDRESS ' + message.address + ', LIMIT REACHED.')
                     }
                 }
