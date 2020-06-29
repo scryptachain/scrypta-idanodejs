@@ -51,7 +51,7 @@ module.exports = {
     relay: async function(message, protocol = 'message'){
         global['io'].server.sockets.clients((error, clients) => {
             var relay = true
-            
+
             for(var k in clients){
                 var client = clients[k]
                 var elapsed = 0
@@ -77,8 +77,9 @@ module.exports = {
                     }
                 }
             }
-
-            global['limits'][message.address] = new Date().getTime()
+            setTimeout(function(){
+                global['limits'][message.address] = new Date().getTime()
+            }, 1000)
         })
     }
 };
