@@ -83,9 +83,6 @@ module.exports = {
                     }
                 }
             }
-            setTimeout(function(){
-                global['limits'][message.address] = new Date().getTime()
-            }, 1000)
         })
     }
 };
