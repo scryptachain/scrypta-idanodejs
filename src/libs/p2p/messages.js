@@ -64,7 +64,8 @@ module.exports = {
                 let now = new Date().getTime()
                 let elapsed = now - global['limits'][message.address]
                 if(elapsed < 1000){
-                    // relay = false
+                    relay = false
+                    console.log(elapsed, global['limits'])
                 }
             
                 if(relay === true){
