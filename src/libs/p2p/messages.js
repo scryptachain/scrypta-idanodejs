@@ -65,6 +65,8 @@ module.exports = {
                     elapsed = now - global['limits'][message.address]
                     if(elapsed < 1000){
                         relay = false
+                    }else{
+                        console.log(elapsed)
                     }
                 }
 
