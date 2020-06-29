@@ -53,6 +53,7 @@ module.exports = {
             var relay = true
             for(var k in clients){
                 var client = clients[k]
+                var elapsed = 0
                 if(!global['relayed']['messages'][client]){
                     global['relayed']['messages'][client] = []
                 }
@@ -60,7 +61,7 @@ module.exports = {
                     global['limits'][message.address] = new Date().getTime()
                 }else{
                     let now = new Date().getTime()
-                    let elapsed = now - global['limits'][message.address]
+                    elapsed = now - global['limits'][message.address]
                     if(elapsed < 1000){
                         relay = false
                     }
