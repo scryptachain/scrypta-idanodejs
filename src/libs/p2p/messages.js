@@ -67,7 +67,7 @@ module.exports = {
                     if(parseFloat(elapsed) < 1000){
                         relay = false
                     }else{
-                        console.log('ELAPSED ' + elapsed + ' FOR ADDRESS ' + manage.address + ', LIMIT REACHED.')
+                        console.log('ELAPSED ' + elapsed + ' FOR ADDRESS ' + message.address + ', LIMIT REACHED.')
                     }
                 }
 
