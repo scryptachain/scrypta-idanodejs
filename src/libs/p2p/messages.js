@@ -75,7 +75,6 @@ module.exports = {
                 if(relay === true){
                     console.log('Relaying message to client: ' + client)
                     if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
-                        global['limits'][message.address] = new Date().getTime()
                         global['relayed']['messages'][client].push(message.signature)
                         this.broadcast(protocol, message, client)
                     }else{
@@ -83,6 +82,9 @@ module.exports = {
                     }
                 }
             }
+            setTimeout(function(){
+                global['limits'][message.address] = new Date().getTime()
+            }, 1000)
         })
     }
 };
