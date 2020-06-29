@@ -39,6 +39,7 @@ module.exports = {
             }
             if(socketID === ''){
                 global['io'].server.sockets.emit(protocol, message)
+                this.relay(message, protocol)
                 console.log('Broadcast to every connected client..')
             }else{
                 global['io'].sockets[socketID].emit(protocol, message)
@@ -50,12 +51,12 @@ module.exports = {
     relay: async function(message, protocol = 'message'){
         console.log('Relaying message to clients...')
         global['io'].server.sockets.clients((error, clients) => {
+            var relay = true
             for(var k in clients){
                 var client = clients[k]
                 if(!global['relayed']['messages'][client]){
                     global['relayed']['messages'][client] = []
                 }
-                let relay = true
                 if(global['limits'][message.address] === undefined){
                     global['limits'][message.address] = new Date().getTime()
                 }
@@ -63,10 +64,10 @@ module.exports = {
                 let now = new Date().getTime()
                 let elapsed = now - global['limits'][message.address]
                 if(elapsed < 1000){
-                    relay = false
+                    // relay = false
                 }
             
-                if(relay){
+                if(relay === true){
                     if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
                         global['limits'][message.address] = new Date().getTime()
                         global['relayed']['messages'][client].push(message.signature)

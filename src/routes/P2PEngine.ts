@@ -94,8 +94,9 @@ export async function broadcast(req: express.Request, res: express.Response){
     var parsed = await utilities.parse(req)
     var body = parsed.body
     if(body.message !== undefined){
-      let signed = await sign.signWithKey(process.env.NODE_KEY, body.message)
-      signed.message = body.message
+      let message = JSON.stringify(new Date().getTime())
+      let signed = await sign.signWithKey(process.env.NODE_KEY, message)
+      signed.message = message
       let broadcasted = await messages.broadcast('message', signed)
       res.json({success: true, broadcasted: broadcasted})
     }else{
