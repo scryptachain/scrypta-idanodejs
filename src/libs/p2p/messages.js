@@ -51,11 +51,11 @@ module.exports = {
     },
     relay: async function(message, protocol = 'message'){
         global['io'].server.sockets.clients((error, clients) => {
-            var relay = true
 
             for(var k in clients){
                 var client = clients[k]
                 var elapsed = 0
+                var relay = true
 
                 if(!global['relayed']['messages'][client]){
                     global['relayed']['messages'][client] = []
@@ -77,6 +77,8 @@ module.exports = {
                         global['limits'][message.address] = new Date().getTime()
                         global['relayed']['messages'][client].push(message.signature)
                         this.broadcast(protocol, message, client)
+                    }else{
+                        console.log('MESSAGE RELAYED TO CLIENT YET')
                     }
                 }
             }
