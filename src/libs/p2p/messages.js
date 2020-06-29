@@ -13,6 +13,7 @@ global['broadcasted'] = {
 global['feed'] = {}
 require('dotenv').config()
 const sign = require('./sign.js')
+const { Management } = require('../Database.js')
 
 module.exports = {
     signandbroadcast: async function(protocol, message){
@@ -63,10 +64,10 @@ module.exports = {
                 if(global['limits'][message.address] !== undefined){
                     let now = new Date().getTime()
                     elapsed = now - global['limits'][message.address]
-                    if(elapsed < 1000){
+                    if(parseFloat(elapsed) < 1000){
                         relay = false
                     }else{
-                        console.log(elapsed)
+                        console.log('ELAPSED ' + elapsed + ' FOR ADDRESS ' + manage.address + ', LIMIT REACHED.')
                     }
                 }
 
