@@ -74,6 +74,8 @@ module.exports = {
                         global['relayed']['messages'][client].push(message.signature)
                         this.broadcast(protocol, message, client)
                     }
+                }else{
+                    console.log(elapsed, global['limits'][message.address])
                 }
             }
         })
