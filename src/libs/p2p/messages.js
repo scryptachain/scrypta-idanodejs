@@ -49,7 +49,6 @@ module.exports = {
         })
     },
     relay: async function(message, protocol = 'message'){
-        console.log('Relaying message to clients...')
         global['io'].server.sockets.clients((error, clients) => {
             var relay = true
             for(var k in clients){
@@ -69,6 +68,7 @@ module.exports = {
 
             
                 if(relay === true){
+                    console.log('Relaying message to client: ' + client)
                     if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
                         global['limits'][message.address] = new Date().getTime()
                         global['relayed']['messages'][client].push(message.signature)
