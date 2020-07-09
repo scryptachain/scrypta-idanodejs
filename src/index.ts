@@ -2,6 +2,7 @@ import app from './App'
 import * as Crypto from './libs/Crypto'
 import * as Daemon from "./libs/Daemon"
 import * as Database from "./libs/Database"
+import * as Space from "./libs/Space"
 const fs = require("fs")
 const mongo = require('mongodb').MongoClient
 const exec = require('child_process')
@@ -17,6 +18,12 @@ global['state'] = 'OFF'
 global['db_url'] = 'mongodb://localhost:27017'
 global['db_options'] = {useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
+if(process.env.PINIPFS !== undefined && process.env.PINIPFS === 'true'){
+  global['pinipfs'] = true
+}else{
+  global['pinipfs'] = false
+}
+
 const rateLimit = require("express-rate-limit");
 const helmet = require('helmet')
 
@@ -106,8 +113,13 @@ async function checkConnections(){
               retrysync = 0
               var task = new Daemon.Sync
               task.init()
+              if(process.env.S3_BUCKET !== undefined){
+                var space = new Space.syncer
+                space.syncSpace()
+              }
             }
-            if(retrysync > 59){
+
+            if(retrysync > 29){
               console.log('Forcing sync.')
               retrysync = 0
               var task = new Daemon.Sync
@@ -192,7 +204,7 @@ async function returnGitChecksum(version){
   const app = this
   return new Promise(async response => {
     try{
-        let checksums_git = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanodejs/master/checksum').catch(e => {
+        let checksums_git = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanodejs/master/checksum', {timeout: 10000}).catch(e => {
           console.error(e)
           response(false)
         })

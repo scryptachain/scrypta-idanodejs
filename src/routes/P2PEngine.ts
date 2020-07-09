@@ -54,7 +54,13 @@ export async function initP2P (){
                 })
 
                 global['nodes'][bootstrap[k]].on('planum-unspent', async function (data) {
-                  let verified = await sign.verifySign(data.pubKey, data.signature, data.message)
+                  let pubkey
+                  if(data.pubKey !== undefined){
+                    pubkey = data.pubKey
+                  }else if(data.pubkey !== undefined){
+                    pubkey = data.pubkey
+                  }
+                  let verified = await sign.verifySign(pubkey, data.signature, data.message)
                   if(verified === true){
                     if (global['sxidcache'].indexOf(data.message) === -1) {
                       global['sxidcache'].push(data.message)

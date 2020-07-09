@@ -401,7 +401,7 @@ export default class BitJS {
 			var sigBytes = BitJS.hexToBytes(signature);
 			buf.push(sigBytes.length);
 			buf = buf.concat(sigBytes);
-	    var pubKeyBytes = BitJS.hexToBytes(key['pubkey']);
+	    	var pubKeyBytes = BitJS.hexToBytes(key['pubkey']);
 			buf.push(pubKeyBytes.length);
 			buf = buf.concat(pubKeyBytes);
 			this.inputs[index].script = buf;

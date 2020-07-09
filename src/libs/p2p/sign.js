@@ -24,7 +24,7 @@ module.exports = {
 
             response({
                 signature: Buffer.from(sigObj.signature).toString('hex'),
-                pubKey: Buffer.from(pubKey).toString('hex'),
+                pubkey: Buffer.from(pubKey).toString('hex'),
                 address: ck.publicAddress
             })
         })

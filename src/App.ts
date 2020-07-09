@@ -4,8 +4,8 @@ import * as explorer from "./routes/Explorer"
 import * as ipfs from "./routes/Ipfs"
 import * as trustlink from "./routes/Trustlink"
 import * as pdm from "./routes/Pdm"
-import * as dapps from "./routes/dApps"
-import * as sidechains from "./routes/SideChains"
+import * as sidechains from "./routes/Planum"
+import * as documenta from "./routes/Documenta"
 import * as p2p from "./routes/P2PEngine"
 
 var bodyParser = require('body-parser')
@@ -20,6 +20,7 @@ global['syncLock'] = false
 global['isSyncing'] = false
 global['syncTimeout'] = null
 global['limit'] = 200
+global['isChecking'] = false
 
 if(process.env.TESTNET !== undefined){
   if(process.env.TESTNET === 'true'){
@@ -111,9 +112,6 @@ class App {
     app.express.post('/sidechain/verify', sidechains.verifychain)
     app.express.post('/sidechain/validate', sidechains.validatetransaction)
     
-    //DAPPS
-    app.express.post('/dapps/upload', dapps.upload)
-
     //IPFS
     app.express.get('/ipfs/info', ipfs.info)
     app.express.post('/ipfs/add', ipfs.add)
@@ -126,6 +124,9 @@ class App {
     app.express.get('/ipfs/:hash', ipfs.getfile)
     app.express.get('/ipfs/buffer/:hash', ipfs.getfilebuffer)
     app.express.get('/ipfs/:hash/:folder', ipfs.getfolder)
+
+    //SPACE
+    app.express.post('/documenta/add', documenta.add)
 
     //EXPLORER 
     app.express.get('/block/last',explorer.getlastblock)

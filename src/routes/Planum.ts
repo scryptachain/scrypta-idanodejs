@@ -1,7 +1,7 @@
 import express = require("express")
 var formidable = require('formidable')
 import * as Crypto from '../libs/Crypto'
-import * as Sidechain from '../libs/Sidechain'
+import * as Sidechain from '../libs/Planum'
 let CoinKey = require("coinkey")
 const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
@@ -999,23 +999,34 @@ export async function verifychain(req: express.Request, res: express.Response) {
         if (sidechain_datas[0] !== undefined) {
           for (let x in sidechain_datas) {
             if(verified === true){
-              let validatesign = await wallet.verifymessage(sidechain_datas[x].pubkey,sidechain_datas[x].signature,JSON.stringify(sidechain_datas[x].transaction))
-              if(validatesign !== false){
-                let inputs = sidechain_datas[x].transaction.inputs
-                for(let y in inputs){
-                  let input = inputs[y]
-                  if(input.vout !== "genesis" && input.vout !== "reissue"){
-                    let block = sidechain_datas[x].block
-                    let validateinput = await sidechain.checkinputspent(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
-                    let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address,  sidechain_datas[x].sxid)
-                    if(validateinput === false || isdoublespended === true){
-                      verified = false
-                      // await db.collection('sc_transactions').deleteOne({ "sxid": sidechain_datas[x].sxid })
-                      // await db.collection('sc_unspent').deleteMany({ "sxid": sidechain_datas[x].sxid })
-                      errors.push(sidechain_datas[x].sxid + ':' + sidechain_datas[x].block)
-                      console.log('ERROR VALIDATING INPUT ' + input.sxid + ':' + input.vout)
+              let pubkey
+              if(sidechain_datas[x].pubkey !== undefined){
+                pubkey = sidechain_datas[x].pubkey
+              }else if(sidechain_datas[x].pubKey !== undefined){
+                pubkey = sidechain_datas[x].pubKey
+              }
+              if(pubkey !== undefined && pubkey.length > 0){
+                let validatesign = await wallet.verifymessage(pubkey,sidechain_datas[x].signature,JSON.stringify(sidechain_datas[x].transaction))
+                if(validatesign !== false){
+                  let inputs = sidechain_datas[x].transaction.inputs
+                  for(let y in inputs){
+                    let input = inputs[y]
+                    if(input.vout !== "genesis" && input.vout !== "reissue"){
+                      let block = sidechain_datas[x].block
+                      let validateinput = await sidechain.checkinputspent(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
+                      let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address,  sidechain_datas[x].sxid)
+                      if(validateinput === false || isdoublespended === true){
+                        verified = false
+                        // await db.collection('sc_transactions').deleteOne({ "sxid": sidechain_datas[x].sxid })
+                        // await db.collection('sc_unspent').deleteMany({ "sxid": sidechain_datas[x].sxid })
+                        errors.push(sidechain_datas[x].sxid + ':' + sidechain_datas[x].block)
+                        console.log('ERROR VALIDATING INPUT ' + input.sxid + ':' + input.vout)
+                      }
                     }
                   }
+                }else{
+                  console.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))
+                  verified = false
                 }
               }else{
                 console.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))

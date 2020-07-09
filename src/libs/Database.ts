@@ -56,6 +56,11 @@ module Database {
                         indexes: ["block", "time"],
                         compound: []
                     },
+                    {
+                        name: "documenta",
+                        indexes: ["address", "file", "time"],
+                        compound: []
+                    },
                 ]
                 //CHECKING COLLECTIONS
                 for(let tdk in collections){

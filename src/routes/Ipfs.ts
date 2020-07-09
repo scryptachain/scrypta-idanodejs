@@ -13,7 +13,7 @@ export function info(req: express.Request, res: express.Response) {
     let listenerAddress = multiAddrs[1].toString('hex')
 
     const connected = await global['ipfs'].swarm.peers()
-    
+
     res.send({
       info: version,
       peer: listenerAddress,
@@ -31,7 +31,7 @@ export async function add(req: express.Request, res: express.Response) {
   if (req.body.buffer !== undefined) {
     let buf = Buffer.from(req.body.buffer, 'hex')
     try {
-      let results = await global['ipfs'].add(buf)
+      let results = await global['ipfs'].add(buf, { pin: global['pinipfs'] })
       console.log(results)
       res.send({
         data: results,
@@ -48,7 +48,7 @@ export async function add(req: express.Request, res: express.Response) {
       if (fields.buffer !== undefined) {
         let buf = Buffer.from(fields.buffer, 'hex')
         try {
-          let results = await global['ipfs'].add(buf)
+          let results = await global['ipfs'].add(buf, { pin: global['pinipfs'] })
           console.log(results)
           res.send({
             data: results,
@@ -71,7 +71,7 @@ export async function add(req: express.Request, res: express.Response) {
             }
             ipfscontents.push(ipfsobj)
           }
-          global['ipfs'].add(ipfscontents).then(results => {
+          global['ipfs'].add(ipfscontents, { pin: global['pinipfs'] }).then(results => {
             res.send({
               data: results,
               status: 200
@@ -88,7 +88,7 @@ export async function add(req: express.Request, res: express.Response) {
       } else {
         if (files.file !== undefined) {
           var content = fs.readFileSync(files.file.path)
-          global['ipfs'].add(content).then(results => {
+          global['ipfs'].add(content, { pin: global['pinipfs'] }).then(results => {
             const hash = results[0].hash
             res.send({
               data: {
@@ -113,7 +113,7 @@ export async function add(req: express.Request, res: express.Response) {
 export function addfile(path) {
   return new Promise(response => {
     var content = fs.readFileSync(path)
-    global['ipfs'].add(content).then(results => {
+    global['ipfs'].add(content, { pin: global['pinipfs'] }).then(results => {
       const hash = results[0].hash
       response(hash)
     })
@@ -131,7 +131,7 @@ export function addfolder(files, folder) {
       }
       ipfscontents.push(ipfsobj)
     }
-    global['ipfs'].add(ipfscontents).then(results => {
+    global['ipfs'].add(ipfscontents, { pin: global['pinipfs'] }).then(results => {
       response(results)
     })
   })
@@ -186,14 +186,14 @@ export function getfolder(req: express.Request, res: express.Response) {
 export function getfilebuffer(req: express.Request, res: express.Response) {
   const hash = req.params.hash
   let response = false
-  let timeout = setTimeout(async function(){
+  let timeout = setTimeout(async function () {
     let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
     let bootstrap = nodes.data.split("\n")
-    for(let k in bootstrap){
+    for (let k in bootstrap) {
       let node = bootstrap[k].split(':')
-      try{
+      try {
         axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
-          if(!response && file.data.status !== 400){
+          if (!response && file.data.status !== 400) {
             response = true
             let buf = Buffer.from(file.data, 'hex')
             res.send({
@@ -204,14 +204,14 @@ export function getfilebuffer(req: express.Request, res: express.Response) {
         }).catch(e => {
           console.log("Can't connect to node")
         })
-      }catch(e){
+      } catch (e) {
         console.log("Can't connect to node.")
       }
     }
-  },500)
+  }, 500)
 
   global['ipfs'].get(hash, function (err, file) {
-    if(!response){
+    if (!response) {
       if (err) {
         console.log(err)
       } else {
@@ -229,14 +229,14 @@ export function getfilebuffer(req: express.Request, res: express.Response) {
 export function getfile(req: express.Request, res: express.Response) {
   const hash = req.params.hash
   let response = false
-  let timeout = setTimeout(async function(){
+  let timeout = setTimeout(async function () {
     let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
     let bootstrap = nodes.data.split("\n")
-    for(let k in bootstrap){
+    for (let k in bootstrap) {
       let node = bootstrap[k].split(':')
-      try{
+      try {
         axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
-          if(!response && file.data.status !== 400){
+          if (!response && file.data.status !== 400) {
             response = true
             res.setHeader('Content-Type', file.headers['content-type'])
             let buf = Buffer.from(file.data, 'hex')
@@ -245,19 +245,19 @@ export function getfile(req: express.Request, res: express.Response) {
         }).catch(e => {
           console.log("Can't connect to node")
         })
-      }catch(e){
+      } catch (e) {
         console.log("Can't connect to node.")
       }
     }
-  },500)
-  
+  }, 500)
+
   global['ipfs'].cat(hash, async function (err, file) {
     if (err) {
       global['ipfs'].ls(hash, function (err, result) {
         if (err) {
           console.log(err)
         } else {
-          if(!response){
+          if (!response) {
             response = true
             clearTimeout(timeout)
             res.send(result)
@@ -265,7 +265,7 @@ export function getfile(req: express.Request, res: express.Response) {
         }
       })
     } else {
-      if(!response){
+      if (!response) {
         response = true
         var mimetype = await fileType.fromBuffer(file)
         if (mimetype) {
@@ -279,7 +279,7 @@ export function getfile(req: express.Request, res: express.Response) {
 
 export function fallbackfile(req: express.Request, res: express.Response) {
   const hash = req.params.hash
-  
+
   global['ipfs'].cat(hash, async function (err, file) {
     if (err) {
       global['ipfs'].ls(hash, function (err, result) {
@@ -289,15 +289,15 @@ export function fallbackfile(req: express.Request, res: express.Response) {
             status: 400
           })
         } else {
-            res.send(result)
+          res.send(result)
         }
       })
     } else {
-        var mimetype = await fileType.fromBuffer(file)
-        if (mimetype) {
-          res.setHeader('Content-Type', mimetype.mime);
-        }
-        res.end(file.toString('hex'))
+      var mimetype = await fileType.fromBuffer(file)
+      if (mimetype) {
+        res.setHeader('Content-Type', mimetype.mime);
+      }
+      res.end(file.toString('hex'))
     }
   })
 };
@@ -305,28 +305,28 @@ export function fallbackfile(req: express.Request, res: express.Response) {
 export function filetype(req: express.Request, res: express.Response) {
   const hash = req.params.hash
   let response = false
-  let timeout = setTimeout(async function(){
+  let timeout = setTimeout(async function () {
     let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
     let bootstrap = nodes.data.split("\n")
-    for(let k in bootstrap){
+    for (let k in bootstrap) {
       let node = bootstrap[k].split(':')
-      try{
+      try {
         axios.get('http://' + node[1] + ':3001/ipfs-fallback-type/' + hash).then(file => {
-          if(!response && file.data.status === undefined){
+          if (!response && file.data.status === undefined) {
             response = true
             res.send(file.data)
           }
         }).catch(e => {
           console.log("Can't connect to node")
         })
-      }catch(e){
+      } catch (e) {
         console.log("Can't connect to node.")
       }
     }
-    setTimeout(function(){
-      res.send({message: "FileType not available", status: 400})
-    },5000)
-  },500)
+    setTimeout(function () {
+      res.send({ message: "FileType not available", status: 400 })
+    }, 5000)
+  }, 500)
 
   global['ipfs'].cat(hash, async function (err, file) {
     if (err) {
@@ -336,7 +336,7 @@ export function filetype(req: express.Request, res: express.Response) {
       if (mimetype) {
         let details = mimetype.mime.split('/')
         mimetype.type = details[0]
-        if(!response){
+        if (!response) {
           response = true
           clearTimeout(timeout)
           res.send({
