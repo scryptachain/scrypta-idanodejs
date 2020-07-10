@@ -477,7 +477,11 @@ module Daemon {
                                         file.refID = datastore.refID
                                         file.block = datastore.block
                                         file.time = new Date().getTime()
-                                        await db.collection("documenta").insertOne(file)
+                                        try{
+                                            await db.collection("documenta").insertOne(file)
+                                        }catch(e){
+                                            console.log('DB ERROR', e)
+                                        }
                                     } else {
                                         await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } })
                                         console.log('FILE STORED YET')
@@ -487,7 +491,11 @@ module Daemon {
                             }
 
                             if (datastore.uuid !== undefined && datastore.uuid !== '') {
-                                await db.collection("written").insertOne(datastore)
+                                try{
+                                    await db.collection("written").insertOne(datastore)
+                                }catch(e){
+                                    console.log('DB ERROR', e)
+                                }
                             }
                         } else {
                             if (datastore.block !== null) {
@@ -744,7 +752,11 @@ module Daemon {
                         let check = await db.collection('received').find({ txid: datastore.txid, address: datastore.address }).limit(1).toArray()
                         if (check[0] === undefined) {
                             console.log('STORING DATA NOW!')
-                            await db.collection("received").insertOne(datastore)
+                            try{
+                                await db.collection("received").insertOne(datastore)
+                            }catch(e){
+                                console.log('DB ERROR', e)
+                            }
                         } else {
                             console.log('DATA ALREADY STORED.')
                             if (check[0].block === undefined || check[0].block === null) {
