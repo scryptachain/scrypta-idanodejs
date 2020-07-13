@@ -29,19 +29,19 @@ export async function issue(req: express.Request, res: express.Response) {
     if (fields.name !== undefined && fields.burnable !== undefined && fields.supply !== undefined && fields.symbol !== undefined && fields.reissuable !== undefined && fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.version !== undefined && fields.private_key !== undefined && fields.decimals !== undefined) {
       let supply = parseFloat(fields.supply)
       if (supply > 0) {
-        
+
         var burnable = true
-        if(fields.burnable === 'false' || fields.burnable === false){
+        if (fields.burnable === 'false' || fields.burnable === false) {
           burnable = false
         }
 
         var reissuable = true
-        if(fields.reissuable === 'false' || fields.reissuable === false){
+        if (fields.reissuable === 'false' || fields.reissuable === false) {
           reissuable = false
         }
 
         var dna = ''
-        if(fields.dna !== undefined && fields.dna !== ''){
+        if (fields.dna !== undefined && fields.dna !== '') {
           dna = fields.dna
         }
 
@@ -206,14 +206,14 @@ export async function send(req: express.Request, res: express.Response) {
                     delete unspent[i].redeemed
                     let validateinput = await scwallet.validateinput(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, fields.from)
                     let isDoubleSpended = await scwallet.checkdoublespending(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, "")
-                    if(validateinput === true && isDoubleSpended === false){
+                    if (validateinput === true && isDoubleSpended === false) {
                       inputs.push(unspent[i])
                       usedtx.push(unspent[i].sxid + ':' + unspent[i].vout)
                       let toadd = math.round(unspent[i].amount, decimals)
                       amountinput = math.sum(amountinput, toadd)
                       amountinput = math.round(amountinput, decimals)
-                    }else{
-                      await db.collection('sc_unspent').deleteOne({"sxid": unspent[i].sxid, "vout": unspent[i].vout})
+                    } else {
+                      await db.collection('sc_unspent').deleteOne({ "sxid": unspent[i].sxid, "vout": unspent[i].vout })
                     }
                   }
                 }
@@ -223,39 +223,39 @@ export async function send(req: express.Request, res: express.Response) {
             amountinput = math.round(amountinput, decimals)
             amount = math.round(amount, decimals)
             if (amountinput >= fields.amount) {
-              
-              if(fields.to === check_sidechain[0].address && check_sidechain[0].data.burnable === false){
-                
+
+              if (fields.to === check_sidechain[0].address && check_sidechain[0].data.burnable === false) {
+
                 res.send({
                   error: true,
                   description: "Can\'t burn asset.",
                   status: 422
                 })
 
-              }else{
+              } else {
 
                 outputs[fields.to] = amount
                 totaloutputs = math.sum(totaloutputs, amount)
 
-                let change = <number> math.subtract(amountinput, amount)
+                let change = <number>math.subtract(amountinput, amount)
                 change = math.round(change, check_sidechain[0].data.genesis.decimals)
-                if(fields.to !== fields.from){
+                if (fields.to !== fields.from) {
                   if (change > 0 && fields.change === undefined) {
                     outputs[fields.from] = change
                     totaloutputs = math.sum(totaloutputs, change)
-                  } else if (change > 0 && fields.change !== undefined){
+                  } else if (change > 0 && fields.change !== undefined) {
                     // CHECK IF CHANGE ADDRESS IS VALID
                     let checkchange = await wallet.request('validateaddress', [fields.change])
                     if (checkchange['result'].isvalid === true) {
                       outputs[fields.change] = change
                       totaloutputs = math.sum(totaloutputs, change)
-                    }else{
+                    } else {
                       // IF NOT, SEND TO MAIN ADDRESS
                       outputs[fields.from] = change
                       totaloutputs = math.sum(totaloutputs, change)
                     }
                   }
-                }else{
+                } else {
                   if (change > 0) {
                     outputs[fields.from] = math.sum(change, amount)
                     outputs[fields.from] = math.round(outputs[fields.from], check_sidechain[0].data.genesis.decimals)
@@ -271,7 +271,7 @@ export async function send(req: express.Request, res: express.Response) {
                   transaction["inputs"] = inputs
                   transaction["outputs"] = outputs
                   let memo = ''
-                  if(fields.memo !== undefined){
+                  if (fields.memo !== undefined) {
                     memo = fields.memo
                   }
                   transaction["memo"] = memo
@@ -310,7 +310,7 @@ export async function send(req: express.Request, res: express.Response) {
                       global['usxocache'].push(unspent)
                       vout++
                     }
-                    
+
                   } else {
                     res.send({
                       error: true,
@@ -369,126 +369,126 @@ export async function send(req: express.Request, res: express.Response) {
 };
 
 export async function reissue(req: express.Request, res: express.Response) {
- var parser = new Utilities.Parser
- var wallet = new Crypto.Wallet
- var request = await parser.body(req)
- if (request !== false) {
-   let fields = request['body']
-   if (fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.sidechain_address !== undefined && fields.supply !== undefined && fields.private_key !== undefined) {
-     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-       const db = client.db(global['db_name'])
-       
-       let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
-       if (check_sidechain[0] !== undefined) { 
-        if(check_sidechain[0].data.genesis.reissuable === true){      
-          let supply = parseFloat(fields.supply)
-          var dna = ''
-          if(fields.dna !== undefined && fields.dna !== ''){
-            dna = fields.dna
-          }
-          
-          if(supply > 0){
-            
-            let reissue = {
-              "sidechain": fields.sidechain_address,
-              "owner": fields.dapp_address,
-              "supply": supply,
-              "dna": dna,
-              "time": new Date().getTime()
+  var parser = new Utilities.Parser
+  var wallet = new Crypto.Wallet
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
+    if (fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.sidechain_address !== undefined && fields.supply !== undefined && fields.private_key !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        if (check_sidechain[0] !== undefined) {
+          if (check_sidechain[0].data.genesis.reissuable === true) {
+            let supply = parseFloat(fields.supply)
+            var dna = ''
+            if (fields.dna !== undefined && fields.dna !== '') {
+              dna = fields.dna
             }
 
-            let sign = await wallet.signmessage(fields.private_key, JSON.stringify(reissue))
-            if (sign.address === fields.dapp_address && sign.pubkey === fields.pubkey && sign.address === check_sidechain[0].data.genesis.owner) {
-              let signature = sign.signature
-              let sxid = sign.id
-              let signed = {
-                reissue: reissue,
-                signature: signature,
-                pubkey: sign.pubkey,
-                sxid: sxid
+            if (supply > 0) {
+
+              let reissue = {
+                "sidechain": fields.sidechain_address,
+                "owner": fields.dapp_address,
+                "supply": supply,
+                "dna": dna,
+                "time": new Date().getTime()
               }
 
-              // WRITE REISSUE
-              var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
-              var collection = '!*!'
-              var refID = '!*!'
-              var protocol = '!*!chain://'
-              var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
-              let write = await wallet.write(fields.private_key, fields.dapp_address, dataToWrite, uuid, collection, refID, protocol)
+              let sign = await wallet.signmessage(fields.private_key, JSON.stringify(reissue))
+              if (sign.address === fields.dapp_address && sign.pubkey === fields.pubkey && sign.address === check_sidechain[0].data.genesis.owner) {
+                let signature = sign.signature
+                let sxid = sign.id
+                let signed = {
+                  reissue: reissue,
+                  signature: signature,
+                  pubkey: sign.pubkey,
+                  sxid: sxid
+                }
 
-              // CREATE REISSUE UNSPENT
-              var uuidtx = uuidv4().replace(new RegExp('-', 'g'), '.')
+                // WRITE REISSUE
+                var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+                var collection = '!*!'
+                var refID = '!*!'
+                var protocol = '!*!chain://'
+                var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
+                let write = await wallet.write(fields.private_key, fields.dapp_address, dataToWrite, uuid, collection, refID, protocol)
 
-              let transaction = {}
-              transaction["sidechain"] = fields.sidechain_address
-              transaction["inputs"] = [{ sxid: sxid, vout: "reissue" }]
-              transaction["outputs"] = {}
-              transaction["outputs"][fields.dapp_address] = supply
-              transaction["time"] = new Date().getTime()
+                // CREATE REISSUE UNSPENT
+                var uuidtx = uuidv4().replace(new RegExp('-', 'g'), '.')
 
-              let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
-              let reissuetx = {
-                transaction: transaction,
-                pubkey: fields.pubkey,
-                signature: signtx.signature,
-                sxid: signtx.id
+                let transaction = {}
+                transaction["sidechain"] = fields.sidechain_address
+                transaction["inputs"] = [{ sxid: sxid, vout: "reissue" }]
+                transaction["outputs"] = {}
+                transaction["outputs"][fields.dapp_address] = supply
+                transaction["time"] = new Date().getTime()
+
+                let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
+                let reissuetx = {
+                  transaction: transaction,
+                  pubkey: fields.pubkey,
+                  signature: signtx.signature,
+                  sxid: signtx.id
+                }
+                var reissuetxTxToWrite = '*!*' + uuidtx + collection + refID + protocol + '*=>' + JSON.stringify(reissuetx) + '*!*'
+                let unspent = await wallet.write(fields.private_key, fields.dapp_address, reissuetxTxToWrite, uuid, collection, refID, protocol)
+
+                res.send({
+                  reissue: signed,
+                  written: write,
+                  unspent: unspent,
+                  status: 200
+                })
+              } else {
+                res.send({
+                  error: 'Sign don\'t match',
+                  status: 402
+                })
               }
-              var reissuetxTxToWrite = '*!*' + uuidtx + collection + refID + protocol + '*=>' + JSON.stringify(reissuetx) + '*!*'
-              let unspent = await wallet.write(fields.private_key, fields.dapp_address, reissuetxTxToWrite, uuid, collection, refID, protocol)
-
+            } else {
               res.send({
-                reissue: signed,
-                written: write,
-                unspent: unspent,
-                status: 200
-              })
-            }else{
-              res.send({
-                error: 'Sign don\'t match',
-                status: 402
+                data: {
+                  error: "Supply must be greater than 0."
+                },
+                status: 422
               })
             }
-          }else{
+          } else {
             res.send({
               data: {
-                error: "Supply must be greater than 0."
+                error: "Sidechain not reissuable."
               },
               status: 422
             })
           }
-        }else{
+        } else {
           res.send({
             data: {
-              error: "Sidechain not reissuable."
+              error: "Sidechain not found."
             },
             status: 422
           })
         }
-       } else {
-         res.send({
-           data: {
-             error: "Sidechain not found."
-           },
-           status: 422
-         })
-       }
-     })
-   } else {
-     res.send({
-       data: {
-         error: "Specify all required fields first."
-       },
-       status: 422
-     })
-   }
- } else {
-   res.send({
-     data: {
-       error: "Specify all required fields first."
-     },
-     status: 422
-   })
- }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  } else {
+    res.send({
+      data: {
+        error: "Specify all required fields first."
+      },
+      status: 422
+    })
+  }
 };
 
 export async function getsidechain(req: express.Request, res: express.Response) {
@@ -603,11 +603,11 @@ export async function transactions(req: express.Request, res: express.Response) 
               delete txs[tx]._id
               var isGenesis = false
               var isReissue = false
-              for(let x in txs[tx].transaction.inputs){
-                if(txs[tx].transaction.inputs[x].vout === 'genesis'){
+              for (let x in txs[tx].transaction.inputs) {
+                if (txs[tx].transaction.inputs[x].vout === 'genesis') {
                   isGenesis = true
                   from = "GENESIS"
-                }else if(txs[tx].transaction.inputs[x].vout === 'reissue'){
+                } else if (txs[tx].transaction.inputs[x].vout === 'reissue') {
                   isReissue = true
                   from = "REISSUE"
                 }
@@ -615,32 +615,32 @@ export async function transactions(req: express.Request, res: express.Response) 
               let to
               let amount
 
-              if(!isGenesis && !isReissue){
-                for(let y in txs[tx].transaction.outputs){
+              if (!isGenesis && !isReissue) {
+                for (let y in txs[tx].transaction.outputs) {
                   if (y !== from) {
                     amount = txs[tx].transaction.outputs[y]
                   }
                 }
-                
+
                 for (let address in txs[tx].transaction.outputs) {
                   if (address !== from) {
                     to = address
                   }
                 }
 
-                if(to !== fields.dapp_address){
+                if (to !== fields.dapp_address) {
                   amount = amount * -1
                 }
-                if(to === undefined){
+                if (to === undefined) {
                   to = from
                   amount = txs[tx].transaction.outputs[to]
                 }
-              }else{
+              } else {
                 to = await wallet.getAddressFromPubKey(txs[tx].pubkey)
                 amount = txs[tx].transaction.outputs[to]
               }
               let memo = ''
-              if(txs[tx].transaction.memo !== undefined){
+              if (txs[tx].transaction.memo !== undefined) {
                 memo = txs[tx].transaction.memo
               }
               let analyzed = {
@@ -653,19 +653,19 @@ export async function transactions(req: express.Request, res: express.Response) 
                 block: txs[tx].block
               }
 
-              if(txs[tx].block !== null){
+              if (txs[tx].block !== null) {
                 transactions.push(analyzed)
-              }else{
+              } else {
                 unconfirmed.push(analyzed)
               }
             }
           }
-          
+
           let response_txs = []
-          for(let x in unconfirmed){
+          for (let x in unconfirmed) {
             response_txs.push(unconfirmed[x])
           }
-          for(let y in transactions){
+          for (let y in transactions) {
             response_txs.push(transactions[y])
           }
 
@@ -712,9 +712,16 @@ export async function listunspent(req: express.Request, res: express.Response) {
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         var scwallet = new Sidechain.Wallet;
         let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
+        
+        let balance = 0
+        for (let k in unspent) {
+          balance += unspent[k].amount
+        }
+
         if (check_sidechain[0] !== undefined) {
           res.json({
             unspent: unspent,
+            balance: balance,
             sidechain: check_sidechain[0].address
           })
         } else {
@@ -829,8 +836,8 @@ export async function scanchain(req: express.Request, res: express.Response) {
             delete sidechain_datas[x]._id
             sidechain_datas[x].address = await wallet.getAddressFromPubKey(sidechain_datas[x].pubkey)
           }
-          sidechain_datas.sort(function(a, b) {
-              return parseFloat(b.transaction.time) - parseFloat(a.transaction.time);
+          sidechain_datas.sort(function (a, b) {
+            return parseFloat(b.transaction.time) - parseFloat(a.transaction.time);
           });
           res.send({
             data: sidechain_datas,
@@ -870,108 +877,108 @@ export async function validatetransaction(req: express.Request, res: express.Res
   if (request !== false) {
     let fields = request['body']
     let transactionToValidate = fields.transaction.transaction
-    if(transactionToValidate !== undefined){
-      mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+    if (transactionToValidate !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         var db = client.db(global['db_name'])
         var scwallet = new Sidechain.Wallet;
-        let check_sidechain = await db.collection('written').find({ address: transactionToValidate.sidechain, "data.genesis": {$exists: true} }).sort({ block: 1 }).limit(1).toArray()
-        if(check_sidechain[0] !== undefined){
+        let check_sidechain = await db.collection('written').find({ address: transactionToValidate.sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        if (check_sidechain[0] !== undefined) {
           let valid = true
           var amountinput = 0
           var amountoutput = 0
           var isGenesis = false
 
-          if(transactionToValidate.inputs.length > 0){
-              for(let x in transactionToValidate.inputs){
-                  let sxid = transactionToValidate.inputs[x].sxid
-                  let vout = transactionToValidate.inputs[x].vout
-                  let validategenesis = await scwallet.validategenesis(sxid, transactionToValidate.sidechain)
-                  if(validategenesis === false){
-                      let validateinput = await scwallet.validateinput(sxid, vout, transactionToValidate.sidechain, fields.address)
-                      if(validateinput === false){
-                          valid = false
-                          res.send({
-                            message: "Input " + sxid + ':'+ vout + " not valid.",
-                            error: true,
-                            status: 404
-                          })
-                      }else if(validateinput === true){
-                          let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, transactionToValidate.sidechain, fields.sxid)
-                          if(isDoubleSpended === true){
-                              valid = false
-                              res.send({
-                                message: "Input " + sxid + ':'+ vout + " is spended yet.",
-                                error: true,
-                                status: 404
-                              })
-                          }
-                      }
-                  }
-                  // CHECKING GENESIS
-                  if(transactionToValidate.inputs[x].vout === 'genesis' || transactionToValidate.inputs[x].vout === 'reissue'){
-                      isGenesis = true
-                  }
-                  if(check_sidechain[0].data.genesis !== undefined){
-                      if(valid === true && transactionToValidate.inputs[x].amount !== undefined){
-                          let fixed = math.round(transactionToValidate.inputs[x].amount,check_sidechain[0].data.genesis.decimals)
-                          amountinput = math.sum(amountinput, fixed)
-                      }
-                  }else{
-                      valid = false
-                      res.send({
-                        message: "Sidechain doesn't exist.",
-                        error: true,
-                        status: 404
-                      })
-                  }
-              }
-          }else{
-              valid = false
-          }
-
-          if(check_sidechain[0].data.genesis !== undefined){
-              if(valid === true){
-                  for(let x in transactionToValidate.outputs){
-                      let fixed = math.round(transactionToValidate.outputs[x], check_sidechain[0].data.genesis.decimals)
-                      amountoutput = math.sum(amountoutput, fixed)
-                  }
-              }
-              amountoutput = math.round(amountoutput, check_sidechain[0].data.genesis.decimals)
-              amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
-          }else{
-              valid = false
-          }
-
-          if(!isGenesis){
-              if(valid === true && amountoutput > amountinput){
+          if (transactionToValidate.inputs.length > 0) {
+            for (let x in transactionToValidate.inputs) {
+              let sxid = transactionToValidate.inputs[x].sxid
+              let vout = transactionToValidate.inputs[x].vout
+              let validategenesis = await scwallet.validategenesis(sxid, transactionToValidate.sidechain)
+              if (validategenesis === false) {
+                let validateinput = await scwallet.validateinput(sxid, vout, transactionToValidate.sidechain, fields.address)
+                if (validateinput === false) {
                   valid = false
                   res.send({
-                    message: "Output amount is higher than input amount",
+                    message: "Input " + sxid + ':' + vout + " not valid.",
                     error: true,
                     status: 404
                   })
+                } else if (validateinput === true) {
+                  let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, transactionToValidate.sidechain, fields.sxid)
+                  if (isDoubleSpended === true) {
+                    valid = false
+                    res.send({
+                      message: "Input " + sxid + ':' + vout + " is spended yet.",
+                      error: true,
+                      status: 404
+                    })
+                  }
+                }
               }
+              // CHECKING GENESIS
+              if (transactionToValidate.inputs[x].vout === 'genesis' || transactionToValidate.inputs[x].vout === 'reissue') {
+                isGenesis = true
+              }
+              if (check_sidechain[0].data.genesis !== undefined) {
+                if (valid === true && transactionToValidate.inputs[x].amount !== undefined) {
+                  let fixed = math.round(transactionToValidate.inputs[x].amount, check_sidechain[0].data.genesis.decimals)
+                  amountinput = math.sum(amountinput, fixed)
+                }
+              } else {
+                valid = false
+                res.send({
+                  message: "Sidechain doesn't exist.",
+                  error: true,
+                  status: 404
+                })
+              }
+            }
+          } else {
+            valid = false
+          }
+
+          if (check_sidechain[0].data.genesis !== undefined) {
+            if (valid === true) {
+              for (let x in transactionToValidate.outputs) {
+                let fixed = math.round(transactionToValidate.outputs[x], check_sidechain[0].data.genesis.decimals)
+                amountoutput = math.sum(amountoutput, fixed)
+              }
+            }
+            amountoutput = math.round(amountoutput, check_sidechain[0].data.genesis.decimals)
+            amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
+          } else {
+            valid = false
+          }
+
+          if (!isGenesis) {
+            if (valid === true && amountoutput > amountinput) {
+              valid = false
+              res.send({
+                message: "Output amount is higher than input amount",
+                error: true,
+                status: 404
+              })
+            }
           }
 
           // CHECK SIGNATURE
           var wallet = new Crypto.Wallet;
-          if(valid === true && fields.pubkey !== undefined && fields.signature !== undefined && transactionToValidate !== undefined){
-              let validatesign = await wallet.verifymessage(fields.pubkey,fields.signature,JSON.stringify(transactionToValidate))
-              if(validatesign === false){
-                  valid = false
-              }
-          }else{
+          if (valid === true && fields.pubkey !== undefined && fields.signature !== undefined && transactionToValidate !== undefined) {
+            let validatesign = await wallet.verifymessage(fields.pubkey, fields.signature, JSON.stringify(transactionToValidate))
+            if (validatesign === false) {
               valid = false
+            }
+          } else {
+            valid = false
           }
-          
-          if(valid === true){
+
+          if (valid === true) {
             res.send({
               message: "Transaction is valid",
               valid: true,
               status: 200
             })
           }
-        }else{
+        } else {
           res.send({
             message: "Sidechain doesn't exist",
             error: true,
@@ -979,7 +986,7 @@ export async function validatetransaction(req: express.Request, res: express.Res
           })
         }
       })
-  }
+    }
   }
 }
 
@@ -998,24 +1005,24 @@ export async function verifychain(req: express.Request, res: express.Response) {
         let errors = []
         if (sidechain_datas[0] !== undefined) {
           for (let x in sidechain_datas) {
-            if(verified === true){
+            if (verified === true) {
               let pubkey
-              if(sidechain_datas[x].pubkey !== undefined){
+              if (sidechain_datas[x].pubkey !== undefined) {
                 pubkey = sidechain_datas[x].pubkey
-              }else if(sidechain_datas[x].pubKey !== undefined){
+              } else if (sidechain_datas[x].pubKey !== undefined) {
                 pubkey = sidechain_datas[x].pubKey
               }
-              if(pubkey !== undefined && pubkey.length > 0){
-                let validatesign = await wallet.verifymessage(pubkey,sidechain_datas[x].signature,JSON.stringify(sidechain_datas[x].transaction))
-                if(validatesign !== false){
+              if (pubkey !== undefined && pubkey.length > 0) {
+                let validatesign = await wallet.verifymessage(pubkey, sidechain_datas[x].signature, JSON.stringify(sidechain_datas[x].transaction))
+                if (validatesign !== false) {
                   let inputs = sidechain_datas[x].transaction.inputs
-                  for(let y in inputs){
+                  for (let y in inputs) {
                     let input = inputs[y]
-                    if(input.vout !== "genesis" && input.vout !== "reissue"){
+                    if (input.vout !== "genesis" && input.vout !== "reissue") {
                       let block = sidechain_datas[x].block
                       let validateinput = await sidechain.checkinputspent(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
-                      let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address,  sidechain_datas[x].sxid)
-                      if(validateinput === false || isdoublespended === true){
+                      let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address, sidechain_datas[x].sxid)
+                      if (validateinput === false || isdoublespended === true) {
                         verified = false
                         // await db.collection('sc_transactions').deleteOne({ "sxid": sidechain_datas[x].sxid })
                         // await db.collection('sc_unspent').deleteMany({ "sxid": sidechain_datas[x].sxid })
@@ -1024,11 +1031,11 @@ export async function verifychain(req: express.Request, res: express.Response) {
                       }
                     }
                   }
-                }else{
+                } else {
                   console.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))
                   verified = false
                 }
-              }else{
+              } else {
                 console.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))
                 verified = false
               }
@@ -1123,7 +1130,7 @@ export function listchains(req: express.Request, res: express.Response) {
         let sidechain_addresses = []
         for (let x in sidechain_datas) {
           if (sidechain_datas[x].data.genesis !== undefined && sidechain_datas[x].data.genesis.time !== undefined) {
-            if(sidechain_addresses.indexOf(sidechain_datas[x].address) === -1){
+            if (sidechain_addresses.indexOf(sidechain_datas[x].address) === -1) {
 
               sidechain_addresses.push(sidechain_datas[x].address)
               sidechain_datas[x].data.address = sidechain_datas[x].address
@@ -1131,16 +1138,16 @@ export function listchains(req: express.Request, res: express.Response) {
 
               let txs = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain_datas[x].address }).sort({ block: -1 }).toArray()
               let last = txs[0]
-              for(let yy in txs){
+              for (let yy in txs) {
                 let ts = math.round(txs[yy].transaction.time / 1000)
                 var tsNow = math.round(new Date().getTime() / 1000)
                 var tsYesterday = tsNow - (24 * 3600)
-                if(ts >= tsYesterday){
+                if (ts >= tsYesterday) {
                   sidechain_datas[x].data.last_24++
                 }
               }
-              
-              if(last !== undefined){
+
+              if (last !== undefined) {
                 sidechain_datas[x].data.last_tx = {
                   time: parser.timeToDate(last.transaction.time),
                   sxid: last.sxid,
@@ -1152,8 +1159,8 @@ export function listchains(req: express.Request, res: express.Response) {
             }
           }
         }
-        
-        sidechains.sort(function(a, b) {
+
+        sidechains.sort(function (a, b) {
           return parseFloat(b.last_24) - parseFloat(a.last_24);
         })
 
@@ -1185,19 +1192,19 @@ export async function shares(req: express.Request, res: express.Response) {
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         let decimals = check_sidechain[0].data.genesis.decimals
         if (check_sidechain[0] !== undefined) {
-          
-          let unspents = await db.collection('sc_unspent').find({sidechain: fields.sidechain_address, redeemed: null}).sort({ block: 1 }).toArray()
+
+          let unspents = await db.collection('sc_unspent').find({ sidechain: fields.sidechain_address, redeemed: null }).sort({ block: 1 }).toArray()
           let addresses = {}
           let shares = {}
           let percentages = {}
           let cap = 0
           let burned = 0
           let sxids = []
-          for(let x in unspents){
+          for (let x in unspents) {
             let unspent = unspents[x]
-            if(unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid) === -1){
+            if (unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid + ':' + unspent.vout) === -1) {
               sxids.push(unspent.sxid + ':' + unspent.vout)
-              if(addresses[unspent.address] === undefined){
+              if (addresses[unspent.address] === undefined) {
                 addresses[unspent.address] = 0
               }
               let amount = math.round(unspent.amount, decimals)
@@ -1206,21 +1213,21 @@ export async function shares(req: express.Request, res: express.Response) {
             }
           }
 
-          for(let address in addresses){
-            let percentage = math.evaluate('100 / '+ cap +  ' * ' + addresses[address])
+          for (let address in addresses) {
+            let percentage = math.evaluate('100 / ' + cap + ' * ' + addresses[address])
             percentages[address] = math.round(percentage, decimals)
           }
-          
-          let keysSorted = Object.keys(addresses).sort(function(a,b){return addresses[b] - addresses[a]})
-          for(let x in keysSorted){
+
+          let keysSorted = Object.keys(addresses).sort(function (a, b) { return addresses[b] - addresses[a] })
+          for (let x in keysSorted) {
             let k = keysSorted[x]
             shares[k] = {
               balance: math.round(addresses[k], decimals),
               shares: percentages[k]
             }
           }
-          
-          if(addresses[fields.sidechain_address] !== undefined){
+
+          if (addresses[fields.sidechain_address] !== undefined) {
             burned = addresses[fields.sidechain_address]
           }
 
@@ -1233,7 +1240,7 @@ export async function shares(req: express.Request, res: express.Response) {
             sidechain: check_sidechain[0].address,
             hash: sidechain_hash
           })
-          
+
         } else {
           res.send({
             data: {
