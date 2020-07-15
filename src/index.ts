@@ -18,6 +18,7 @@ global['state'] = 'OFF'
 global['db_url'] = 'mongodb://localhost:27017'
 global['db_options'] = {useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
+global['isAnalyzing'] = false
 if(process.env.PINIPFS !== undefined && process.env.PINIPFS === 'true'){
   global['pinipfs'] = true
 }else{
@@ -148,11 +149,11 @@ async function checkConnections(){
     }else{
       console.log('Can\'t communicate with wallet, running process now.')
       var testnet_flag = ''
-      if(is_testnet){
-          testnet_flag = '-testnet'
-          console.log('RUNNING WALLET IN TESTNET MODE')
-      }
       if(process.env.LYRAPATH !== undefined && process.env.LYRAFOLDER !== undefined){
+        if(is_testnet){
+            testnet_flag = '-testnet'
+            console.log('RUNNING WALLET IN TESTNET MODE')
+        }
         exec.spawn(process.env.LYRAPATH + '/lyrad ' + '-datadir=' + process.env.LYRAFOLDER,{
           stdio: 'ignore',
           detached: true
@@ -161,6 +162,10 @@ async function checkConnections(){
         })
       }else{
         if(process.env.LYRAPATH !== undefined){
+          if(is_testnet){
+            testnet_flag = '-testnet'
+            console.log('RUNNING WALLET IN TESTNET MODE')
+          }
           exec.spawn(process.env.LYRAPATH + '/lyrad', [testnet_flag],{
             stdio: 'ignore',
             detached: true

@@ -189,7 +189,8 @@ module Daemon {
                         analyze = toAnalyze
                     }
                     // ANALYZING BLOCK
-                    if (analyze > 0) {
+                    if (analyze > 0 && global['isAnalyzing'] === false) {
+                        global['isAnalyzing'] = true
                         console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
 
                         var wallet = new Crypto.Wallet
@@ -283,12 +284,14 @@ module Daemon {
 
                         var remains = blocks - analyze
                         console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
-
+                        global['isAnalyzing'] = false
                         response(block['height'])
                     } else {
+                        global['isAnalyzing'] = false
                         response(false)
                     }
                 } catch (e) {
+                    global['isAnalyzing'] = false
                     response(false)
                 }
             })

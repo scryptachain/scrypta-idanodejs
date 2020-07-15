@@ -693,55 +693,33 @@ module Crypto {
 
                         var rawtx = await wallet.request('getrawtransaction', [txid])
                         var tx = await wallet.request('decoderawtransaction', [rawtx['result']])
-                        block['result']['tx'][i] = tx['result']
+                        if(tx !== undefined){
+                            block['result']['tx'][i] = tx['result']
 
-                        var txtotvin = 0
-                        var txtotvout = 0
-                        block['result']['analysis'][txid] = {}
-                        block['result']['analysis'][txid]['vin'] = 0
-                        block['result']['analysis'][txid]['vout'] = 0
-                        block['result']['analysis'][txid]['balances'] = {}
+                            var txtotvin = 0
+                            var txtotvout = 0
+                            block['result']['analysis'][txid] = {}
+                            block['result']['analysis'][txid]['vin'] = 0
+                            block['result']['analysis'][txid]['vout'] = 0
+                            block['result']['analysis'][txid]['balances'] = {}
 
-                        //FETCHING ALL VIN
-                        for(var vinx = 0; vinx < block['result']['tx'][i]['vin'].length; vinx++){
-                            var vout = block['result']['tx'][i]['vin'][vinx]['vout']
-                            if(block['result']['tx'][i]['vin'][vinx]['txid']){
-                                //console.log('ANALYZING VIN ' + vinx)
-                                var rawtxvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid']])
-                                var txvin = await wallet.request('decoderawtransaction', [rawtxvin['result']])
-                                let input = {
-                                    txid: tx['result']['vin'][vinx]['txid'],
-                                    vout: txvin['result']['vout'][vout]['n']
-                                }
-                                block['result']['inputs'].push(input)
-                                block['result']['tx'][i]['vin'][vinx]['value'] = txvin['result']['vout'][vout]['value']
-                                block['result']['totvin'] += txvin['result']['vout'][vout]['value']
-                                block['result']['tx'][i]['vin'][vinx]['addresses'] = txvin['result']['vout'][vout]['scriptPubKey']['addresses']
-                                for(var key in txvin['result']['vout'][vout]['scriptPubKey']['addresses']){
-                                    var address = txvin['result']['vout'][vout]['scriptPubKey']['addresses'][key]
-                                    if(block['result']['analysis'][txid]['balances'][address] === undefined){
-                                        block['result']['analysis'][txid]['balances'][address] = {}
-                                        block['result']['analysis'][txid]['balances'][address]['value'] = 0
-                                        block['result']['analysis'][txid]['balances'][address]['type'] = 'TX'
-                                        block['result']['analysis'][txid]['balances'][address]['vin'] = 0
-                                        block['result']['analysis'][txid]['balances'][address]['vout'] = 0
+                            //FETCHING ALL VIN
+                            for(var vinx = 0; vinx < block['result']['tx'][i]['vin'].length; vinx++){
+                                var vout = block['result']['tx'][i]['vin'][vinx]['vout']
+                                if(block['result']['tx'][i]['vin'][vinx]['txid']){
+                                    //console.log('ANALYZING VIN ' + vinx)
+                                    var rawtxvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid']])
+                                    var txvin = await wallet.request('decoderawtransaction', [rawtxvin['result']])
+                                    let input = {
+                                        txid: tx['result']['vin'][vinx]['txid'],
+                                        vout: txvin['result']['vout'][vout]['n']
                                     }
-                                    block['result']['analysis'][txid]['balances'][address]['value'] -= txvin['result']['vout'][vout]['value']
-                                    block['result']['analysis'][txid]['vin'] += txvin['result']['vout'][vout]['value']
-                                    block['result']['analysis'][txid]['balances'][address]['vin'] += txvin['result']['vout'][vout]['value']
-                                    txtotvin += txvin['result']['vout'][vout]['value']
-                                }
-                            }
-                        }
-                        //PARSING ALL VOUT
-                        var receivingaddress = ''
-                        for(var voutx = 0; voutx < block['result']['tx'][i]['vout'].length; voutx++){
-                            //console.log('ANALYZING VOUT ' + voutx)
-                            if(block['result']['tx'][i]['vout'][voutx]['value'] >= 0){
-                                block['result']['totvout'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                //CHECKING VALUES OUT
-                                if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses']){
-                                    block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses'].forEach(function(address, index){
+                                    block['result']['inputs'].push(input)
+                                    block['result']['tx'][i]['vin'][vinx]['value'] = txvin['result']['vout'][vout]['value']
+                                    block['result']['totvin'] += txvin['result']['vout'][vout]['value']
+                                    block['result']['tx'][i]['vin'][vinx]['addresses'] = txvin['result']['vout'][vout]['scriptPubKey']['addresses']
+                                    for(var key in txvin['result']['vout'][vout]['scriptPubKey']['addresses']){
+                                        var address = txvin['result']['vout'][vout]['scriptPubKey']['addresses'][key]
                                         if(block['result']['analysis'][txid]['balances'][address] === undefined){
                                             block['result']['analysis'][txid]['balances'][address] = {}
                                             block['result']['analysis'][txid]['balances'][address]['value'] = 0
@@ -749,60 +727,84 @@ module Crypto {
                                             block['result']['analysis'][txid]['balances'][address]['vin'] = 0
                                             block['result']['analysis'][txid]['balances'][address]['vout'] = 0
                                         }
-                                        block['result']['analysis'][txid]['balances'][address]['value'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                        block['result']['analysis'][txid]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                        block['result']['analysis'][txid]['balances'][address]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                        txtotvout += block['result']['tx'][i]['vout'][voutx]['value']
-                                        if(receivingaddress === ''){
-                                            receivingaddress = address
-                                        }
-
-                                        let outputs = {
-                                            txid: txid,
-                                            vout: voutx,
-                                            address: address,
-                                            scriptPubKey: block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'],
-                                            amount: block['result']['tx'][i]['vout'][voutx]['value']
-                                        }
-                                        block['result']['outputs'].push(outputs)
-                                    })
-                                }
-                                //CHECKING OP_RETURN
-                                if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1){
-                                    //console.log('CHECKING OP_RETURN')
-                                    var parser = new Utilities.Parser
-                                    var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
-                                    var addressdata
-                                    var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
-                                    if(addresswrite === receivingaddress || receivingaddress === ''){
-                                        addressdata = addresswrite
-                                        if(block['result']['raw_written'][addressdata] === undefined){
-                                            block['result']['raw_written'][addressdata] = []
-                                        }
-                                        block['result']['raw_written'][addressdata].push(OP_RETURN)
-                                    }else{
-                                        addressdata = receivingaddress
-                                        if(block['result']['data_received'][addressdata] === undefined){
-                                            block['result']['data_received'][addressdata] = []
-                                        }
-                                        block['result']['data_received'][addressdata].push({
-                                            txid: txid,
-                                            block: block['result']['height'],
-                                            address: addressdata,
-                                            sender: addresswrite,
-                                            data: OP_RETURN
-                                        })
+                                        block['result']['analysis'][txid]['balances'][address]['value'] -= txvin['result']['vout'][vout]['value']
+                                        block['result']['analysis'][txid]['vin'] += txvin['result']['vout'][vout]['value']
+                                        block['result']['analysis'][txid]['balances'][address]['vin'] += txvin['result']['vout'][vout]['value']
+                                        txtotvin += txvin['result']['vout'][vout]['value']
                                     }
-
                                 }
                             }
-                        }
+                            //PARSING ALL VOUT
+                            var receivingaddress = ''
+                            for(var voutx = 0; voutx < block['result']['tx'][i]['vout'].length; voutx++){
+                                //console.log('ANALYZING VOUT ' + voutx)
+                                if(block['result']['tx'][i]['vout'][voutx]['value'] >= 0){
+                                    block['result']['totvout'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                    //CHECKING VALUES OUT
+                                    if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses']){
+                                        block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses'].forEach(function(address, index){
+                                            if(block['result']['analysis'][txid]['balances'][address] === undefined){
+                                                block['result']['analysis'][txid]['balances'][address] = {}
+                                                block['result']['analysis'][txid]['balances'][address]['value'] = 0
+                                                block['result']['analysis'][txid]['balances'][address]['type'] = 'TX'
+                                                block['result']['analysis'][txid]['balances'][address]['vin'] = 0
+                                                block['result']['analysis'][txid]['balances'][address]['vout'] = 0
+                                            }
+                                            block['result']['analysis'][txid]['balances'][address]['value'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                            block['result']['analysis'][txid]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                            block['result']['analysis'][txid]['balances'][address]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                            txtotvout += block['result']['tx'][i]['vout'][voutx]['value']
+                                            if(receivingaddress === ''){
+                                                receivingaddress = address
+                                            }
 
-                        //CHECKING GENERATION
-                        var generated = 0
-                        if(txtotvin < txtotvout){
-                            generated = txtotvout - txtotvin
-                            block['result']['generated'] = generated
+                                            let outputs = {
+                                                txid: txid,
+                                                vout: voutx,
+                                                address: address,
+                                                scriptPubKey: block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'],
+                                                amount: block['result']['tx'][i]['vout'][voutx]['value']
+                                            }
+                                            block['result']['outputs'].push(outputs)
+                                        })
+                                    }
+                                    //CHECKING OP_RETURN
+                                    if(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1){
+                                        //console.log('CHECKING OP_RETURN')
+                                        var parser = new Utilities.Parser
+                                        var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
+                                        var addressdata
+                                        var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
+                                        if(addresswrite === receivingaddress || receivingaddress === ''){
+                                            addressdata = addresswrite
+                                            if(block['result']['raw_written'][addressdata] === undefined){
+                                                block['result']['raw_written'][addressdata] = []
+                                            }
+                                            block['result']['raw_written'][addressdata].push(OP_RETURN)
+                                        }else{
+                                            addressdata = receivingaddress
+                                            if(block['result']['data_received'][addressdata] === undefined){
+                                                block['result']['data_received'][addressdata] = []
+                                            }
+                                            block['result']['data_received'][addressdata].push({
+                                                txid: txid,
+                                                block: block['result']['height'],
+                                                address: addressdata,
+                                                sender: addresswrite,
+                                                data: OP_RETURN
+                                            })
+                                        }
+
+                                    }
+                                }
+                            }
+
+                            //CHECKING GENERATION
+                            var generated = 0
+                            if(txtotvin < txtotvout){
+                                generated = txtotvout - txtotvin
+                                block['result']['generated'] = generated
+                            }
                         }
                     }
 
