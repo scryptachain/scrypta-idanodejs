@@ -30,6 +30,7 @@ module Daemon {
     export class Sync {
 
         public async init() {
+            
             var wallet = new Crypto.Wallet
             // console.clear()
             wallet.request('getinfo').then(info => {
@@ -141,6 +142,7 @@ module Daemon {
                                 var task = new Daemon.Sync
                                 let synced = await task.analyze()
                                 console.log('SUCCESSFULLY SYNCED BLOCK ' + synced)
+                                global['retrySync'] = 0
                                 if (synced !== false) {
                                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                                         var db = client.db(global['db_name'])
