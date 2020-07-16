@@ -19,6 +19,7 @@ global['db_url'] = 'mongodb://localhost:27017'
 global['db_options'] = {useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
 global['isAnalyzing'] = false
+global['retrySync'] = 0
 if(process.env.PINIPFS !== undefined && process.env.PINIPFS === 'true'){
   global['pinipfs'] = true
 }else{
@@ -74,7 +75,6 @@ async function checkConnections(){
     }
   }
 
-  let retrysync = 0
   var wallet = new Crypto.Wallet;
   wallet.request('getinfo').then( async function(info){
     if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
@@ -108,10 +108,11 @@ async function checkConnections(){
               runIdaNode()
             }
             var sync = (process.env.SYNC === 'true')
-            retrysync ++
+            global['retrySync'] ++
+            console.log('This is retry n.' + global['retrySync'])
             if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
               console.log('Starting sync.')
-              retrysync = 0
+              global['retrySync'] = 0
               var task = new Daemon.Sync
               task.init()
               if(process.env.S3_BUCKET !== undefined){
@@ -119,13 +120,13 @@ async function checkConnections(){
                 space.syncSpace()
               }
             }
-
-            if(retrysync > 29){
+            if(global['retrySync'] > 29){
               console.log('Forcing sync.')
-              retrysync = 0
+              global['isSyncing'] = false
+              global['retrySync'] = 0
               var task = new Daemon.Sync
               task.init()
-              global['isSyncing'] = false
+              global['state'] = 'ON'
             }
             client.close()
           }
