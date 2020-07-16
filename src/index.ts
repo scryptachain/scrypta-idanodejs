@@ -109,7 +109,6 @@ async function checkConnections(){
             }
             var sync = (process.env.SYNC === 'true')
             global['retrySync'] ++
-            console.log('This is retry n.' + global['retrySync'])
             if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
               console.log('Starting sync.')
               global['retrySync'] = 0
@@ -120,7 +119,7 @@ async function checkConnections(){
                 space.syncSpace()
               }
             }
-            if(global['retrySync'] > 29){
+            if(global['retrySync'] > 119){
               console.log('Forcing sync.')
               global['isSyncing'] = false
               global['retrySync'] = 0
