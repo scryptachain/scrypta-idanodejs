@@ -33,7 +33,8 @@ const helmet = require('helmet')
 var limiter = rateLimit({
   windowMs: 10 * 60 * 1000, 
   max: 150 
-});
+})
+
 if(process.env.RATELIMIT !== undefined){
   limiter = rateLimit({
     windowMs: 10 * 60 * 1000, 
@@ -119,7 +120,7 @@ async function checkConnections(){
                 space.syncSpace()
               }
             }
-            if(global['retrySync'] > 119){
+            if(global['retrySync'] > 14){
               console.log('Forcing sync.')
               global['isSyncing'] = false
               global['retrySync'] = 0
@@ -234,7 +235,7 @@ async function runIdaNode(){
   var result = await DB.check()
   console.log(result)
   var sync = (process.env.SYNC === 'true')
-  // CHECKING CONNETIONS EVERY 1 SECONDS
+  // CHECKING CONNETIONS EVERY 1 SECOND
   let valid = await checkIntegrity()
   if(!valid){
     console.error('IDANODE IS CORRUPTED, PLEASE CHECK FILES!')

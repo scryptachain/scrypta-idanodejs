@@ -143,26 +143,34 @@ module Space {
             for(let k in stored){
               let file = stored[k]
               if (files[file.address] === undefined || files[file.address].indexOf(file.file) === -1) {
+                if(process.env.DEBUG === 'full'){
+                  console.info('NEED TO DOWNLOAD THE FILE AND UPLOAD AGAIN')
+                }
                 let endpoint = LZUTF8.decompress(file.endpoint, { inputEncoding: "Base64" })
                 let url = 'https://' + endpoint + '/' + file.address + '/' + file.file
                 try {
                   let downloaded = await axios.get(url, { responseType: 'arraybuffer' })
                   if (downloaded.data !== undefined) {
                     let uploaded = await space.uploadToSpace(file.file, downloaded.data, file.address)
-                    if (uploaded === false) {
-                      console.log('CAN\'T UPLOAD FILE!')
-                    } else {
-                      console.info('UPLOADED CORRECTLY')
+                    if(process.env.DEBUG === 'full'){
+                      if (uploaded === false) {
+                        console.log('CAN\'T UPLOAD FILE!')
+                      } else {
+                        console.info('UPLOADED CORRECTLY')
+                      }
                     }
                   } else {
-                    console.error('CAN\'T DOWNLOAD FILE!')
+                    if(process.env.DEBUG === 'full'){
+                      console.error('CAN\'T DOWNLOAD FILE!')
+                    }
                   }
                 } catch (e) {
                   console.error('CAN\'T DOWNLOAD FILE!')
                 }
-                console.info('NEED TO DOWNLOAD THE FILE AND UPLOAD AGAIN')
               } else {
-                console.log('FILE IS IN THE SPACE YET')
+                if(process.env.DEBUG === 'full'){
+                  console.log('FILE IS IN THE SPACE YET')
+                }
               }
             }
             global['isChecking'] = false
@@ -170,7 +178,7 @@ module Space {
         }
       }
     }
-
+    
   }
 
 }

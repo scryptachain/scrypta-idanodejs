@@ -30,7 +30,7 @@ module Daemon {
     export class Sync {
 
         public async init() {
-            
+
             var wallet = new Crypto.Wallet
             // console.clear()
             wallet.request('getinfo').then(info => {
@@ -141,9 +141,9 @@ module Daemon {
                             try {
                                 var task = new Daemon.Sync
                                 let synced = await task.analyze()
-                                console.log('SUCCESSFULLY SYNCED BLOCK ' + synced)
                                 global['retrySync'] = 0
                                 if (synced !== false) {
+                                    console.log('\x1b[46m%s\x1b[0m','SUCCESSFULLY SYNCED BLOCK ' + synced)
                                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                                         var db = client.db(global['db_name'])
                                         const savecheck = await db.collection('blocks').find({ block: synced }).toArray()
@@ -157,6 +157,7 @@ module Daemon {
                                         }, 10)
                                     })
                                 } else {
+                                    console.log('\x1b[41m%s\x1b[0m','BLOCK NOT SYNCED, RETRY.')
                                     setTimeout(function () {
                                         var task = new Daemon.Sync
                                         task.process()
@@ -283,6 +284,8 @@ module Daemon {
                                 }
                             }
                         }
+
+                        await task.consolidateStored()
 
                         var remains = blocks - analyze
                         console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
@@ -482,9 +485,9 @@ module Daemon {
                                         file.refID = datastore.refID
                                         file.block = datastore.block
                                         file.time = new Date().getTime()
-                                        try{
+                                        try {
                                             await db.collection("documenta").insertOne(file)
-                                        }catch(e){
+                                        } catch (e) {
                                             console.log('DB ERROR', e)
                                         }
                                     } else {
@@ -496,9 +499,9 @@ module Daemon {
                             }
 
                             if (datastore.uuid !== undefined && datastore.uuid !== '') {
-                                try{
+                                try {
                                     await db.collection("written").insertOne(datastore)
-                                }catch(e){
+                                } catch (e) {
                                     console.log('DB ERROR', e)
                                 }
                             }
@@ -529,6 +532,7 @@ module Daemon {
                         datastore.block = block
                         if (datastore.protocol === 'chain://') {
                             // SEARCHING FOR GENESIS
+                            datastore.data.txid = datastore.txid
                             if (datastore.data.genesis !== undefined) {
                                 let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                 if (check[0] === undefined) {
@@ -671,6 +675,7 @@ module Daemon {
                                             for (let x in datastore.data.transaction.outputs) {
                                                 let amount = datastore.data.transaction.outputs[x]
                                                 let unspent = {
+                                                    txid: datastore.data.txid,
                                                     sxid: datastore.data.sxid,
                                                     vout: vout,
                                                     address: x,
@@ -757,9 +762,9 @@ module Daemon {
                         let check = await db.collection('received').find({ txid: datastore.txid, address: datastore.address }).limit(1).toArray()
                         if (check[0] === undefined) {
                             console.log('STORING DATA NOW!')
-                            try{
+                            try {
                                 await db.collection("received").insertOne(datastore)
-                            }catch(e){
+                            } catch (e) {
                                 console.log('DB ERROR', e)
                             }
                         } else {
@@ -775,6 +780,62 @@ module Daemon {
                     utils.log(e)
                     response(false)
                 }
+            })
+        }
+
+        private consolidateStored() {
+            return new Promise(async response => {
+                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                    var db = client.db(global['db_name'])
+                    let checktxs = await db.collection('transactions').find({ blockhash: null }).toArray()
+                    console.log('FOUND ' + checktxs.length + ' TRANSACTIONS TO CONSOLIDATE')
+                    if(checktxs.length > 0){
+                        for (let k in checktxs) {
+                            let tx = checktxs[k]
+                            var wallet = new Crypto.Wallet
+                            wallet.request('getrawtransaction', [tx.txid, 1]).then(async rawtransaction => {
+                                let txvalid = true
+                                let block
+                                if (rawtransaction['result'] !== undefined) {
+                                    let rawtx = rawtransaction['result']
+                                    if (rawtx['blockhash'] !== undefined) {
+                                        wallet.request('getblock', [rawtx['blockhash']]).then(getblock => {
+                                            if (getblock['result'] !== undefined) {
+                                                block = getblock['result']
+                                            } else {
+                                                txvalid = false
+                                            }
+                                        })
+                                    } else {
+                                        txvalid = false
+                                    }
+                                } else {
+                                    txvalid = false
+                                }
+
+                                if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
+                                    await db.collection("transactions").updateOne({
+                                        address: tx.address, txid: tx.txid
+                                    }, {
+                                        $set: {
+                                            blockheight: block['height'],
+                                            blockhash: block['hash'],
+                                            time: block['time']
+                                        }
+                                    })
+                                } else {
+                                    await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
+                                    await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
+                                    await db.collection('unspent').deleteMany({ txid: tx.txid })
+                                    await db.collection('transactions').deleteMany({ txid: tx.txid })
+                                    await db.collection('received').deleteMany({ txid: tx.txid })
+                                    await db.collection('written').deleteMany({ txid: tx.txid })
+                                }
+                            })
+                        }
+                    }
+                    response(true)
+                })
             })
         }
     }

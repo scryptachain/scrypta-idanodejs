@@ -691,8 +691,7 @@ module Crypto {
                     for(var i = 0; i < block['result']['tx'].length; i++){
                         var txid = block['result']['tx'][i]
 
-                        var rawtx = await wallet.request('getrawtransaction', [txid])
-                        var tx = await wallet.request('decoderawtransaction', [rawtx['result']])
+                        var tx = await wallet.request('getrawtransaction', [txid, 1])
                         if(tx !== undefined){
                             block['result']['tx'][i] = tx['result']
 
@@ -708,8 +707,7 @@ module Crypto {
                                 var vout = block['result']['tx'][i]['vin'][vinx]['vout']
                                 if(block['result']['tx'][i]['vin'][vinx]['txid']){
                                     //console.log('ANALYZING VIN ' + vinx)
-                                    var rawtxvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid']])
-                                    var txvin = await wallet.request('decoderawtransaction', [rawtxvin['result']])
+                                    var txvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid'], 1])
                                     let input = {
                                         txid: tx['result']['vin'][vinx]['txid'],
                                         vout: txvin['result']['vout'][vout]['n']
@@ -780,7 +778,7 @@ module Crypto {
                                             if(block['result']['raw_written'][addressdata] === undefined){
                                                 block['result']['raw_written'][addressdata] = []
                                             }
-                                            block['result']['raw_written'][addressdata].push(OP_RETURN)
+                                            block['result']['raw_written'][addressdata].push(txid + '|?||?||?|' +OP_RETURN)
                                         }else{
                                             addressdata = receivingaddress
                                             if(block['result']['data_received'][addressdata] === undefined){
@@ -857,8 +855,10 @@ module Crypto {
                         var singledata = ''
                         var readchunks = []
                         console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata)
+                        let written_txid
                         for(var wix in written){
-                            var data = written[wix]
+                            let writtensplit = written[wix].split('|?||?||?|')
+                            var data = writtensplit[1]
                             var checkhead = data.substr(0,3)
                             var checkfoot = data.substr(-3)
                             // console.log('CHECKING HEAD ' + checkhead)
@@ -869,12 +869,15 @@ module Crypto {
                                 if(block['result']['data_written'][addressdata] === undefined){
                                     block['result']['data_written'][addressdata] = []
                                 }
-                                endofdata = 'Y'
                                 console.log('FOUND SINGLE DATA.')
+                                written_txid = writtensplit[0]
+                                endofdata = 'Y'
                             }else{
                                 console.log('CHECK FOR CHUCKED DATA')
+                                written_txid = []
                                 if(singledata === '' && data.indexOf('*!*') === 0){
                                     console.log('INIT CHUCK SEARCH')
+                                    written_txid.push(writtensplit[0])
                                     var prevcontrol = data.substr(-6).substr(0,3)
                                     console.log('PREV CONTROL IS ' + prevcontrol)
                                     var nextcontrol = data.substr(-3)
@@ -892,7 +895,8 @@ module Crypto {
                                         idctt++
                                         console.log('CHECKING INDEX ' + idc)
                                         if(written[idc] !== undefined){
-                                            var checkdata = written[idc].substr(0,6)
+                                            let checkdatasplit = written[idc].split('|?||?||?|')
+                                            var checkdata = checkdatasplit[1].substr(0,6)
                                             console.log('CHECKING ' + checkdata + ' AGAINST ' + chunkcontrol)
                                             if(checkdata === chunkcontrol && readchunks.indexOf(idc) === -1){
                                                 readchunks.push(idc)
@@ -914,9 +918,11 @@ module Crypto {
                                                     }
                                                     chunk = chunk.substr(0,datalm3)
                                                     singledata += chunk
+                                                    written_txid.push(checkdatasplit[0])
                                                     console.log('CHUNKED DATA IS ' + chunk)
                                                     if(written[idc] !== undefined){
-                                                        var data = written[idc]
+                                                        let checkdatasplitidc = written[idc].split('|?||?||?|')
+                                                        var data = checkdatasplitidc[1]
                                                         var prevcontrol = data.substr(-6).substr(0,3)
                                                         console.log('PREV CONTROL IS ' + prevcontrol)
                                                         var nextcontrol = data.substr(-3)
@@ -958,9 +964,8 @@ module Crypto {
 
                             checkhead = singledata.substr(0,3)
                             checkfoot = singledata.substr(-3)
-
                             if(endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*'){
-                                // console.log('COMPLETED DATA ' + singledata)
+                                //console.log('COMPLETED DATA ' + singledata)
                                 if(global['chunkcache'][addressdata] !== undefined){
                                     // RESETTING CACHE DATA
                                     global['chunkcache'][addressdata] = []
@@ -976,7 +981,7 @@ module Crypto {
                                 var datastore
 
                                 try{
-                                    datastore = JSON.parse(split[1]);
+                                    datastore = JSON.parse(split[1])
                                 }catch(e){
                                     datastore = split[1]
                                 }
@@ -1007,7 +1012,8 @@ module Crypto {
                                     data: datastore,
                                     block: block['result']['height'],
                                     blockhash: block['result']['hash'],
-                                    time: block['result']['time']
+                                    time: block['result']['time'],
+                                    txid: written_txid
                                 }
                                 singledata = ''
                                 if(block['result']['data_written'][addressdata].indexOf(parsed) === -1){
@@ -1078,8 +1084,8 @@ module Crypto {
                     for(var i = 0; i < mempool['result'].length; i++){
                         var txid = mempool['result'][i]
 
-                        var rawtx = await wallet.request('getrawtransaction', [txid])
-                        var tx = await wallet.request('decoderawtransaction', [rawtx['result']])
+                        var tx = await wallet.request('getrawtransaction', [txid, 1])
+                        // var tx = await wallet.request('decoderawtransaction', [rawtx['result']])
                         mempool['result']['tx'][i] = tx['result']
 
                         var txtotvin = 0
@@ -1094,8 +1100,8 @@ module Crypto {
                             var vout = mempool['result']['tx'][i]['vin'][vinx]['vout']
                             if(mempool['result']['tx'][i]['vin'][vinx]['txid']){
                                 //console.log('ANALYZING VIN ' + vinx)
-                                var rawtxvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid']])
-                                var txvin = await wallet.request('decoderawtransaction', [rawtxvin['result']])
+                                var txvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid'], 1])
+                                // var txvin = await wallet.request('decoderawtransaction', [rawtxvin['result']])
                                 let input = {
                                     txid: tx['result']['vin'][vinx]['txid'],
                                     vout: txvin['result']['vout'][vout]['n']
@@ -1165,8 +1171,8 @@ module Crypto {
                                     var parser = new Utilities.Parser
                                     var OP_RETURN = parser.hex2a(mempool['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ',''))
                                     var addressdata
-                                    var inrawtx = await wallet.request('getrawtransaction', [mempool['result']['tx'][i]['vin'][0].txid])
-                                    var intx = await wallet.request('decoderawtransaction', [inrawtx['result']])
+                                    var intx = await wallet.request('getrawtransaction', [mempool['result']['tx'][i]['vin'][0].txid, 1])
+                                    // var intx = await wallet.request('decoderawtransaction', [inrawtx['result']])
                                     var addresswrite = intx['result']['vout'][mempool['result']['tx'][i]['vin'][0].vout].scriptPubKey['addresses'][0]
 
                                     if(addresswrite === receivingaddress){
@@ -1174,7 +1180,7 @@ module Crypto {
                                         if(mempool['result']['raw_written'][addressdata] === undefined){
                                             mempool['result']['raw_written'][addressdata] = []
                                         }
-                                        mempool['result']['raw_written'][addressdata].push(OP_RETURN)
+                                        mempool['result']['raw_written'][addressdata].push(txid + '|?||?||?|' + OP_RETURN)
                                     }else{
                                         addressdata = receivingaddress
                                         if(mempool['result']['data_received'][addressdata] === undefined){
@@ -1237,9 +1243,11 @@ module Crypto {
 
                         var singledata = ''
                         var readchunks = []
-                        console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata)
+                        let written_txid = []
+                        console.log('WRITTEN DATA FOUND FOR ADDRESS' + addressdata)
                         for(var wix in written){
-                            var data = written[wix]
+                            let writtensplit = written[wix].split('|?||?||?|')
+                            var data = writtensplit[1]
                             var checkhead = data.substr(0,3)
                             var checkfoot = data.substr(-3)
                             // console.log('CHECKING HEAD ' + checkhead)
@@ -1251,11 +1259,13 @@ module Crypto {
                                     mempool['result']['data_written'][addressdata] = []
                                 }
                                 endofdata = 'Y'
+                                written_txid = writtensplit[0]
                                 // console.log('FOUND SINGLE DATA.')
                             }else{
                                 console.log('CHECK FOR CHUCKED DATA')
                                 if(singledata === '' && data.indexOf('*!*') === 0){
                                     console.log('INIT CHUCK SEARCH')
+                                    written_txid.push(writtensplit[0])
                                     var prevcontrol = data.substr(-6).substr(0,3)
                                     console.log('PREV CONTROL IS ' + prevcontrol)
                                     var nextcontrol = data.substr(-3)
@@ -1273,10 +1283,12 @@ module Crypto {
                                         idctt++
                                         console.log('CHECKING INDEX ' + idc)
                                         if(written[idc] !== undefined){
-                                            var checkdata = written[idc].substr(0,6)
+                                            let writtensplitidc = written[idc].split('|?||?||?|')
+                                            var checkdata = writtensplitidc[1].substr(0,6)
                                             console.log('CHECKING ' + checkdata + ' AGAINST ' + chunkcontrol)
                                             if(checkdata === chunkcontrol && readchunks.indexOf(idc) === -1){
                                                 readchunks.push(idc)
+                                                written_txid.push(writtensplitidc[0])
                                                 console.log('\x1b[33m%s\x1b[0m', 'CHUNK FOUND ' + chunkcontrol + ' at #' + idc)
                                                 idct = 0
                                                 if(checkdata.indexOf('*!*') !== -1){
@@ -1297,7 +1309,8 @@ module Crypto {
                                                     singledata += chunk
                                                     console.log('CHUNKED DATA IS ' + chunk)
                                                     if(written[idc] !== undefined){
-                                                        var data = written[idc]
+                                                        let writtensplitidc = written[idc].split('|?||?||?|')
+                                                        var data = writtensplitidc[1]
                                                         var prevcontrol = data.substr(-6).substr(0,3)
                                                         console.log('PREV CONTROL IS ' + prevcontrol)
                                                         var nextcontrol = data.substr(-3)
@@ -1385,7 +1398,8 @@ module Crypto {
                                     collection: collection,
                                     refID: refID,
                                     protocol: protocol,
-                                    data: datastore
+                                    data: datastore,
+                                    txid: written_txid
                                 }
                                 singledata = ''
                                 if(mempool['result']['data_written'][addressdata].indexOf(parsed) === -1){
