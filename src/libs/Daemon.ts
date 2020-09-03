@@ -31,158 +31,169 @@ module Daemon {
     export class Sync {
 
         public async init() {
-
-            var wallet = new Crypto.Wallet
-            // console.clear()
-            wallet.request('getinfo').then(info => {
-                blocks = info['result'].blocks
-                console.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
-                var task = new Daemon.Sync
-                task.process()
-            })
-
+            if (global['isSyncing'] === false) {
+                var wallet = new Crypto.Wallet
+                // console.clear()
+                wallet.request('getinfo').then(info => {
+                    blocks = info['result'].blocks
+                    console.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
+                    var task = new Daemon.Sync
+                    task.process()
+                })
+            } else {
+                console.log('\x1b[41m%s\x1b[0m', 'IDANODE IS SYNCING YET!')
+            }
         }
 
         public async process() {
-            let utils = new Utilities.Parser
-            try {
-                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                    var db = client.db(global['db_name'])
-                    global['isSyncing'] = true
-                    const sync = await db.collection('blocks').find().sort({ block: -1 }).limit(2).toArray()
-                    var last
-                    if (sync[0] === undefined) {
-                        console.log('Sync lock not found, creating')
-                        await db.collection('blocks').insertOne({ block: 0, time: new Date().getTime() });
-                        last = 0
-                    } else {
-                        last = sync[0].block
-                        let continuitycheck = last - 1
-                        if (continuitycheck !== sync[1].block) {
-                            last = continuitycheck - 1
+            if (global['isSyncing'] === false) {
+                let utils = new Utilities.Parser
+                try {
+                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                        var db = client.db(global['db_name'])
+                        global['retrySync'] = 0
+                        global['isSyncing'] = true
+                        const sync = await db.collection('blocks').find().sort({ block: -1 }).limit(2).toArray()
+                        var last
+                        if (sync[0] === undefined) {
+                            console.log('Sync lock not found, creating')
+                            await db.collection('blocks').insertOne({ block: 0, time: new Date().getTime() });
+                            last = 0
+                        } else {
+                            last = sync[0].block
+                            let continuitycheck = last - 1
+                            if (continuitycheck !== sync[1].block) {
+                                last = continuitycheck - 1
+                            }
+                            if (sync[0].block === sync[1].block) {
+                                await db.collection('blocks').deleteOne({ _id: sync[0]._id })
+                            }
                         }
-                        if (sync[0].block === sync[1].block) {
-                            await db.collection('blocks').deleteOne({ _id: sync[0]._id })
+
+                        if (last !== null && last !== undefined) {
+                            analyze = parseInt(last) + 1
+                        } else {
+                            analyze = 1
                         }
-                    }
 
-                    if (last !== null && last !== undefined) {
-                        analyze = parseInt(last) + 1
-                    } else {
-                        analyze = 1
-                    }
-
-                    // ANALYZING MEMPOOL ONLY IF SYNC IS FINISHED
-                    var remains = blocks - analyze
-                    if (remains === -1) {
-                        console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
-                        var wallet = new Crypto.Wallet
-                        var mempool = await wallet.analyzeMempool()
-                        for (var address in mempool['data_written']) {
-                            var data = mempool['data_written'][address]
-                            console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
-                            for (var dix in data) {
-                                var task = new Daemon.Sync
-                                if (data[dix].protocol !== 'chain://') {
-                                    await task.storewritten(data[dix], true)
-                                } else {
-                                    await task.storewritten(data[dix], true)
-                                    await task.storeplanum(data[dix], true)
+                        // ANALYZING MEMPOOL ONLY IF SYNC IS FINISHED
+                        var remains = blocks - analyze
+                        if (remains === -1) {
+                            console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
+                            var wallet = new Crypto.Wallet
+                            var mempool = await wallet.analyzeMempool()
+                            for (var address in mempool['data_written']) {
+                                var data = mempool['data_written'][address]
+                                console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                                for (var dix in data) {
+                                    var task = new Daemon.Sync
+                                    if (data[dix].protocol !== 'chain://') {
+                                        await task.storewritten(data[dix], true)
+                                    } else {
+                                        await task.storewritten(data[dix], true)
+                                        await task.storeplanum(data[dix], true)
+                                    }
                                 }
                             }
-                        }
 
-                        for (var address in mempool['data_received']) {
-                            var data = mempool['data_received'][address]
-                            console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
-                            for (var dix in data) {
-                                var task = new Daemon.Sync
-                                await task.storereceived(data[dix])
+                            for (var address in mempool['data_received']) {
+                                var data = mempool['data_received'][address]
+                                console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
+                                for (var dix in data) {
+                                    var task = new Daemon.Sync
+                                    await task.storereceived(data[dix])
+                                }
                             }
-                        }
 
-                        for (var txid in mempool['analysis']) {
-                            for (var address in mempool['analysis'][txid]['balances']) {
-                                var tx = mempool['analysis'][txid]['balances'][address]
-                                var movements = mempool['analysis'][txid]['movements']
-                                var task = new Daemon.Sync
-                                console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
-                                await task.store(address, mempool, txid, tx, movements)
+                            for (var txid in mempool['analysis']) {
+                                for (var address in mempool['analysis'][txid]['balances']) {
+                                    var tx = mempool['analysis'][txid]['balances'][address]
+                                    var movements = mempool['analysis'][txid]['movements']
+                                    var task = new Daemon.Sync
+                                    console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
+                                    await task.store(address, mempool, txid, tx, movements)
+                                }
                             }
-                        }
 
-                        for (var i in mempool['outputs']) {
-                            let unspent = mempool['outputs'][i]
-                            var found = false
+                            for (var i in mempool['outputs']) {
+                                let unspent = mempool['outputs'][i]
+                                var found = false
+                                for (var i in mempool['inputs']) {
+                                    let input = mempool['inputs'][i]
+                                    if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
+                                        found = true
+                                    }
+                                }
+                                if (found === false) {
+                                    await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
+                                } else {
+                                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                                }
+                            }
+
                             for (var i in mempool['inputs']) {
                                 let input = mempool['inputs'][i]
-                                if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
-                                    found = true
-                                }
+                                await task.redeemunspent(input['txid'], input['vout'], null)
                             }
-                            if (found === false) {
-                                await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
-                            } else {
-                                console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
-                            }
+
                         }
 
-                        for (var i in mempool['inputs']) {
-                            let input = mempool['inputs'][i]
-                            await task.redeemunspent(input['txid'], input['vout'], null)
-                        }
+                        client.close()
 
-                    }
-
-                    client.close()
-
-                    if (analyze <= blocks) {
-                        if (global['syncLock'] === false) {
-                            let utils = new Utilities.Parser
-                            try {
-                                var task = new Daemon.Sync
-                                let synced = await task.analyze()
-                                global['retrySync'] = 0
-                                if (synced !== false) {
-                                    console.log('\x1b[46m%s\x1b[0m', 'SUCCESSFULLY SYNCED BLOCK ' + synced)
-                                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                                        var db = client.db(global['db_name'])
-                                        const savecheck = await db.collection('blocks').find({ block: synced }).toArray()
-                                        if (savecheck[0] === undefined) {
-                                            await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() })
-                                        }
-                                        client.close()
+                        if (analyze <= blocks) {
+                            if (global['syncLock'] === false) {
+                                let utils = new Utilities.Parser
+                                try {
+                                    var task = new Daemon.Sync
+                                    let synced = await task.analyze()
+                                    global['retrySync'] = 0
+                                    if (synced !== false) {
+                                        console.log('\x1b[46m%s\x1b[0m', 'SUCCESSFULLY SYNCED BLOCK ' + synced)
+                                        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                                            var db = client.db(global['db_name'])
+                                            const savecheck = await db.collection('blocks').find({ block: synced }).toArray()
+                                            if (savecheck[0] === undefined) {
+                                                await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() })
+                                            }
+                                            client.close()
+                                            global['isSyncing'] = false
+                                            setTimeout(function () {
+                                                var task = new Daemon.Sync
+                                                task.process()
+                                            }, 10)
+                                        })
+                                    } else {
+                                        console.log('\x1b[41m%s\x1b[0m', 'BLOCK NOT SYNCED, RETRY.')
+                                        global['isSyncing'] = false
                                         setTimeout(function () {
                                             var task = new Daemon.Sync
                                             task.process()
-                                        }, 10)
-                                    })
-                                } else {
-                                    console.log('\x1b[41m%s\x1b[0m', 'BLOCK NOT SYNCED, RETRY.')
+                                        }, 1000)
+                                    }
+                                } catch (e) {
+                                    utils.log(e)
+                                    global['isSyncing'] = false
                                     setTimeout(function () {
                                         var task = new Daemon.Sync
                                         task.process()
-                                    }, 10)
+                                    }, 1000)
                                 }
-                            } catch (e) {
-                                utils.log(e)
-                                setTimeout(function () {
-                                    var task = new Daemon.Sync
-                                    task.process()
-                                }, 10)
                             }
+                        } else {
+                            global['isSyncing'] = false
+                            console.log('SYNC FINISHED')
                         }
-                    } else {
-                        global['isSyncing'] = false
-                        console.log('SYNC FINISHED')
-                    }
-                })
-            } catch (e) {
-                utils.log(e)
-                setTimeout(function () {
-                    var task = new Daemon.Sync
-                    task.process()
-                }, 10)
+                    })
+                } catch (e) {
+                    utils.log(e)
+                    global['isSyncing'] = false
+                    setTimeout(function () {
+                        var task = new Daemon.Sync
+                        task.process()
+                    }, 1000)
+                }
+            } else {
+                console.log('\x1b[41m%s\x1b[0m', 'IDANODE IS SYNCING YET!')
             }
         }
 

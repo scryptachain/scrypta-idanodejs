@@ -120,7 +120,7 @@ async function checkConnections(){
                 space.syncSpace()
               }
             }
-            if(global['retrySync'] > 14){
+            if(global['retrySync'] >= 100){
               console.log('Forcing sync.')
               global['isSyncing'] = false
               global['retrySync'] = 0
