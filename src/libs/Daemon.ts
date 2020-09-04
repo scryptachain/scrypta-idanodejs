@@ -81,6 +81,8 @@ module Daemon {
                         if (remains === -1) {
                             console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
                             var wallet = new Crypto.Wallet
+                            // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
+                            await task.consolidatestored()
                             var mempool = await wallet.analyzeMempool()
                             for (var address in mempool['data_written']) {
                                 var data = mempool['data_written'][address]
@@ -296,8 +298,6 @@ module Daemon {
                                 }
                             }
                         }
-
-                        await task.consolidatestored()
 
                         var remains = blocks - analyze
                         console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
