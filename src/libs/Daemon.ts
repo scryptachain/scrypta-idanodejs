@@ -81,9 +81,6 @@ module Daemon {
                         if (remains === -1) {
                             console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
                             var wallet = new Crypto.Wallet
-                            // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
-                            var task = new Daemon.Sync
-                            await task.consolidatestored()
                             var mempool = await wallet.analyzeMempool()
                             for (var address in mempool['data_written']) {
                                 var data = mempool['data_written'][address]
@@ -143,6 +140,11 @@ module Daemon {
                         client.close()
 
                         if (analyze <= blocks) {
+                            if (remains === 0) {
+                                // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
+                                var task = new Daemon.Sync
+                                await task.consolidatestored()
+                            }
                             if (global['syncLock'] === false) {
                                 let utils = new Utilities.Parser
                                 try {
@@ -544,7 +546,7 @@ module Daemon {
                         datastore.block = block
                         if (datastore.protocol === 'chain://') {
                             // SEARCHING FOR GENESIS
-                            if(datastore.data !== undefined){
+                            if (datastore.data !== undefined) {
                                 datastore.data['txid'] = datastore['txid']
                             }
                             if (datastore.data.genesis !== undefined) {
@@ -808,48 +810,51 @@ module Daemon {
                             for (let k in checktxs) {
                                 let tx = checktxs[k]
                                 var wallet = new Crypto.Wallet
-                                wallet.request('getrawtransaction', [tx.txid, 1]).then(async rawtransaction => {
-                                    let txvalid = true
-                                    let block
-                                    if (rawtransaction['result'] !== undefined) {
-                                        let rawtx = rawtransaction['result']
-                                        if (rawtx['blockhash'] !== undefined) {
-                                            wallet.request('getblock', [rawtx['blockhash']]).then(getblock => {
-                                                if (getblock['result'] !== undefined) {
-                                                    block = getblock['result']
-                                                } else {
-                                                    txvalid = false
-                                                }
-                                            })
+                                let rawtransaction = await wallet.request('getrawtransaction', [tx.txid, 1])
+                                let txvalid = true
+                                let block
+
+                                if (rawtransaction['result'] !== undefined) {
+                                    let rawtx = rawtransaction['result']
+                                    if (rawtx['blockhash'] !== undefined) {
+                                        let getblock = await wallet.request('getblock', [rawtx['blockhash']])
+                                        if (getblock['result'] !== undefined) {
+                                            block = getblock['result']
                                         } else {
                                             txvalid = false
                                         }
                                     } else {
                                         txvalid = false
                                     }
+                                } else {
+                                    txvalid = false
+                                }
 
-                                    if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
-                                        await db.collection("transactions").updateOne({
-                                            address: tx.address, txid: tx.txid
-                                        }, {
-                                            $set: {
-                                                blockheight: block['height'],
-                                                blockhash: block['hash'],
-                                                time: block['time']
-                                            }
-                                        })
-                                    } else {
-                                        await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
-                                        await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
-                                        await db.collection('unspent').deleteMany({ txid: tx.txid })
-                                        await db.collection('transactions').deleteMany({ txid: tx.txid })
-                                        await db.collection('received').deleteMany({ txid: tx.txid })
-                                        await db.collection('written').deleteMany({ txid: tx.txid })
-                                    }
-                                })
+                                if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
+                                    console.log('SUCCESSFULLY CONSOLIDATED TRANSACTION!')
+                                    await db.collection("transactions").updateOne({
+                                        address: tx.address, txid: tx.txid
+                                    }, {
+                                        $set: {
+                                            blockheight: block['height'],
+                                            blockhash: block['hash'],
+                                            time: block['time']
+                                        }
+                                    })
+                                } else {
+                                    console.log('TRANSACTION NOT FOUND, DELETE EVERYTHING RELATED')
+                                    await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
+                                    await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
+                                    await db.collection('unspent').deleteMany({ txid: tx.txid })
+                                    await db.collection('transactions').deleteMany({ txid: tx.txid })
+                                    await db.collection('received').deleteMany({ txid: tx.txid })
+                                    await db.collection('written').deleteMany({ txid: tx.txid })
+                                }
                             }
+                            client.close()
+                        } else {
+                            client.close()
                         }
-                        client.close()
                         response(true)
                     })
                 } catch (e) {
