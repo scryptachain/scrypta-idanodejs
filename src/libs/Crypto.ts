@@ -1032,8 +1032,10 @@ module Crypto {
                                             parsed['tx_time'] = parsed['data']['time']
                                         }    
                                     }
-                                    if(block['result']['planum'].indexOf(parsed) === -1){
-                                        block['result']['planum'].push(parsed)
+                                    if(parsed.data !== undefined && parsed.data !== 'undefined'){
+                                        if(block['result']['planum'].indexOf(parsed) === -1){
+                                            block['result']['planum'].push(parsed)
+                                        }
                                     }
                                 }
                             }else{

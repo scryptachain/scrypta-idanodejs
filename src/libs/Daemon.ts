@@ -82,13 +82,13 @@ module Daemon {
                             console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
                             var wallet = new Crypto.Wallet
                             // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
+                            var task = new Daemon.Sync
                             await task.consolidatestored()
                             var mempool = await wallet.analyzeMempool()
                             for (var address in mempool['data_written']) {
                                 var data = mempool['data_written'][address]
                                 console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
                                 for (var dix in data) {
-                                    var task = new Daemon.Sync
                                     if (data[dix].protocol !== 'chain://') {
                                         await task.storewritten(data[dix], true)
                                     } else {
@@ -544,7 +544,9 @@ module Daemon {
                         datastore.block = block
                         if (datastore.protocol === 'chain://') {
                             // SEARCHING FOR GENESIS
-                            datastore.data.txid = datastore.txid
+                            if(datastore.data !== undefined){
+                                datastore.data['txid'] = datastore['txid']
+                            }
                             if (datastore.data.genesis !== undefined) {
                                 let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                 if (check[0] === undefined) {
