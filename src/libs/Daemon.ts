@@ -53,6 +53,7 @@ module Daemon {
                         var db = client.db(global['db_name'])
                         global['retrySync'] = 0
                         global['isSyncing'] = true
+                        var task = new Daemon.Sync
                         const sync = await db.collection('blocks').find().sort({ block: -1 }).limit(2).toArray()
                         var last
                         if (sync[0] === undefined) {
@@ -99,7 +100,6 @@ module Daemon {
                                 var data = mempool['data_received'][address]
                                 console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
                                 for (var dix in data) {
-                                    var task = new Daemon.Sync
                                     await task.storereceived(data[dix])
                                 }
                             }
@@ -108,7 +108,6 @@ module Daemon {
                                 for (var address in mempool['analysis'][txid]['balances']) {
                                     var tx = mempool['analysis'][txid]['balances'][address]
                                     var movements = mempool['analysis'][txid]['movements']
-                                    var task = new Daemon.Sync
                                     console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
                                     await task.store(address, mempool, txid, tx, movements)
                                 }
@@ -142,13 +141,11 @@ module Daemon {
                         if (analyze <= blocks) {
                             if (remains === 0) {
                                 // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
-                                var task = new Daemon.Sync
                                 await task.consolidatestored()
                             }
                             if (global['syncLock'] === false) {
                                 let utils = new Utilities.Parser
                                 try {
-                                    var task = new Daemon.Sync
                                     let synced = await task.analyze()
                                     global['retrySync'] = 0
                                     if (synced !== false) {
@@ -162,7 +159,6 @@ module Daemon {
                                             client.close()
                                             global['isSyncing'] = false
                                             setTimeout(function () {
-                                                var task = new Daemon.Sync
                                                 task.process()
                                             }, 10)
                                         })
@@ -170,7 +166,6 @@ module Daemon {
                                         console.log('\x1b[41m%s\x1b[0m', 'BLOCK NOT SYNCED, RETRY.')
                                         global['isSyncing'] = false
                                         setTimeout(function () {
-                                            var task = new Daemon.Sync
                                             task.process()
                                         }, 1000)
                                     }
@@ -178,7 +173,6 @@ module Daemon {
                                     utils.log(e)
                                     global['isSyncing'] = false
                                     setTimeout(function () {
-                                        var task = new Daemon.Sync
                                         task.process()
                                     }, 1000)
                                 }
