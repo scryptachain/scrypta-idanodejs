@@ -816,7 +816,7 @@ module Daemon {
 
                                 if (rawtransaction['result'] !== undefined) {
                                     let rawtx = rawtransaction['result']
-                                    if (rawtx['blockhash'] !== undefined) {
+                                    if (rawtx !== null && rawtx['blockhash'] !== undefined) {
                                         let getblock = await wallet.request('getblock', [rawtx['blockhash']])
                                         if (getblock['result'] !== undefined) {
                                             block = getblock['result']
