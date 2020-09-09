@@ -20,10 +20,10 @@ global['db_options'] = {useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
 global['isAnalyzing'] = false
 global['retrySync'] = 0
-if(process.env.PINIPFS !== undefined && process.env.PINIPFS === 'true'){
-  global['pinipfs'] = true
-}else{
+if(process.env.PINIPFS !== undefined && process.env.PINIPFS === 'false'){
   global['pinipfs'] = false
+}else if(process.env.PINIPFS === undefined || process.env.PINIPFS === 'true'){
+  global['pinipfs'] = true
 }
 
 const rateLimit = require("express-rate-limit");
