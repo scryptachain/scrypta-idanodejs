@@ -21,6 +21,7 @@ global['isSyncing'] = false
 global['syncTimeout'] = null
 global['limit'] = 200
 global['isChecking'] = false
+global['remainingBlocks'] = 0
 
 if(process.env.TESTNET !== undefined){
   if(process.env.TESTNET === 'true'){
@@ -146,7 +147,7 @@ class App {
   }
 
   async initIPFS() {
-    global['ipfs'] = new IPFS({ repo: 'ipfs_data' })
+    global['ipfs'] = await IPFS.create({ repo: 'ipfs_data' })
   }
 }
 

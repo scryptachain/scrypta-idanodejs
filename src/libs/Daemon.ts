@@ -7,7 +7,6 @@ import * as Space from './Space'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 import { create, all } from 'mathjs'
-import { utils } from "mocha";
 const messages = require('./p2p/messages.js')
 const console = require('better-console')
 const LZUTF8 = require('lzutf8')
@@ -41,7 +40,7 @@ module Daemon {
                     task.process()
                 })
             } else {
-                console.log('\x1b[41m%s\x1b[0m', 'IDANODE IS SYNCING YET!')
+                console.log('\x1b[41m%s\x1b[0m', 'CAN\'T INIT, IDANODE IS SYNCING YET!')
             }
         }
 
@@ -57,7 +56,7 @@ module Daemon {
                         const sync = await db.collection('blocks').find().sort({ block: -1 }).limit(2).toArray()
                         var last
                         if (sync[0] === undefined) {
-                            console.log('Sync lock not found, creating')
+                            utils.log('Sync lock not found, creating')
                             await db.collection('blocks').insertOne({ block: 0, time: new Date().getTime() });
                             last = 0
                         } else {
@@ -139,6 +138,7 @@ module Daemon {
                         client.close()
 
                         if (analyze <= blocks) {
+                            global['remainingBlocks'] = remains
                             if (remains === 0) {
                                 // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
                                 await task.consolidatestored()
@@ -146,28 +146,28 @@ module Daemon {
                             if (global['syncLock'] === false) {
                                 let utils = new Utilities.Parser
                                 try {
-                                    let synced = await task.analyze()
-                                    global['retrySync'] = 0
-                                    if (synced !== false) {
-                                        console.log('\x1b[46m%s\x1b[0m', 'SUCCESSFULLY SYNCED BLOCK ' + synced)
-                                        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                                            var db = client.db(global['db_name'])
-                                            const savecheck = await db.collection('blocks').find({ block: synced }).toArray()
-                                            if (savecheck[0] === undefined) {
-                                                await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() })
-                                            }
-                                            client.close()
-                                            global['isSyncing'] = false
-                                            setTimeout(function () {
-                                                task.process()
-                                            }, 10)
-                                        })
-                                    } else {
-                                        console.log('\x1b[41m%s\x1b[0m', 'BLOCK NOT SYNCED, RETRY.')
-                                        global['isSyncing'] = false
-                                        setTimeout(function () {
-                                            task.process()
-                                        }, 1000)
+                                    let synced: any = false
+                                    while(synced === false){
+                                        synced = await task.analyze()
+                                        if (synced !== false) {
+                                            global['retrySync'] = 0
+                                            console.log('\x1b[46m%s\x1b[0m', 'SUCCESSFULLY SYNCED BLOCK ' + synced)
+                                            mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                                                var db = client.db(global['db_name'])
+                                                const savecheck = await db.collection('blocks').find({ block: synced }).toArray()
+                                                if (savecheck[0] === undefined) {
+                                                    await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() })
+                                                }
+                                                global['isSyncing'] = false
+                                                client.close()
+                                                setTimeout(function () {
+                                                    task.process()
+                                                }, 10)
+                                            })
+                                        } else {
+                                            console.log('\x1b[41m%s\x1b[0m', 'BLOCK NOT SYNCED, RETRY.')
+                                            utils.log('BLOCK NOT SYNCED, RETRY')
+                                        }
                                     }
                                 } catch (e) {
                                     utils.log(e)
@@ -191,12 +191,13 @@ module Daemon {
                     }, 1000)
                 }
             } else {
-                console.log('\x1b[41m%s\x1b[0m', 'IDANODE IS SYNCING YET!')
+                console.log('\x1b[41m%s\x1b[0m', 'CAN\'T PROCESS, IDANODE IS SYNCING YET!')
             }
         }
 
         public async analyze(toAnalyze = null) {
             return new Promise(async response => {
+                const utils = new Utilities.Parser
                 try {
                     if (toAnalyze !== null) {
                         analyze = toAnalyze
@@ -218,6 +219,7 @@ module Daemon {
                                 console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
                                 let storedtx = await task.store(address, block, txid, tx, movements)
                                 if (storedtx === false) {
+                                    utils.log('ERROR ON STORE TRANSACTION')
                                     response(false)
                                 }
                             }
@@ -235,6 +237,7 @@ module Daemon {
                             if (found === false) {
                                 let storedunspent = await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
                                 if (storedunspent === false) {
+                                    utils.log('ERROR ON STORE UNSPENT')
                                     response(false)
                                 }
                             } else {
@@ -246,6 +249,7 @@ module Daemon {
                             let input = block['inputs'][i]
                             let redeemedunspent = await task.redeemunspent(input['txid'], input['vout'], analyze)
                             if (redeemedunspent === false) {
+                                utils.log('ERROR ON REDEEM UNSPENT')
                                 response(false)
                             }
                         }
@@ -264,6 +268,7 @@ module Daemon {
                                     var task = new Daemon.Sync
                                     let storedwritten = await task.storewritten(data[dix], false, block['height'])
                                     if (storedwritten === false) {
+                                        utils.log('ERROR ON STORE WRITTEN DATA')
                                         response(false)
                                     }
                                 }
@@ -275,10 +280,12 @@ module Daemon {
                             var task = new Daemon.Sync
                             let storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
                             if (storedwritten === false) {
+                                utils.log('ERROR ON PLANUM STORE')
                                 response(false)
                             }
                             let storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
                             if (storedplanum === false) {
+                                utils.log('ERROR ON STORE PLANUM')
                                 response(false)
                             }
                         }
@@ -290,6 +297,7 @@ module Daemon {
                                 var task = new Daemon.Sync
                                 let storedreceived = await task.storereceived(data[dix])
                                 if (storedreceived === false) {
+                                    utils.log('ERROR ON STORE RECEIVED')
                                     response(false)
                                 }
                             }
@@ -301,9 +309,12 @@ module Daemon {
                         response(block['height'])
                     } else {
                         global['isAnalyzing'] = false
+                        utils.log('ERROR, ANALYZING IN PROCESS')
                         response(false)
                     }
                 } catch (e) {
+                    utils.log('ERROR ON ANALYZE FUNCTION')
+                    utils.log(e)
                     global['isAnalyzing'] = false
                     response(false)
                 }
@@ -771,14 +782,15 @@ module Daemon {
                         var db = client.db(global['db_name'])
                         let check = await db.collection('received').find({ txid: datastore.txid, address: datastore.address }).limit(1).toArray()
                         if (check[0] === undefined) {
-                            console.log('STORING DATA NOW!')
+                            utils.log('STORING DATA NOW!')
                             try {
                                 await db.collection("received").insertOne(datastore)
                             } catch (e) {
-                                console.log('DB ERROR', e)
+                                utils.log('DB ERROR')
+                                utils.log(e)
                             }
                         } else {
-                            console.log('DATA ALREADY STORED.')
+                            utils.log('DATA ALREADY STORED.')
                             if (check[0].block === undefined || check[0].block === null) {
                                 await db.collection("sc_transactions").updateOne({ txid: datastore.txid }, { $set: { block: datastore.block } })
                             }
@@ -798,51 +810,57 @@ module Daemon {
                 try {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         var db = client.db(global['db_name'])
+                        const utils = new Utilities.Parser
                         let checktxs = await db.collection('transactions').find({ blockhash: null }).toArray()
+                        let now = new Date().getTime()
                         if (checktxs.length > 0) {
-                            console.log('FOUND ' + checktxs.length + ' TRANSACTIONS TO CONSOLIDATE')
+                            utils.log('FOUND ' + checktxs.length + ' TRANSACTIONS TO CONSOLIDATE')
                             for (let k in checktxs) {
                                 let tx = checktxs[k]
-                                var wallet = new Crypto.Wallet
-                                let rawtransaction = await wallet.request('getrawtransaction', [tx.txid, 1])
-                                let txvalid = true
-                                let block
+                                let elapsed = (now - tx.time) / 1000
+                                if(elapsed > 600){
+                                    utils.log('ELAPSED ' + elapsed + 's, NEED TO CONSOLIDATE')
+                                    var wallet = new Crypto.Wallet
+                                    let rawtransaction = await wallet.request('getrawtransaction', [tx.txid, 1])
+                                    let txvalid = true
+                                    let block
 
-                                if (rawtransaction['result'] !== undefined) {
-                                    let rawtx = rawtransaction['result']
-                                    if (rawtx !== null && rawtx['blockhash'] !== undefined) {
-                                        let getblock = await wallet.request('getblock', [rawtx['blockhash']])
-                                        if (getblock['result'] !== undefined) {
-                                            block = getblock['result']
+                                    if (rawtransaction['result'] !== undefined) {
+                                        let rawtx = rawtransaction['result']
+                                        if (rawtx !== null && rawtx['blockhash'] !== undefined) {
+                                            let getblock = await wallet.request('getblock', [rawtx['blockhash']])
+                                            if (getblock['result'] !== undefined) {
+                                                block = getblock['result']
+                                            } else {
+                                                txvalid = false
+                                            }
                                         } else {
                                             txvalid = false
                                         }
                                     } else {
                                         txvalid = false
                                     }
-                                } else {
-                                    txvalid = false
-                                }
 
-                                if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
-                                    console.log('SUCCESSFULLY CONSOLIDATED TRANSACTION!')
-                                    await db.collection("transactions").updateOne({
-                                        address: tx.address, txid: tx.txid
-                                    }, {
-                                        $set: {
-                                            blockheight: block['height'],
-                                            blockhash: block['hash'],
-                                            time: block['time']
-                                        }
-                                    })
-                                } else {
-                                    console.log('TRANSACTION NOT FOUND, DELETE EVERYTHING RELATED')
-                                    await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
-                                    await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
-                                    await db.collection('unspent').deleteMany({ txid: tx.txid })
-                                    await db.collection('transactions').deleteMany({ txid: tx.txid })
-                                    await db.collection('received').deleteMany({ txid: tx.txid })
-                                    await db.collection('written').deleteMany({ txid: tx.txid })
+                                    if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
+                                        utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION!')
+                                        await db.collection("transactions").updateOne({
+                                            address: tx.address, txid: tx.txid
+                                        }, {
+                                            $set: {
+                                                blockheight: block['height'],
+                                                blockhash: block['hash'],
+                                                time: block['time']
+                                            }
+                                        })
+                                    } else {
+                                        utils.log('TRANSACTION NOT FOUND, DELETE EVERYTHING RELATED')
+                                        await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
+                                        await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
+                                        await db.collection('unspent').deleteMany({ txid: tx.txid })
+                                        await db.collection('transactions').deleteMany({ txid: tx.txid })
+                                        await db.collection('received').deleteMany({ txid: tx.txid })
+                                        await db.collection('written').deleteMany({ txid: tx.txid })
+                                    }
                                 }
                             }
                             client.close()

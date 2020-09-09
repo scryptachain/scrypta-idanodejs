@@ -3,6 +3,8 @@ import * as Crypto from './libs/Crypto'
 import * as Daemon from "./libs/Daemon"
 import * as Database from "./libs/Database"
 import * as Space from "./libs/Space"
+import * as Utilities from './libs/Utilities'
+const utils = new Utilities.Parser
 const fs = require("fs")
 const mongo = require('mongodb').MongoClient
 const exec = require('child_process')
@@ -25,7 +27,7 @@ if(process.env.PINIPFS !== undefined && process.env.PINIPFS === 'false'){
 }else if(process.env.PINIPFS === undefined || process.env.PINIPFS === 'true'){
   global['pinipfs'] = true
 }
-
+utils.log('IPFS PIN STATUS IS ' + global['pinipfs'])
 const rateLimit = require("express-rate-limit");
 const helmet = require('helmet')
 
@@ -110,8 +112,8 @@ async function checkConnections(){
             }
             var sync = (process.env.SYNC === 'true')
             global['retrySync'] ++
-            if(sync === true && global['isSyncing'] === false && global['state'] === 'ON'){
-              console.log('Starting sync.')
+            if(sync === true && global['isSyncing'] === false && global['state'] === 'ON' && global['remainingBlocks'] === 0){
+              utils.log('Starting sync.')
               global['retrySync'] = 0
               var task = new Daemon.Sync
               task.init()
@@ -121,7 +123,7 @@ async function checkConnections(){
               }
             }
             if(global['retrySync'] >= 100){
-              console.log('Forcing sync.')
+              utils.log('Forcing sync.')
               global['isSyncing'] = false
               global['retrySync'] = 0
               var task = new Daemon.Sync
