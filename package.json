@@ -1,6 +1,6 @@
 {
   "name": "scrypta-idanodejs",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "NodeJS implementation of Scrypta IdANode Technology",
   "main": "index.js",
   "scripts": {
@@ -40,7 +40,7 @@
     "folder-hash": "^3.3.1",
     "formidable": "^1.2.2",
     "helmet": "^3.22.0",
-    "ipfs": "^0.40.0",
+    "ipfs": "^0.50.1",
     "lcrypt": "^1.0.2",
     "lzutf8": "^0.5.5",
     "mathjs": "^6.6.4",
