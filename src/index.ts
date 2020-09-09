@@ -113,7 +113,7 @@ async function checkConnections(){
             var sync = (process.env.SYNC === 'true')
             global['retrySync'] ++
             if(sync === true && global['isSyncing'] === false && global['state'] === 'ON' && global['remainingBlocks'] === 0){
-              utils.log('Starting sync.')
+              console.log('Starting sync.')
               global['retrySync'] = 0
               var task = new Daemon.Sync
               task.init()

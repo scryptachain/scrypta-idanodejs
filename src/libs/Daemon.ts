@@ -35,7 +35,8 @@ module Daemon {
                 // console.clear()
                 wallet.request('getinfo').then(info => {
                     blocks = info['result'].blocks
-                    console.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
+                    let utils = new Utilities.Parser
+                    utils.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
                     var task = new Daemon.Sync
                     task.process()
                 })
@@ -151,7 +152,7 @@ module Daemon {
                                         synced = await task.analyze()
                                         if (synced !== false) {
                                             global['retrySync'] = 0
-                                            console.log('\x1b[46m%s\x1b[0m', 'SUCCESSFULLY SYNCED BLOCK ' + synced)
+                                            utils.log('SUCCESSFULLY SYNCED BLOCK ' + synced, '\x1b[46m%s\x1b[0m')
                                             mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                                                 var db = client.db(global['db_name'])
                                                 const savecheck = await db.collection('blocks').find({ block: synced }).toArray()
@@ -165,8 +166,7 @@ module Daemon {
                                                 }, 10)
                                             })
                                         } else {
-                                            console.log('\x1b[41m%s\x1b[0m', 'BLOCK NOT SYNCED, RETRY.')
-                                            utils.log('BLOCK NOT SYNCED, RETRY')
+                                            utils.log('BLOCK NOT SYNCED, RETRY.', '\x1b[41m%s\x1b[0m')
                                         }
                                     }
                                 } catch (e) {
@@ -455,6 +455,7 @@ module Daemon {
                         let check = await db.collection('written').find({ uuid: datastore.uuid, block: datastore.block }).limit(1).toArray()
                         if (check[0] === undefined) {
                             console.log('STORING DATA NOW!')
+                            utils.log('WRITTEN DATA ' + JSON.stringify(datastore))
                             if (JSON.stringify(datastore.data).indexOf('ipfs:') !== -1) {
                                 let parsed = datastore.data.split('***')
                                 if (parsed[0] !== undefined && process.env.PINIPFS === 'true') {
@@ -782,9 +783,10 @@ module Daemon {
                         var db = client.db(global['db_name'])
                         let check = await db.collection('received').find({ txid: datastore.txid, address: datastore.address }).limit(1).toArray()
                         if (check[0] === undefined) {
-                            utils.log('STORING DATA NOW!')
+                            console.log('STORING DATA NOW!')
                             try {
                                 await db.collection("received").insertOne(datastore)
+                                utils.log('RECEIVED DATA ' + JSON.stringify(datastore))
                             } catch (e) {
                                 utils.log('DB ERROR')
                                 utils.log(e)
@@ -817,7 +819,8 @@ module Daemon {
                             utils.log('FOUND ' + checktxs.length + ' TRANSACTIONS TO CONSOLIDATE')
                             for (let k in checktxs) {
                                 let tx = checktxs[k]
-                                let elapsed = (now - tx.time) / 1000
+                                let time = tx.time * 1000
+                                let elapsed = (now - time) / 1000
                                 if(elapsed > 600){
                                     utils.log('ELAPSED ' + elapsed + 's, NEED TO CONSOLIDATE')
                                     var wallet = new Crypto.Wallet
@@ -861,6 +864,8 @@ module Daemon {
                                         await db.collection('received').deleteMany({ txid: tx.txid })
                                         await db.collection('written').deleteMany({ txid: tx.txid })
                                     }
+                                }else{
+                                    utils.log('ELAPSED ' + elapsed + 's, EARLY TRANSACTION')
                                 }
                             }
                             client.close()

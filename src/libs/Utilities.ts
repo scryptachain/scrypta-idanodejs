@@ -58,14 +58,18 @@ module Utilities {
         return formattedTime
     }
 
-    public log(what){
+    public log(what, color = ''){
         const path = './log'
 
         try {
             if (!fs.existsSync(path)) {
                 fs.writeFileSync('log', "");
             }
-            console.log(what)
+            if(color === ''){
+                console.log(what)
+            }else{
+                console.log(color, what)
+            }
             let date_ob = new Date();
             let date = ("0" + date_ob.getDate()).slice(-2);
 
