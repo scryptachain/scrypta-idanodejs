@@ -341,7 +341,8 @@ module Daemon {
                                     value: tx.value,
                                     blockhash: block['hash'],
                                     blockheight: block['height'],
-                                    time: block['time']
+                                    time: block['time'],
+                                    inserted: new Date().getTime()
                                 }
                             )
                         } else if (check[0].blockheight === null && block['height'] !== undefined) {
@@ -819,7 +820,7 @@ module Daemon {
                             utils.log('FOUND ' + checktxs.length + ' TRANSACTIONS TO CONSOLIDATE')
                             for (let k in checktxs) {
                                 let tx = checktxs[k]
-                                let time = tx.time * 1000
+                                let time = tx.inserted
                                 let elapsed = (now - time) / 1000
                                 if(elapsed > 600){
                                     utils.log('ELAPSED ' + elapsed + 's, NEED TO CONSOLIDATE')
