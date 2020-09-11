@@ -4,22 +4,17 @@ var formidable = require('formidable')
 var fs = require('fs')
 const axios = require('axios')
 
-export function info(req: express.Request, res: express.Response) {
-  global['ipfs'].version(async function (err, version) {
-    if (err) {
-      throw err
-    }
-    const multiAddrs = await global['ipfs'].swarm.localAddrs()
-    let listenerAddress = multiAddrs[1].toString('hex')
+export async function info(req: express.Request, res: express.Response) {
+  let version = await global['ipfs'].version()
+  const multiAddrs = await global['ipfs'].swarm.localAddrs()
+  let listenerAddress = multiAddrs[1].toString('hex')
+  const connected = await global['ipfs'].swarm.peers()
 
-    const connected = await global['ipfs'].swarm.peers()
-
-    res.send({
-      info: version,
-      peer: listenerAddress,
-      connected: connected,
-      status: 200
-    })
+  res.send({
+    info: version,
+    peer: listenerAddress,
+    connected: connected,
+    status: 200
   })
 };
 
@@ -144,11 +139,15 @@ export function addfolder(files, folder) {
 export function verify(req: express.Request, res: express.Response) {
   var hash = req.params.hash
   var form = new formidable.IncomingForm();
+  let timeout = setTimeout(function () {
+    res.send(false)
+  }, 1000)
   form.parse(req)
   form.on('file', function (name, file) {
     fs.readFile(file.path, { onlyHash: true }, function (error, content) {
       global['ipfs'].add(content).then(results => {
-        var calculated = results[0].hash
+        var calculated = results.cid.toString()
+        clearTimeout(timeout)
         if (calculated !== hash) {
           res.send(false)
         } else {
@@ -157,19 +156,16 @@ export function verify(req: express.Request, res: express.Response) {
       })
     })
   });
-  setTimeout(function () {
-    res.send(false)
-  }, 1000)
 };
 
 export function ls(req: express.Request, res: express.Response) {
   const hash = req.params.hash
-  global['ipfs'].ls(hash, function (err, result) {
-    if (err) {
-      throw err
-    }
+  try {
+    let result = global['ipfs'].ls(hash)
     res.send(result)
-  })
+  } catch (e) {
+    res.send(e)
+  }
 };
 
 export function getfolder(req: express.Request, res: express.Response) {
@@ -230,9 +226,10 @@ export function getfilebuffer(req: express.Request, res: express.Response) {
   })
 };
 
-export function getfile(req: express.Request, res: express.Response) {
+export async function getfile(req: express.Request, res: express.Response) {
   const hash = req.params.hash
   let response = false
+  
   let timeout = setTimeout(async function () {
     let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
     let bootstrap = nodes.data.split("\n")
@@ -254,31 +251,20 @@ export function getfile(req: express.Request, res: express.Response) {
       }
     }
   }, 500)
+  
+  for await (const file of global['ipfs'].get(hash)) {
+    if (!file.content) continue;
+    const content = []
 
-  global['ipfs'].cat(hash, async function (err, file) {
-    if (err) {
-      global['ipfs'].ls(hash, function (err, result) {
-        if (err) {
-          console.log(err)
-        } else {
-          if (!response) {
-            response = true
-            clearTimeout(timeout)
-            res.send(result)
-          }
-        }
-      })
-    } else {
-      if (!response) {
-        response = true
-        var mimetype = await fileType.fromBuffer(file)
-        if (mimetype) {
-          res.setHeader('Content-Type', mimetype.mime);
-        }
-        res.end(file)
-      }
+    for await (const chunk of file.content) {
+      content.push(chunk)
     }
-  })
+    var mimetype = await fileType.fromBuffer(content[0])
+    if (mimetype) {
+      res.setHeader('Content-Type', mimetype.mime);
+    }
+    res.end(content[0])
+  }
 };
 
 export function fallbackfile(req: express.Request, res: express.Response) {
@@ -306,7 +292,7 @@ export function fallbackfile(req: express.Request, res: express.Response) {
   })
 };
 
-export function filetype(req: express.Request, res: express.Response) {
+export async function filetype(req: express.Request, res: express.Response) {
   const hash = req.params.hash
   let response = false
   let timeout = setTimeout(async function () {
@@ -332,25 +318,23 @@ export function filetype(req: express.Request, res: express.Response) {
     }, 5000)
   }, 500)
 
-  global['ipfs'].cat(hash, async function (err, file) {
-    if (err) {
-      console.log(err)
-    } else {
-      var mimetype = await fileType.fromBuffer(file)
-      if (mimetype) {
-        let details = mimetype.mime.split('/')
-        mimetype.type = details[0]
-        if (!response) {
-          response = true
-          clearTimeout(timeout)
-          res.send({
-            data: mimetype,
-            status: 200
-          })
-        }
-      }
+  for await (const file of global['ipfs'].get(hash)) {
+    if (!file.content) continue;
+    const content = []
+
+    for await (const chunk of file.content) {
+      content.push(chunk)
     }
-  })
+    var mimetype = await fileType.fromBuffer(content[0])
+    if (!response) {
+      response = true
+      clearTimeout(timeout)
+      res.send({
+        data: mimetype,
+        status: 200
+      })
+    }
+  }
 };
 
 export function fallbackfiletype(req: express.Request, res: express.Response) {
