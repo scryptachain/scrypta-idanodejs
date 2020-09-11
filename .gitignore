@@ -6,7 +6,6 @@ dist/
 rethinkdb_data/
 ipfs_data/
 mongodb_data/
-package-lock.json
 __pycache__
 lyrad
 lyra-cli
