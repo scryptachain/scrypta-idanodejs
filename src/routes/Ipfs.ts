@@ -373,14 +373,11 @@ export function fallbackfiletype(req: express.Request, res: express.Response) {
   })
 };
 
-export function pins(req: express.Request, res: express.Response) {
-  global['ipfs'].pin.ls({ type: 'recursive' }, function (err, pinset) {
-    if (err) {
-      throw err
-    }
-    res.send({
-      data: pinset,
-      status: 200
-    })
+export async function pins(req: express.Request, res: express.Response) {
+  let pinset = await global['ipfs'].pin.ls({ type: 'recursive' })
+
+  res.send({
+    data: pinset,
+    status: 200
   })
 };
