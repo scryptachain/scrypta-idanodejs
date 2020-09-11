@@ -229,41 +229,45 @@ export function getfilebuffer(req: express.Request, res: express.Response) {
 export async function getfile(req: express.Request, res: express.Response) {
   const hash = req.params.hash
   let response = false
-  
-  let timeout = setTimeout(async function () {
-    let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
-    let bootstrap = nodes.data.split("\n")
-    for (let k in bootstrap) {
-      let node = bootstrap[k].split(':')
-      try {
-        axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
-          if (!response && file.data.status !== 400) {
-            response = true
-            res.setHeader('Content-Type', file.headers['content-type'])
-            let buf = Buffer.from(file.data, 'hex')
-            res.send(buf)
-          }
-        }).catch(e => {
-          console.log("Can't connect to node")
-        })
-      } catch (e) {
-        console.log("Can't connect to node.")
+  try {
+    let timeout = setTimeout(async function () {
+      let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
+      let bootstrap = nodes.data.split("\n")
+      for (let k in bootstrap) {
+        let node = bootstrap[k].split(':')
+        try {
+          axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
+            if (!response && file.data.status !== 400) {
+              response = true
+              res.setHeader('Content-Type', file.headers['content-type'])
+              let buf = Buffer.from(file.data, 'hex')
+              res.send(buf)
+            }
+          }).catch(e => {
+            console.log("Can't connect to node")
+          })
+        } catch (e) {
+          console.log("Can't connect to node.")
+        }
       }
-    }
-  }, 500)
-  
-  for await (const file of global['ipfs'].get(hash)) {
-    if (!file.content) continue;
-    const content = []
+    }, 500)
+    for await (const file of global['ipfs'].get(hash)) {
+      if (!file.content) continue;
+      const content = []
 
-    for await (const chunk of file.content) {
-      content.push(chunk)
+      for await (const chunk of file.content) {
+        content.push(chunk)
+      }
+      var mimetype = await fileType.fromBuffer(content[0])
+      if (mimetype) {
+        res.setHeader('Content-Type', mimetype.mime);
+      }
+      clearTimeout(timeout)
+      res.end(content[0])
     }
-    var mimetype = await fileType.fromBuffer(content[0])
-    if (mimetype) {
-      res.setHeader('Content-Type', mimetype.mime);
-    }
-    res.end(content[0])
+  } catch (e) {
+    console.log(e)
+    res.send({ success: false, status: 500 })
   }
 };
 
@@ -295,45 +299,50 @@ export function fallbackfile(req: express.Request, res: express.Response) {
 export async function filetype(req: express.Request, res: express.Response) {
   const hash = req.params.hash
   let response = false
-  let timeout = setTimeout(async function () {
-    let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
-    let bootstrap = nodes.data.split("\n")
-    for (let k in bootstrap) {
-      let node = bootstrap[k].split(':')
-      try {
-        axios.get('http://' + node[1] + ':3001/ipfs-fallback-type/' + hash).then(file => {
-          if (!response && file.data.status === undefined) {
-            response = true
-            res.send(file.data)
-          }
-        }).catch(e => {
-          console.log("Can't connect to node")
+  try {
+    let timeout = setTimeout(async function () {
+      let nodes = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanode-network/master/peers')
+      let bootstrap = nodes.data.split("\n")
+      for (let k in bootstrap) {
+        let node = bootstrap[k].split(':')
+        try {
+          axios.get('http://' + node[1] + ':3001/ipfs-fallback-type/' + hash).then(file => {
+            if (!response && file.data.status === undefined) {
+              response = true
+              res.send(file.data)
+            }
+          }).catch(e => {
+            console.log("Can't connect to node")
+          })
+        } catch (e) {
+          console.log("Can't connect to node.")
+        }
+      }
+      setTimeout(function () {
+        res.send({ message: "FileType not available", status: 400 })
+      }, 5000)
+    }, 500)
+
+    for await (const file of global['ipfs'].get(hash)) {
+      if (!file.content) continue;
+      const content = []
+
+      for await (const chunk of file.content) {
+        content.push(chunk)
+      }
+      var mimetype = await fileType.fromBuffer(content[0])
+      if (!response) {
+        response = true
+        clearTimeout(timeout)
+        res.send({
+          data: mimetype,
+          status: 200
         })
-      } catch (e) {
-        console.log("Can't connect to node.")
       }
     }
-    setTimeout(function () {
-      res.send({ message: "FileType not available", status: 400 })
-    }, 5000)
-  }, 500)
-
-  for await (const file of global['ipfs'].get(hash)) {
-    if (!file.content) continue;
-    const content = []
-
-    for await (const chunk of file.content) {
-      content.push(chunk)
-    }
-    var mimetype = await fileType.fromBuffer(content[0])
-    if (!response) {
-      response = true
-      clearTimeout(timeout)
-      res.send({
-        data: mimetype,
-        status: 200
-      })
-    }
+  } catch (e) {
+    console.log(e)
+    res.send({ success: false, status: 500 })
   }
 };
 
