@@ -4,7 +4,6 @@ var fs = require('fs')
 var formidable = require('formidable')
 import * as Space from '../libs/Space'
 import * as Crypto from '../libs/Crypto'
-import { validate } from "./Explorer"
 const crypto = require('crypto')
 const LZUTF8 = require('lzutf8')
 import { v4 as uuidv4 } from 'uuid'

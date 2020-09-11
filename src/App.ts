@@ -20,7 +20,7 @@ global['syncLock'] = false
 global['isSyncing'] = false
 global['syncTimeout'] = null
 global['limit'] = 200
-global['isChecking'] = false
+global['isCheckingSpace'] = false
 global['remainingBlocks'] = 0
 
 if(process.env.TESTNET !== undefined){

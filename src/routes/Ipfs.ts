@@ -49,9 +49,8 @@ export async function add(req: express.Request, res: express.Response) {
         let buf = Buffer.from(fields.buffer, 'hex')
         try {
           let results = await global['ipfs'].add(buf, { pin: global['pinipfs'] })
-          console.log(results)
           res.send({
-            data: results,
+            data: results.path,
             status: 200
           })
         } catch (e) {
@@ -71,11 +70,16 @@ export async function add(req: express.Request, res: express.Response) {
             }
             ipfscontents.push(ipfsobj)
           }
-          global['ipfs'].add(ipfscontents, { pin: global['pinipfs'] }).then(results => {
-            res.send({
-              data: results,
-              status: 200
+          let results = []
+          for await (const result of global['ipfs'].addAll(ipfscontents)) {
+            results.push({
+              path: result.path,
+              hash: result.cid.toString()
             })
+          }
+          res.send({
+            data: results,
+            status: 200
           })
         } else {
           res.send({
@@ -89,7 +93,7 @@ export async function add(req: express.Request, res: express.Response) {
         if (files.file !== undefined) {
           var content = fs.readFileSync(files.file.path)
           global['ipfs'].add(content, { pin: global['pinipfs'] }).then(results => {
-            const hash = results[0].hash
+            const hash = results.path
             res.send({
               data: {
                 hash: hash

@@ -120,8 +120,8 @@ module Space {
     }
 
     async syncSpace() {
-      if (!global['isChecking']) {
-        global['isChecking'] = true
+      if (!global['isCheckingSpace']) {
+        global['isCheckingSpace'] = true
         var space = new Space.syncer
         var files = {}
         let list: Object = await space.readSpace()
@@ -173,7 +173,7 @@ module Space {
                 }
               }
             }
-            global['isChecking'] = false
+            global['isCheckingSpace'] = false
           })
         }
       }
