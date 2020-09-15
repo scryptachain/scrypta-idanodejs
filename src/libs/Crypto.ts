@@ -77,6 +77,12 @@ module Crypto {
             })
         }
 
+        public async getPublicKey(privateWif) {
+            var ck = new CoinKey.fromWif(privateWif);
+            var pubkey = ck.publicKey.toString('hex');
+            return pubkey;
+        }
+
         public async getAddressFromPubKey(pubKey) {
             return new Promise(response => {
                 let pubkeybuffer = Buffer.from(pubKey, 'hex')

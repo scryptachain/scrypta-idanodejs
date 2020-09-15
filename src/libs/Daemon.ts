@@ -3,6 +3,7 @@ import express = require("express")
 import * as Crypto from './Crypto'
 import * as Sidechain from './Planum'
 import * as Utilities from './Utilities'
+import * as Contracts from './Contracts'
 import * as Space from './Space'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
@@ -12,6 +13,7 @@ const console = require('better-console')
 const LZUTF8 = require('lzutf8')
 const axios = require('axios')
 const fs = require('fs')
+const vm = require('@scrypta/vm')
 
 const config = {
     epsilon: 1e-12,
@@ -48,6 +50,11 @@ module Daemon {
         public async process() {
             if (global['isSyncing'] === false) {
                 let utils = new Utilities.Parser
+
+                // CHECK IF THERE ARE PINNED CONTRACTS
+                let contracts = new Contracts.Local
+                let pinned = await contracts.pinned()
+
                 try {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         var db = client.db(global['db_name'])
@@ -134,6 +141,24 @@ module Daemon {
                                 await task.redeemunspent(input['txid'], input['vout'], null)
                             }
 
+                            if (mempool['outputs'].length > 0 && pinned.mempool.length > 0) {
+                                for (let k in pinned.mempool) {
+                                    let contract = pinned.mempool[k]
+                                    let request = {
+                                        function: "ifMempool",
+                                        params: mempool,
+                                        contract: contract
+                                    }
+                                    console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract)
+                                    try {
+                                        let hex = Buffer.from(JSON.stringify(request)).toString('hex')
+                                        let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
+                                        await vm.run(contract, signed, true)
+                                    } catch (e) {
+                                        console.log(e)
+                                    }
+                                }
+                            }
                         }
 
                         client.close()
@@ -148,7 +173,7 @@ module Daemon {
                                 let utils = new Utilities.Parser
                                 try {
                                     let synced: any = false
-                                    while(synced === false){
+                                    while (synced === false) {
                                         synced = await task.analyze()
                                         if (synced !== false) {
                                             global['retrySync'] = 0
@@ -299,6 +324,29 @@ module Daemon {
                                 if (storedreceived === false) {
                                     utils.log('ERROR ON STORE RECEIVED')
                                     response(false)
+                                }
+                            }
+                        }
+
+                        // CHECK IF THERE ARE PINNED CONTRACTS
+                        let contracts = new Contracts.Local
+                        let pinned = await contracts.pinned()
+
+                        if (pinned.block.length > 0) {
+                            for (let k in pinned.block) {
+                                let contract = pinned.block[k]
+                                let request = {
+                                    function: "eachBlock",
+                                    params: block,
+                                    contract: contract
+                                }
+                                console.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract)
+                                try {
+                                    let hex = Buffer.from(JSON.stringify(request)).toString('hex')
+                                    let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
+                                    await vm.run(contract, signed, true)
+                                } catch (e) {
+                                    console.log(e)
                                 }
                             }
                         }
@@ -475,6 +523,45 @@ module Daemon {
                             if (datastore.protocol === 'bvc://' && global['pinipfs'] === true) {
                                 var task = new Daemon.Sync
                                 await task.pinipfsfolder(datastore.data)
+                            }
+
+                            if (datastore.protocol === 'pin://') {
+                                let wallet = new Crypto.Wallet
+                                let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
+                                let adminaddress = await wallet.getAddressFromPubKey(adminpubkey)
+                                if (datastore.address === adminaddress) {
+                                    let pinned = await vm.read(datastore.data, true)
+                                    let check = await db.collection('contracts').find({ contract: datastore.data }).toArray()
+                                    if (check[0] === undefined) {
+                                        let hasEachBlock = false
+                                        if (pinned.functions.indexOf('eachBlock') !== -1) {
+                                            hasEachBlock = true
+                                        }
+                                        let hasIfMempool = false
+                                        if (pinned.functions.indexOf('ifMempool') !== -1) {
+                                            hasIfMempool = true
+                                        }
+                                        let pinToStore = {
+                                            contract: datastore.data,
+                                            eachBlock: hasEachBlock,
+                                            ifMempool: hasIfMempool
+                                        }
+                                        try {
+                                            await db.collection("contracts").insertOne(pinToStore)
+                                        } catch (e) {
+                                            console.log('DB ERROR', e)
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (datastore.protocol === 'unpin://') {
+                                let wallet = new Crypto.Wallet
+                                let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
+                                let adminaddress = await wallet.getAddressFromPubKey(adminpubkey)
+                                if (datastore.address === adminaddress) {
+                                    await db.collection('contracts').deleteOne({ contract: datastore.data })
+                                }
                             }
 
                             if (datastore.protocol === 'documenta://' && process.env.S3_BUCKET !== undefined) {
@@ -822,7 +909,7 @@ module Daemon {
                                 let tx = checktxs[k]
                                 let time = tx.inserted
                                 let elapsed = (now - time) / 1000
-                                if(elapsed > 600){
+                                if (elapsed > 600) {
                                     utils.log('ELAPSED ' + elapsed + 's, NEED TO CONSOLIDATE')
                                     var wallet = new Crypto.Wallet
                                     let rawtransaction = await wallet.request('getrawtransaction', [tx.txid, 1])
@@ -865,7 +952,7 @@ module Daemon {
                                         await db.collection('received').deleteMany({ txid: tx.txid })
                                         await db.collection('written').deleteMany({ txid: tx.txid })
                                     }
-                                }else{
+                                } else {
                                     utils.log('ELAPSED ' + elapsed + 's, EARLY TRANSACTION')
                                 }
                             }

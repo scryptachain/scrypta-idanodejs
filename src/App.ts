@@ -7,6 +7,7 @@ import * as pdm from "./routes/Pdm"
 import * as sidechains from "./routes/Planum"
 import * as documenta from "./routes/Documenta"
 import * as p2p from "./routes/P2PEngine"
+import * as contracts from "./routes/Contracts"
 
 var bodyParser = require('body-parser')
 var cors = require('cors')
@@ -89,6 +90,12 @@ class App {
     app.express.post('/read', pdm.read)
     app.express.post('/invalidate', pdm.invalidate)
     app.express.post('/received', pdm.received)
+
+    // SMART CONTRACTS
+    app.express.get('/contracts/:address', contracts.read)
+    app.express.post('/contracts/run', contracts.run)
+    app.express.post('/contracts/pin', contracts.pin)
+    app.express.post('/contracts/unpin', contracts.unpin)
 
     //TRUSTLINK
     app.express.post('/trustlink/init', trustlink.init)

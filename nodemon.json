@@ -1,0 +1,5 @@
+{
+    "ignore": ["db/*"],
+    "watch": ["./src/*", "./node_modules/*"],
+    "ext": "js,ts"
+  }
