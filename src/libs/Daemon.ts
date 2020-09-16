@@ -529,10 +529,13 @@ module Daemon {
                                 let wallet = new Crypto.Wallet
                                 let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
                                 let adminaddress = await wallet.getAddressFromPubKey(adminpubkey)
+                                utils.log('FOUND PIN FOR CONTRACT ' + datastore.data)
+                                utils.log('PINNED BY ' + datastore.address + ', ADMIN ADDRESS IS ' + adminaddress)
                                 if (datastore.address === adminaddress) {
-                                    let pinned = await vm.read(datastore.data, true)
                                     let check = await db.collection('contracts').find({ contract: datastore.data }).toArray()
                                     if (check[0] === undefined) {
+                                        utils.log('NEED TO PIN CONTRACT')
+                                        let pinned = await vm.read(datastore.data, true)
                                         let hasEachBlock = false
                                         if (pinned.functions.indexOf('eachBlock') !== -1) {
                                             hasEachBlock = true
@@ -549,7 +552,7 @@ module Daemon {
                                         try {
                                             await db.collection("contracts").insertOne(pinToStore)
                                         } catch (e) {
-                                            console.log('DB ERROR', e)
+                                            utils.log('DB ERROR', e)
                                         }
                                     }
                                 }
