@@ -763,9 +763,20 @@ module Daemon {
 
                                         if (valid === true) {
                                             datastore.data.block = datastore.block
-                                            let checkTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
-                                            if (checkTx[0] === undefined) {
-                                                await db.collection("sc_transactions").insertOne(datastore.data)
+                                            let insertTx = false
+                                            while(insertTx === false){
+                                                try{
+                                                    let checkTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
+                                                    if (checkTx[0] === undefined) {
+                                                        await db.collection("sc_transactions").insertOne(datastore.data)
+                                                        let checkinsertedTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
+                                                        if (checkinsertedTx[0] !== undefined) {
+                                                            insertTx = true
+                                                        }
+                                                    }
+                                                }catch(e){
+                                                    utils.log('ERROR WHILE INSERTING PLANUM TX')
+                                                }
                                             }
 
                                             // REEDIMING UNSPENT FOR EACH INPUT
@@ -776,12 +787,20 @@ module Daemon {
                                                     global['sxidcache'].push(sxid + ':' + vout)
                                                     await messages.signandbroadcast('planum-unspent', sxid + ':' + vout)
                                                 }
-                                                if (datastore.block !== null) {
-                                                    await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
-                                                } else {
-                                                    await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                let updated = false
+                                                while(updated === false){
+                                                    try{
+                                                        if (datastore.block !== null) {
+                                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
+                                                        } else {
+                                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                        }
+                                                        utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
+                                                        updated = true
+                                                    }catch(e){
+                                                        utils.log('ERROR WHILE REDEEMING UNSPENT')
+                                                    }
                                                 }
-                                                utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
                                             }
 
                                             // CREATING UNSPENT FOR EACH VOUT
@@ -800,10 +819,21 @@ module Daemon {
                                                     redeemblock: null,
                                                     time: datastore.data.transaction.time
                                                 }
-                                                let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                if (checkUsxo[0] === undefined) {
-                                                    utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
-                                                    await db.collection('sc_unspent').insertOne(unspent)
+                                                let inserted = false
+                                                while(inserted === false){
+                                                    try{
+                                                        let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                        if (checkUsxo[0] === undefined) {
+                                                            utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
+                                                            await db.collection('sc_unspent').insertOne(unspent)
+                                                            let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                            if(checkInsertedUsxo[0] !== undefined){
+                                                                inserted = true
+                                                            }
+                                                        }
+                                                    }catch(e){
+                                                        utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.')
+                                                    }
                                                 }
                                                 vout++
                                             }
@@ -817,7 +847,7 @@ module Daemon {
                                         let doublespending = false
                                         if (!isMempool) { // IGNORING IF WE'RE STILL WORKING WITH MEMPOOL
                                             if (datastore.block !== null) { // BE SURE THAT STORED IS NOT VALIDATED
-                                                console.log('SIDECHAIN TRANSACTION ALREADY STORED FROM MEMPOOL, VALIDATING.')
+                                                utils.log('SIDECHAIN TRANSACTION ALREADY STORED FROM MEMPOOL, VALIDATING.')
                                                 for (let x in datastore.data.transaction.inputs) {
                                                     let sxid = datastore.data.transaction.inputs[x].sxid
                                                     let vout = datastore.data.transaction.inputs[x].vout
@@ -950,12 +980,12 @@ module Daemon {
                                         })
                                     } else {
                                         utils.log('TRANSACTION NOT FOUND, DELETE EVERYTHING RELATED')
-                                        /*await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
+                                        await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
                                         await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
                                         await db.collection('unspent').deleteMany({ txid: tx.txid })
                                         await db.collection('transactions').deleteMany({ txid: tx.txid })
                                         await db.collection('received').deleteMany({ txid: tx.txid })
-                                        await db.collection('written').deleteMany({ txid: tx.txid })*/
+                                        await db.collection('written').deleteMany({ txid: tx.txid })
                                     }
                                 } else {
                                     utils.log('ELAPSED ' + elapsed + 's, EARLY TRANSACTION')
