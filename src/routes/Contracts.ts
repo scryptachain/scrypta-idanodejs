@@ -50,7 +50,9 @@ export async function pin(req: express.Request, res: express.Response) {
   if (request['body']['message'] !== undefined) {
     let wallet = new Crypto.Wallet
     let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
-    if(adminpubkey === request['body']['pubkey']){
+    let verify = await wallet.verifymessage(adminpubkey, request['body']['signature'], request['body']['message'])
+    
+    if(adminpubkey === request['body']['pubkey'] && verify !== false){
       mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         let check = await db.collection('contracts').find({ contract: request['body']['message'] }).toArray()
@@ -68,7 +70,7 @@ export async function pin(req: express.Request, res: express.Response) {
           if(balance > 0.001){
             var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
             var collection = '!*!'
-            let refID = '!*!'
+            let refID = '!*!' + adminpubkey
             var protocol = '!*!pin://'
             var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + request['body']['message'] + '*!*'
             let write = await wallet.write(process.env.NODE_KEY, request['body']['address'], dataToWrite, uuid, collection, refID, protocol)
@@ -93,7 +95,9 @@ export async function unpin(req: express.Request, res: express.Response) {
   if (request['body']['message'] !== undefined) {
     let wallet = new Crypto.Wallet
     let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
-    if(adminpubkey === request['body']['pubkey']){
+    let verify = await wallet.verifymessage(adminpubkey, request['body']['signature'], request['body']['message'])
+
+    if(adminpubkey === request['body']['pubkey'] && verify !== false){
       mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         let check = await db.collection('contracts').find({ contract: request['body']['message'] }).toArray()
@@ -111,7 +115,7 @@ export async function unpin(req: express.Request, res: express.Response) {
           if(balance > 0.001){
             var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
             var collection = '!*!'
-            let refID = '!*!'
+            let refID = '!*!' + adminpubkey
             var protocol = '!*!unpin://'
             var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + request['body']['message'] + '*!*'
             let write = await wallet.write(process.env.NODE_KEY, request['body']['address'], dataToWrite, uuid, collection, refID, protocol)
