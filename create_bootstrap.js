@@ -1,7 +1,7 @@
 const { exec } = require('child_process');
 
 console.log('CREATING BOOTSTRAP DUMP')
-exec('rm -rf idanodejs && mongodump --db idanodejs --out ./', function (error, stdout, stderr) {
+exec('rm -rf idanodejs && mongodump --db idanodejs --excludeCollection contracts --out ./', function (error, stdout, stderr) {
   if (error) {
     console.log(error.stack);
     console.log('Error code: '+error.code);
