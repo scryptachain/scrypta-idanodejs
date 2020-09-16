@@ -39,7 +39,7 @@ module Daemon {
                 wallet.request('getinfo').then(info => {
                     blocks = info['result'].blocks
                     let utils = new Utilities.Parser
-                    utils.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
+                    utils.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN, RETRY SYNC IS ' + global['retrySync'] )
                     var task = new Daemon.Sync
                     task.process()
                 })
