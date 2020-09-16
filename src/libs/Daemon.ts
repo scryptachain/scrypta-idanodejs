@@ -538,11 +538,11 @@ module Daemon {
                                         utils.log('NEED TO PIN CONTRACT')
                                         let pinned = await vm.read(datastore.data, true)
                                         let hasEachBlock = false
-                                        if (pinned.functions.indexOf('eachBlock') !== -1) {
+                                        if (pinned.functions !== undefined && pinned.functions.indexOf('eachBlock') !== -1) {
                                             hasEachBlock = true
                                         }
                                         let hasIfMempool = false
-                                        if (pinned.functions.indexOf('ifMempool') !== -1) {
+                                        if (pinned.functions !== undefined && pinned.functions.indexOf('ifMempool') !== -1) {
                                             hasIfMempool = true
                                         }
                                         let pinToStore = {
@@ -802,7 +802,8 @@ module Daemon {
                                                 }
                                                 let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                 if (checkUsxo[0] === undefined) {
-                                                    await db.collection("sc_unspent").insertOne(unspent)
+                                                    utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
+                                                    await db.collection('sc_unspent').insertOne(unspent)
                                                 }
                                                 vout++
                                             }
