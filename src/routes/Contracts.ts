@@ -21,8 +21,17 @@ export async function run(req: express.Request, res: express.Response) {
       let decoded = Buffer.from(request['body']['message'], 'hex').toString('utf8')
       let parsed = JSON.parse(decoded)
       if(parsed['contract'] !== undefined && parsed['function'] !== undefined && parsed['params'] !== undefined){
-        let run = await vm.run(parsed['contract'], request['body'], true)
-        res.send(run)
+        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+          const db = client.db(global['db_name'])
+          let check = await db.collection('contracts').find({ contract: parsed['contract'] }).toArray()
+          client.close()
+          if(check[0] !== undefined){
+            let run = await vm.run(parsed['contract'], request['body'], true)
+            res.send(run)
+          }else{
+            res.send({ message: 'Smart Contract not available at this node.', error: 400 })
+          }
+        })
       }else{
         res.send({ message: 'Please send a valid reqeust', error: 400 })
       }
@@ -45,6 +54,7 @@ export async function pin(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         let check = await db.collection('contracts').find({ contract: request['body']['message'] }).toArray()
+        client.close()
         if(check[0] !== undefined){
           res.send({ message: 'Contract pinned yet.', status: 501 })
         }else{
@@ -87,6 +97,7 @@ export async function unpin(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
         const db = client.db(global['db_name'])
         let check = await db.collection('contracts').find({ contract: request['body']['message'] }).toArray()
+        client.close()
         if(check[0] === undefined){
           res.send({ message: 'Contract unpinned yet.', status: 501 })
         }else{
