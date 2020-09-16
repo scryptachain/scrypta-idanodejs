@@ -42,16 +42,6 @@ export function analyzemempool(req: express.Request, res: express.Response) {
     })
 };
 
-export function cleanmempool(req: express.Request, res: express.Response) {
-    var wallet = new Crypto.Wallet;
-    wallet.cleanMempool().then(response => {
-        res.json({
-            cleaned: response,
-            status: 200
-        })
-    })
-};
-
 export function getlastblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     wallet.request('getinfo').then(info => {

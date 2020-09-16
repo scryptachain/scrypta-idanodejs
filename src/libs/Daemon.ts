@@ -35,6 +35,7 @@ module Daemon {
             if (global['isSyncing'] === false) {
                 var wallet = new Crypto.Wallet
                 // console.clear()
+                global['retrySync'] = 0
                 wallet.request('getinfo').then(info => {
                     blocks = info['result'].blocks
                     let utils = new Utilities.Parser
@@ -948,12 +949,12 @@ module Daemon {
                                         })
                                     } else {
                                         utils.log('TRANSACTION NOT FOUND, DELETE EVERYTHING RELATED')
-                                        await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
+                                        /*await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
                                         await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
                                         await db.collection('unspent').deleteMany({ txid: tx.txid })
                                         await db.collection('transactions').deleteMany({ txid: tx.txid })
                                         await db.collection('received').deleteMany({ txid: tx.txid })
-                                        await db.collection('written').deleteMany({ txid: tx.txid })
+                                        await db.collection('written').deleteMany({ txid: tx.txid })*/
                                     }
                                 } else {
                                     utils.log('ELAPSED ' + elapsed + 's, EARLY TRANSACTION')
