@@ -16,7 +16,9 @@ module SideChain {
                 let unspent = await db.collection('sc_unspent').find({address: address, sidechain: sidechain, redeemed: null, redeemblock: null}).sort({ block: -1 }).toArray()
                 for(let x in unspent){
                     delete unspent[x]._id
-                    if(uniq.indexOf(unspent[x].sxid+':'+unspent[x].vout) === -1){
+                    let scwallet = new SideChain.Wallet
+                    let isDoubleSpended = await scwallet.checkdoublespending(unspent[x].sxid, unspent[x].vout, sidechain)
+                    if(uniq.indexOf(unspent[x].sxid+':'+unspent[x].vout) === -1 && isDoubleSpended === false){
                         uniq.push(unspent[x].sxid+':'+unspent[x].vout)
                         res.push(unspent[x])
                     }
@@ -165,21 +167,25 @@ module SideChain {
         })
     }
 
-    public async checkdoublespending(sxid, vout, sidechain, incomingSxid){
+    public async checkdoublespending(sxid, vout, sidechain, incomingSxid = ''){
         return new Promise <boolean> (async response => {
             mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                 const db = client.db(global['db_name'])
                 let invalid = false
                 // CHECKING IF UNSPENT IS NOT DOUBLE SPENDED
                 let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": sidechain }).sort({ "transaction.time": 1 }).toArray()
-                let doublespends = []
                 for(let x in sidechain_datas){
                     let transaction = sidechain_datas[x]
                     for(let y in transaction.transaction.inputs){
                         let input = transaction.transaction.inputs[y]
-                        if(input.sxid === sxid && input.vout === vout && transaction.sxid !== incomingSxid){
-                            invalid = true
-                            doublespends.push(transaction)                      
+                        if(incomingSxid !== ''){
+                            if(input.sxid === sxid && input.vout === vout && transaction.sxid !== incomingSxid){
+                                invalid = true
+                            }
+                        }else{
+                            if(input.sxid === sxid && input.vout === vout){
+                                invalid = true
+                            }
                         }
                     }
                 }

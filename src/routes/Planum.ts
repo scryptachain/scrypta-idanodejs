@@ -214,7 +214,6 @@ export async function send(req: express.Request, res: express.Response) {
                       amountinput = math.round(amountinput, decimals)
                     } else {
                       parser.log('FOUND DOUBLE SPENDED TRANSACTION ' + unspent[i].sxid + ':' + unspent[i].vout)
-                      // await db.collection('sc_unspent').deleteOne({ "sxid": unspent[i].sxid, "vout": unspent[i].vout })
                     }
                   }
                 }
@@ -501,8 +500,6 @@ export async function getsidechain(req: express.Request, res: express.Response) 
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
-        var scwallet = new Sidechain.Wallet;
-        let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
         if (check_sidechain[0] !== undefined) {
           res.json({
             sidechain: check_sidechain
@@ -716,13 +713,13 @@ export async function listunspent(req: express.Request, res: express.Response) {
         
         let balance = 0
         for (let k in unspent) {
-          balance += unspent[k].amount
+          balance += parseFloat(unspent[k].amount.toFixed(check_sidechain[0].data.genesis.decimals))
         }
 
         if (check_sidechain[0] !== undefined) {
           res.json({
             unspent: unspent,
-            balance: balance,
+            balance: parseFloat(balance.toFixed(check_sidechain[0].data.genesis.decimals)),
             sidechain: check_sidechain[0].address
           })
         } else {
@@ -1183,6 +1180,7 @@ export function listchains(req: express.Request, res: express.Response) {
 export async function shares(req: express.Request, res: express.Response) {
   var parser = new Utilities.Parser
   var request = await parser.body(req)
+  var scwallet = new Sidechain.Wallet;
   if (request !== false) {
     let fields = request['body']
     if (fields.sidechain_address !== undefined) {

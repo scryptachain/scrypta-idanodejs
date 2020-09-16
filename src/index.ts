@@ -9,7 +9,7 @@ const fs = require("fs")
 const mongo = require('mongodb').MongoClient
 const exec = require('child_process')
 var publicIp = require('public-ip')
-let {nextAvailable} = require('node-port-check')
+let { nextAvailable } = require('node-port-check')
 require('dotenv').config()
 const { hashElement } = require('folder-hash')
 const CryptoJS = require('crypto-js')
@@ -18,13 +18,13 @@ const console = require('better-console')
 var server
 global['state'] = 'OFF'
 global['db_url'] = 'mongodb://localhost:27017'
-global['db_options'] = {useNewUrlParser: true, useUnifiedTopology: true }
+global['db_options'] = { useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
 global['isAnalyzing'] = false
 global['retrySync'] = 0
-if(process.env.PINIPFS !== undefined && process.env.PINIPFS === 'false'){
+if (process.env.PINIPFS !== undefined && process.env.PINIPFS === 'false') {
   global['pinipfs'] = false
-}else if(process.env.PINIPFS === undefined || process.env.PINIPFS === 'true'){
+} else if (process.env.PINIPFS === undefined || process.env.PINIPFS === 'true') {
   global['pinipfs'] = true
 }
 utils.log('IPFS PIN STATUS IS ' + global['pinipfs'])
@@ -33,14 +33,14 @@ const helmet = require('helmet')
 
 // SETTING RATE LIMIT
 var limiter = rateLimit({
-  windowMs: 10 * 60 * 1000, 
-  max: 150 
+  windowMs: 10 * 60 * 1000,
+  max: 150
 })
 
-if(process.env.RATELIMIT !== undefined){
+if (process.env.RATELIMIT !== undefined) {
   limiter = rateLimit({
-    windowMs: 10 * 60 * 1000, 
-    max: process.env.RATELIMIT 
+    windowMs: 10 * 60 * 1000,
+    max: process.env.RATELIMIT
   });
 }
 
@@ -51,9 +51,9 @@ const nodeprocess = async () => {
   app.use(helmet())
 
   var ip = ''
-  try{
+  try {
     ip = await publicIp.v4()
-  }catch(error){
+  } catch (error) {
     ip = '?'
   }
   server = app.listen(port, (err) => {
@@ -61,68 +61,68 @@ const nodeprocess = async () => {
       return console.log(err)
     }
     checkConnections()
-    return console.log(`Scrypta IdaNode listening at port ${port}. Public IP is: ${ip}`)  
+    return console.log(`Scrypta IdaNode listening at port ${port}. Public IP is: ${ip}`)
   })
 
 }
 
-function sleep (time) {
+function sleep(time) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
 
-async function checkConnections(){
+async function checkConnections() {
   var is_testnet = false
-  if(process.env.TESTNET !== undefined){
-    if(process.env.TESTNET === 'true'){
+  if (process.env.TESTNET !== undefined) {
+    if (process.env.TESTNET === 'true') {
       is_testnet = true
     }
   }
 
   var wallet = new Crypto.Wallet;
-  wallet.request('getinfo').then( async function(info){
-    if(info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0){
+  wallet.request('getinfo').then(async function (info) {
+    if (info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0) {
       console.log(process.env.COIN + ' wallet successfully connected.')
-      try{
-        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
-          if(err){
+      try {
+        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+          if (err) {
             console.log('Database not connected, starting process now.')
-            try{
+            try {
               var mongo_path = './mongodb_data'
-              if(is_testnet){
+              if (is_testnet) {
                 console.log('RUNNING DATABASE IN TESTNET FOLDER')
                 mongo_path += '_testnet'
               }
               if (!fs.existsSync(mongo_path)) {
                 fs.mkdirSync(mongo_path);
               }
-              exec.exec('mongod --dbpath=' + mongo_path,{
+              exec.exec('mongod --dbpath=' + mongo_path, {
                 stdio: 'ignore',
                 detached: true
               }).unref()
               console.log('Waiting 5 seconds, then try again.')
               await sleep(5000)
               checkConnections()
-            }catch(err){
+            } catch (err) {
               console.log(err)
             }
-          }else{
+          } else {
             console.log('Database connected successfully.')
-            if(global['state'] === 'OFF'){
+            if (global['state'] === 'OFF') {
               runIdaNode()
             }
             var sync = (process.env.SYNC === 'true')
-            global['retrySync'] ++
-            if(sync === true && global['isSyncing'] === false && global['state'] === 'ON' && global['remainingBlocks'] === 0){
+            global['retrySync']++
+            if (sync === true && global['isSyncing'] === false && global['state'] === 'ON' && global['remainingBlocks'] === 0) {
               console.log('Starting sync.')
               global['retrySync'] = 0
               var task = new Daemon.Sync
               task.init()
-              if(process.env.S3_BUCKET !== undefined){
+              if (process.env.S3_BUCKET !== undefined) {
                 var space = new Space.syncer
                 space.syncSpace()
               }
             }
-            if(global['retrySync'] >= 100){
+            if (global['retrySync'] >= 100) {
               utils.log('Forcing sync.')
               global['isSyncing'] = false
               global['retrySync'] = 0
@@ -133,47 +133,47 @@ async function checkConnections(){
             client.close()
           }
         });
-      }catch(e){
+      } catch (e) {
         var mongo_path = './mongodb_data'
-        if(is_testnet){
+        if (is_testnet) {
           console.log('RUNNING DATABASE IN TESTNET FOLDER')
           mongo_path += '_testnet'
         }
         if (!fs.existsSync(mongo_path)) {
           fs.mkdirSync(mongo_path);
         }
-        exec.exec('mongod --dbpath=' + mongo_path,{
+        exec.exec('mongod --dbpath=' + mongo_path, {
           stdio: 'ignore',
           detached: true
         }).unref()
         console.log('Waiting 5 seconds, then try again.')
         await sleep(5000)
       }
-    }else{
+    } else {
       console.log('Can\'t communicate with wallet, running process now.')
       var testnet_flag = ''
-      if(process.env.LYRAPATH !== undefined && process.env.LYRAFOLDER !== undefined){
-        if(is_testnet){
-            testnet_flag = '-testnet'
-            console.log('RUNNING WALLET IN TESTNET MODE')
+      if (process.env.LYRAPATH !== undefined && process.env.LYRAFOLDER !== undefined) {
+        if (is_testnet) {
+          testnet_flag = '-testnet'
+          console.log('RUNNING WALLET IN TESTNET MODE')
         }
-        exec.spawn(process.env.LYRAPATH + '/lyrad ' + '-datadir=' + process.env.LYRAFOLDER,{
+        exec.spawn(process.env.LYRAPATH + '/lyrad ' + '-datadir=' + process.env.LYRAFOLDER, {
           stdio: 'ignore',
           detached: true
         }).unref().catch(e => {
           console.log(e)
         })
-      }else{
-        if(process.env.LYRAPATH !== undefined){
-          if(is_testnet){
+      } else {
+        if (process.env.LYRAPATH !== undefined) {
+          if (is_testnet) {
             testnet_flag = '-testnet'
             console.log('RUNNING WALLET IN TESTNET MODE')
           }
-          exec.spawn(process.env.LYRAPATH + '/lyrad', [testnet_flag],{
+          exec.spawn(process.env.LYRAPATH + '/lyrad', [testnet_flag], {
             stdio: 'ignore',
             detached: true
           }).unref()
-        }else{
+        } else {
           console.error('LYRAD NOT RUNNING, PLEASE RUN IT.')
         }
       }
@@ -184,7 +184,7 @@ async function checkConnections(){
   })
 }
 
-async function checkIntegrity(){
+async function checkIntegrity() {
   return new Promise(response => {
     let pkg = require('../package.json')
     console.log('Start identity check, version is ' + pkg.version)
@@ -196,9 +196,9 @@ async function checkIntegrity(){
       .then(async hash => {
         let sha256 = CryptoJS.SHA256(hash.hash).toString(CryptoJS.enc.Hex)
         let online_check = await returnGitChecksum(pkg.version)
-        if(online_check === sha256){
+        if (online_check === sha256) {
           response(true)
-        }else{
+        } else {
           response(false)
         }
       })
@@ -208,30 +208,30 @@ async function checkIntegrity(){
   })
 }
 
-async function returnGitChecksum(version){
+async function returnGitChecksum(version) {
   const app = this
   return new Promise(async response => {
-    try{
-        let checksums_git = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanodejs/master/checksum', {timeout: 10000}).catch(e => {
-          console.error(e)
-          response(false)
-        })
-        let checksums = checksums_git.data.split("\n")
-        for(let x in checksums){
-            let checksum = checksums[x].split(':')
-            if(checksum[0] === version){
-                response(checksum[1])
-            }
+    try {
+      let checksums_git = await axios.get('https://raw.githubusercontent.com/scryptachain/scrypta-idanodejs/master/checksum', { timeout: 10000 }).catch(e => {
+        console.error(e)
+        response(false)
+      })
+      let checksums = checksums_git.data.split("\n")
+      for (let x in checksums) {
+        let checksum = checksums[x].split(':')
+        if (checksum[0] === version) {
+          response(checksum[1])
         }
-        response(false)
-    }catch(e){
-        console.log(e)
-        response(false)
+      }
+      response(false)
+    } catch (e) {
+      console.log(e)
+      response(false)
     }
   })
 }
 
-async function runIdaNode(){
+async function runIdaNode() {
   console.log('Starting database check.')
   var DB = new Database.Management
   var result = await DB.check()
@@ -239,18 +239,18 @@ async function runIdaNode(){
   var sync = (process.env.SYNC === 'true')
   // CHECKING CONNETIONS EVERY 1 SECOND
   let valid = await checkIntegrity()
-  if(!valid){
+  if (!valid) {
     console.error('IDANODE IS CORRUPTED, PLEASE CHECK FILES!')
-  }else{
+  } else {
     console.info('IDANODE IS VALID.')
   }
-  setInterval(function(){
+  setInterval(function () {
     checkConnections()
-  },1000)
-  
-  if(sync === true){
+  }, 1000)
+
+  if (sync === true) {
     global['state'] = 'ON'
-  }else{
+  } else {
     console.log('Automatic sync is turned off.')
   }
 }

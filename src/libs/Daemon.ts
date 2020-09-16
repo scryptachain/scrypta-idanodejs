@@ -856,9 +856,6 @@ module Daemon {
                                                     if (isDoubleSpended === true) {
                                                         utils.log('INPUT ' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block + ' IS DOUBLE SPENDED')
                                                         doublespending = true
-                                                        // DOUBLE SPENDING FOUND, DELETING ALL UNSPENTS AND TRANSACTION
-                                                        // await db.collection('sc_unspent').deleteMany({ sxid: datastore.data.sxid })
-                                                        // await db.collection('sc_transactions').deleteOne({ sxid: datastore.data.sxid })
                                                     }
                                                 }
 

@@ -6,6 +6,7 @@ const utilities = require('../libs/p2p/utilities.js')
 const messages = require('../libs/p2p/messages.js')
 const app = require('express')()
 var server = require('http').Server(app)
+let { nextAvailable } = require('node-port-check')
 
 global['io'] = { server: null, client: null, sockets: {} }
 global['io'].server = require('socket.io')(server)
@@ -73,23 +74,27 @@ export async function initP2P() {
     }
 
     //INIT SOCKETIO SERVER
-    let p2pport = process.env.P2PPORT;
-    console.log('Starting P2P server on port ' + p2pport)
-    server.listen(p2pport);
-    if (global['io'].server !== null) {
-      global['io'].server.on('connection', function (socket) {
-        console.log('New peer connected: ' + socket.id)
-        global['io'].sockets[socket.id] = socket
+    let port = await nextAvailable(process.env.P2PPORT, '0.0.0.0')
+    console.log('Starting P2P server on port ' + port)
+    try {
+      server.listen(port);
+      if (global['io'].server !== null) {
+        global['io'].server.on('connection', function (socket) {
+          console.log('New peer connected: ' + socket.id)
+          global['io'].sockets[socket.id] = socket
 
-        //PROTOCOLS
-        socket.on('message', function (data) {
-          messages.relay(data, 'message')
-        })
+          //PROTOCOLS
+          socket.on('message', function (data) {
+            messages.relay(data, 'message')
+          })
 
-        socket.on('planum-unspent', function (data) {
-          messages.relay(data, 'planum-unspent')
-        })
-      });
+          socket.on('planum-unspent', function (data) {
+            messages.relay(data, 'planum-unspent')
+          })
+        });
+      }
+    } catch (e) {
+      console.log('ERROR WHILE STARTING P2P SERVER')
     }
   } else {
     console.log("CAN'T LOAD NODE IDENTITY.")
