@@ -5,6 +5,7 @@ let pkg = require('./package.json')
 const ScryptaCore = require('@scrypta/core')
 const scrypta = new ScryptaCore
 scrypta.staticnodes = true
+scrypta.debug = true
 require('dotenv').config()
 
 let version = pkg.version
