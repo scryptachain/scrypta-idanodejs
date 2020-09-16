@@ -214,7 +214,7 @@ export async function send(req: express.Request, res: express.Response) {
                       amountinput = math.round(amountinput, decimals)
                     } else {
                       parser.log('FOUND DOUBLE SPENDED TRANSACTION ' + unspent[i].sxid + ':' + unspent[i].vout)
-                      await db.collection('sc_unspent').deleteOne({ "sxid": unspent[i].sxid, "vout": unspent[i].vout })
+                      // await db.collection('sc_unspent').deleteOne({ "sxid": unspent[i].sxid, "vout": unspent[i].vout })
                     }
                   }
                 }
