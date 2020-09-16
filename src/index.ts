@@ -122,13 +122,19 @@ async function checkConnections() {
                 space.syncSpace()
               }
             }
-            if (global['retrySync'] >= 100) {
-              utils.log('Forcing sync.')
-              global['isSyncing'] = false
-              global['retrySync'] = 0
-              var task = new Daemon.Sync
-              task.init()
-              global['state'] = 'ON'
+            if (global['retrySync'] >= 1000) {
+              mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                var db = client.db(global['db_name'])
+                var task = new Daemon.Sync
+                const last = await db.collection('blocks').find().sort({ block: -1 }).limit(1).toArray()
+                db.collection('blocks').deleteOne({block: last[0].block })
+                utils.log('Forcing sync.')
+                global['isSyncing'] = false
+                global['retrySync'] = 0
+                var task = new Daemon.Sync
+                task.init()
+                global['state'] = 'ON'
+              })
             }
             client.close()
           }

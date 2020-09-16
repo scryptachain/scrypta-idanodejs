@@ -91,6 +91,7 @@ module Daemon {
                             console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
                             var wallet = new Crypto.Wallet
                             var mempool = await wallet.analyzeMempool()
+                            global['retrySync'] = 0
                             for (var address in mempool['data_written']) {
                                 var data = mempool['data_written'][address]
                                 console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
@@ -224,6 +225,7 @@ module Daemon {
         public async analyze(toAnalyze = null) {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
+                global['retrySync'] = 0
                 try {
                     if (toAnalyze !== null) {
                         analyze = toAnalyze
