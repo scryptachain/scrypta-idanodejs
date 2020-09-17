@@ -107,6 +107,7 @@ async function checkConnections() {
             }
           } else {
             console.log('Database connected successfully.')
+            client.close()
             if (global['state'] === 'OFF') {
               runIdaNode()
             }
@@ -122,21 +123,22 @@ async function checkConnections() {
                 space.syncSpace()
               }
             }
-            if (global['retrySync'] >= 1000) {
+            utils.log('RETRY SYNC IS ' + global['retrySync'])
+            if (global['retrySync'] >= 240) {
               mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                 var db = client.db(global['db_name'])
                 var task = new Daemon.Sync
                 const last = await db.collection('blocks').find().sort({ block: -1 }).limit(1).toArray()
-                db.collection('blocks').deleteOne({block: last[0].block })
-                utils.log('Forcing sync.')
+                db.collection('blocks').deleteOne({ block: last[0].block })
+                utils.log('Retry sync is ' + global['retrySync'] + ', forcing sync.')
                 global['isSyncing'] = false
                 global['retrySync'] = 0
+                client.close()
                 var task = new Daemon.Sync
                 task.init()
                 global['state'] = 'ON'
               })
             }
-            client.close()
           }
         });
       } catch (e) {

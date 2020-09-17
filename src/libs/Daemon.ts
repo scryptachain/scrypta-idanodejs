@@ -39,7 +39,7 @@ module Daemon {
                 wallet.request('getinfo').then(info => {
                     blocks = info['result'].blocks
                     let utils = new Utilities.Parser
-                    utils.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN, RETRY SYNC IS ' + global['retrySync'] )
+                    utils.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
                     var task = new Daemon.Sync
                     task.process()
                 })
@@ -343,13 +343,13 @@ module Daemon {
                                     params: block,
                                     contract: contract
                                 }
-                                console.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract)
+                                utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract)
                                 try {
                                     let hex = Buffer.from(JSON.stringify(request)).toString('hex')
                                     let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
                                     await vm.run(contract, signed, true)
                                 } catch (e) {
-                                    console.log(e)
+                                    utils.log(e)
                                 }
                             }
                         }
@@ -766,8 +766,8 @@ module Daemon {
                                         if (valid === true) {
                                             datastore.data.block = datastore.block
                                             let insertTx = false
-                                            while(insertTx === false){
-                                                try{
+                                            while (insertTx === false) {
+                                                try {
                                                     let checkTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                                     if (checkTx[0] === undefined) {
                                                         await db.collection("sc_transactions").insertOne(datastore.data)
@@ -776,7 +776,7 @@ module Daemon {
                                                             insertTx = true
                                                         }
                                                     }
-                                                }catch(e){
+                                                } catch (e) {
                                                     utils.log('ERROR WHILE INSERTING PLANUM TX')
                                                 }
                                             }
@@ -790,8 +790,8 @@ module Daemon {
                                                     await messages.signandbroadcast('planum-unspent', sxid + ':' + vout)
                                                 }
                                                 let updated = false
-                                                while(updated === false){
-                                                    try{
+                                                while (updated === false) {
+                                                    try {
                                                         if (datastore.block !== null) {
                                                             await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
                                                         } else {
@@ -799,7 +799,7 @@ module Daemon {
                                                         }
                                                         utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
                                                         updated = true
-                                                    }catch(e){
+                                                    } catch (e) {
                                                         utils.log('ERROR WHILE REDEEMING UNSPENT')
                                                     }
                                                 }
@@ -822,18 +822,18 @@ module Daemon {
                                                     time: datastore.data.transaction.time
                                                 }
                                                 let inserted = false
-                                                while(inserted === false){
-                                                    try{
+                                                while (inserted === false) {
+                                                    try {
                                                         let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                         if (checkUsxo[0] === undefined) {
                                                             utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
                                                             await db.collection('sc_unspent').insertOne(unspent)
                                                             let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                            if(checkInsertedUsxo[0] !== undefined){
+                                                            if (checkInsertedUsxo[0] !== undefined) {
                                                                 inserted = true
                                                             }
                                                         }
-                                                    }catch(e){
+                                                    } catch (e) {
                                                         utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.')
                                                     }
                                                 }
@@ -866,16 +866,60 @@ module Daemon {
                                                     for (let x in datastore.data.transaction.inputs) {
                                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                                         let vout = datastore.data.transaction.inputs[x].vout
-                                                        await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
-                                                        utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' ' + sxid + ':' + vout)
+                                                        let updated = false
+                                                        while (updated === false) {
+                                                            try {
+                                                                if (datastore.block !== null) {
+                                                                    await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
+                                                                } else {
+                                                                    await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                                }
+                                                                utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
+                                                                updated = true
+                                                            } catch (e) {
+                                                                utils.log('ERROR WHILE REDEEMING UNSPENT')
+                                                            }
+                                                        }
                                                     }
 
                                                     await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
                                                     utils.log('TRANSACTION IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + datastore.data.sxid + ' AT BLOCK ' + datastore.block + ' IS VALID')
 
+
+                                                    // CREATING UNSPENT FOR EACH VOUT
                                                     let vout = 0
                                                     for (let x in datastore.data.transaction.outputs) {
-                                                        await db.collection('sc_unspent').updateOne({ sxid: datastore.data.sxid, vout: vout }, { $set: { block: datastore.block } })
+                                                        let amount = datastore.data.transaction.outputs[x]
+                                                        let unspent = {
+                                                            txid: datastore.data.txid,
+                                                            sxid: datastore.data.sxid,
+                                                            vout: vout,
+                                                            address: x,
+                                                            amount: amount,
+                                                            sidechain: datastore.data.transaction.sidechain,
+                                                            block: datastore.block,
+                                                            redeemed: null,
+                                                            redeemblock: null,
+                                                            time: datastore.data.transaction.time
+                                                        }
+                                                        let inserted = false
+                                                        while (inserted === false) {
+                                                            try {
+                                                                let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                                if (checkUsxo[0] === undefined) {
+                                                                    utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
+                                                                    await db.collection('sc_unspent').insertOne(unspent)
+                                                                    let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                                    if (checkInsertedUsxo[0] !== undefined) {
+                                                                        inserted = true
+                                                                    }
+                                                                }else if(checkUsxo[0].block === null){
+                                                                    await db.collection('sc_unspent').updateOne({ sxid: datastore.data.sxid, vout: vout }, { $set: { block: datastore.block } })
+                                                                }
+                                                            } catch (e) {
+                                                                utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.')
+                                                            }
+                                                        }
                                                         vout++
                                                     }
                                                 }
