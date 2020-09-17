@@ -304,16 +304,16 @@ module Daemon {
                         }
 
                         for (var dix in block['planum']) {
-                            console.log('\x1b[32m%s\x1b[0m', 'FOUND PLANUM TX.')
+                            utils.log('FOUND PLANUM TX: ', '\x1b[32m%s\x1b[0m')
                             var task = new Daemon.Sync
                             let storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
                             if (storedwritten === false) {
-                                utils.log('ERROR ON PLANUM STORE')
+                                utils.log('ERROR STORING WRITTEN DATA ON PLANUM')
                                 response(false)
                             }
                             let storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
                             if (storedplanum === false) {
-                                utils.log('ERROR ON STORE PLANUM')
+                                utils.log('ERROR STORING PLANUM')
                                 response(false)
                             }
                         }
@@ -621,9 +621,9 @@ module Daemon {
                             }
                         } else {
                             if (datastore.block !== null) {
-                                console.log('DATA ALREADY STORED AT BLOCK ' + datastore.block + '.')
+                                utils.log('DATA ALREADY STORED AT BLOCK ' + datastore.block + '.')
                             } else {
-                                console.log('DATA ALREADY STORED FROM MEMPOOL.')
+                                utils.log('DATA ALREADY STORED FROM MEMPOOL.')
                             }
                         }
 
@@ -652,10 +652,10 @@ module Daemon {
                             if (datastore.data.genesis !== undefined) {
                                 let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                 if (check[0] === undefined) {
-                                    console.log('STORING GENESIS SXID NOW!')
+                                    utils.log('STORING GENESIS SXID NOW!')
                                     await db.collection("sc_transactions").insertOne(datastore.data)
                                 } else {
-                                    console.log('GENESIS SXID ALREADY STORED.')
+                                    utils.log('GENESIS SXID ALREADY STORED.')
                                     if (datastore.block === null) {
                                         await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
                                     }
@@ -666,10 +666,10 @@ module Daemon {
                             if (datastore.data.reissue !== undefined) {
                                 let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                 if (check[0] === undefined) {
-                                    console.log('STORING REISSUE SXID NOW!')
+                                    utils.log('STORING REISSUE SXID NOW!')
                                     await db.collection("sc_transactions").insertOne(datastore.data)
                                 } else {
-                                    console.log('REISSUE SXID ALREADY STORED.')
+                                    utils.log('REISSUE SXID ALREADY STORED.')
                                     if (datastore.block === null) {
                                         await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
                                     }
@@ -922,6 +922,8 @@ module Daemon {
                                                         }
                                                         vout++
                                                     }
+                                                }else{
+                                                    utils.log('TRANSACTION FROM MEMPOOL IS DOUBLE SPENDED!')
                                                 }
                                             }
                                         }
