@@ -304,7 +304,7 @@ module Daemon {
                         }
 
                         for (var dix in block['planum']) {
-                            utils.log('FOUND PLANUM TX: ', '\x1b[32m%s\x1b[0m')
+                            utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
                             var task = new Daemon.Sync
                             let storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
                             if (storedwritten === false) {
@@ -863,6 +863,7 @@ module Daemon {
 
                                                 if (!doublespending) {
                                                     // UPDATING BLOCK
+                                                    utils.log('INPUTS AREN\'T DOUBLE SPENDED')
                                                     for (let x in datastore.data.transaction.inputs) {
                                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                                         let vout = datastore.data.transaction.inputs[x].vout
@@ -885,7 +886,6 @@ module Daemon {
                                                     await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
                                                     utils.log('TRANSACTION IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + datastore.data.sxid + ' AT BLOCK ' + datastore.block + ' IS VALID')
 
-
                                                     // CREATING UNSPENT FOR EACH VOUT
                                                     let vout = 0
                                                     for (let x in datastore.data.transaction.outputs) {
@@ -902,8 +902,9 @@ module Daemon {
                                                             redeemblock: null,
                                                             time: datastore.data.transaction.time
                                                         }
-                                                        let inserted = false
-                                                        while (inserted === false) {
+                                                        utils.log('UNSPENT IS ' + JSON.stringify(unspent))
+                                                        let updated = false
+                                                        while (updated === false) {
                                                             try {
                                                                 let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                                 if (checkUsxo[0] === undefined) {
@@ -911,10 +912,14 @@ module Daemon {
                                                                     await db.collection('sc_unspent').insertOne(unspent)
                                                                     let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                                     if (checkInsertedUsxo[0] !== undefined) {
-                                                                        inserted = true
+                                                                        updated = true
                                                                     }
-                                                                }else if(checkUsxo[0].block === null){
+                                                                } else if (checkUsxo[0].block === null) {
+                                                                    utils.log('UPDATING UNSPENT WITH ID ' + checkUsxo[0]._id)
                                                                     await db.collection('sc_unspent').updateOne({ sxid: datastore.data.sxid, vout: vout }, { $set: { block: datastore.block } })
+                                                                    updated = true
+                                                                }else{
+                                                                    updated = true
                                                                 }
                                                             } catch (e) {
                                                                 utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.')
@@ -922,7 +927,7 @@ module Daemon {
                                                         }
                                                         vout++
                                                     }
-                                                }else{
+                                                } else {
                                                     utils.log('TRANSACTION FROM MEMPOOL IS DOUBLE SPENDED!')
                                                 }
                                             }

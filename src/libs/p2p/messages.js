@@ -16,75 +16,91 @@ const sign = require('./sign.js')
 const { Management } = require('../Database.js')
 
 module.exports = {
-    signandbroadcast: async function(protocol, message){
+    signandbroadcast: async function (protocol, message) {
         let signed = await sign.signWithKey(process.env.NODE_KEY, message)
         signed.message = message
         await this.broadcast(protocol, signed)
     },
-    broadcast: async function(protocol, message, socketID = '', nodeID = '') {
+    broadcast: async function (protocol, message, socketID = '', nodeID = '') {
         //console.log('Broadcasting to network..')
         return new Promise(async response => {
-            if(nodeID === ''){
+            if (nodeID === '') {
                 let sent = 0
                 for (let id in global['nodes']) {
-                    if(global['connected'][id]){
+                    if (global['connected'][id]) {
                         global['nodes'][id].emit(protocol, message)
-                        sent ++
+                        sent++
                     }
                 }
                 console.log('Sent message to ' + sent + ' nodes')
-            }else{
-                if(global['nodes'][nodeID]){
+            } else {
+                if (global['nodes'][nodeID]) {
                     global['nodes'][nodeID].emit(protocol, message)
                 }
             }
-            if(socketID === ''){
-                global['io'].server.sockets.emit(protocol, message)
-                this.relay(message, protocol)
-                console.log('Broadcast to every connected client..')
-            }else{
-                global['io'].sockets[socketID].emit(protocol, message)
-                console.log('Broadcast to client ' + socketID)
+            if (socketID === '' && global['io'].server !== null) {
+                try{
+                    global['io'].server.sockets.emit(protocol, message)
+                    this.relay(message, protocol)
+                    console.log('Broadcast to every connected client..')
+                }catch(e){
+                    console.log(e)
+                }
+            } else {
+                try{
+                    if(global['io'].sockets[socketID] !== undefined){
+                        global['io'].sockets[socketID].emit(protocol, message)
+                        console.log('Broadcast to client ' + socketID)
+                    }
+                }catch(e){
+                    console.log(e)
+                }
             }
             response(message)
         })
     },
-    relay: async function(message, protocol = 'message'){
-        global['io'].server.sockets.clients((error, clients) => {
-            var limit = 1000
-            for(var k in clients){
-                var client = clients[k]
-                var elapsed = 0
-                var relay = true
+    relay: async function (message, protocol = 'message') {
+        if (global['io'] !== null && global['io'].server !== undefined && global['io'].server !== null) {
+            try {
+                global['io'].server.sockets.clients((error, clients) => {
+                    var limit = 1000
+                    for (var k in clients) {
+                        var client = clients[k]
+                        var elapsed = 0
+                        var relay = true
 
-                if(!global['relayed']['messages'][client]){
-                    global['relayed']['messages'][client] = []
-                }
+                        if (!global['relayed']['messages'][client]) {
+                            global['relayed']['messages'][client] = []
+                        }
 
-                if(global['limits'][message.address] !== undefined){
-                    let now = new Date().getTime()
-                    elapsed = parseFloat(now) - parseFloat(global['limits'][message.address])
-                    if(parseFloat(elapsed) > parseFloat(limit)){
-                        relay = true
-                    }else{
-                        relay = false
-                        console.log('ELAPSED ' + elapsed + ' FOR ADDRESS ' + message.address + ', LIMIT REACHED.')
+                        if (global['limits'][message.address] !== undefined) {
+                            let now = new Date().getTime()
+                            elapsed = parseFloat(now) - parseFloat(global['limits'][message.address])
+                            if (parseFloat(elapsed) > parseFloat(limit)) {
+                                relay = true
+                            } else {
+                                relay = false
+                                console.log('ELAPSED ' + elapsed + ' FOR ADDRESS ' + message.address + ', LIMIT REACHED.')
+                            }
+                        }
+
+                        if (relay === true) {
+                            console.log('Relaying message to client: ' + client)
+                            if (global['relayed']['messages'][client].indexOf(message.signature) === -1) {
+                                global['relayed']['messages'][client].push(message.signature)
+                                this.broadcast(protocol, message, client)
+                            } else {
+                                console.log('MESSAGE RELAYED TO CLIENT YET')
+                            }
+                        }
                     }
-                }
-
-                if(relay === true){
-                    console.log('Relaying message to client: ' + client)
-                    if(global['relayed']['messages'][client].indexOf(message.signature) === -1){
-                        global['relayed']['messages'][client].push(message.signature)
-                        this.broadcast(protocol, message, client)
-                    }else{
-                        console.log('MESSAGE RELAYED TO CLIENT YET')
-                    }
-                }
+                    setTimeout(function () {
+                        global['limits'][message.address] = new Date().getTime()
+                    }, 1000)
+                })
+            } catch (e) {
+                console.log(e)
             }
-            setTimeout(function(){
-                global['limits'][message.address] = new Date().getTime()
-            }, 1000)
-        })
+        }
     }
 };
