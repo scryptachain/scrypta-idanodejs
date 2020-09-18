@@ -7,7 +7,7 @@ import * as Contracts from './Contracts'
 import * as Space from './Space'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
-import { create, all } from 'mathjs'
+import { create, all, exp } from 'mathjs'
 const messages = require('./p2p/messages.js')
 const console = require('better-console')
 const LZUTF8 = require('lzutf8')
@@ -547,11 +547,25 @@ module Daemon {
                                         if (pinned.functions !== undefined && pinned.functions.indexOf('ifMempool') !== -1) {
                                             hasIfMempool = true
                                         }
+
+                                        let contract = ''
+                                        let version = ''
+                                        if (datastore.data.indexOf(':') !== -1) {
+                                            let expcontract = datastore.data.split(':')
+                                            contract = expcontract[0]
+                                            version = expcontract[1]
+                                        } else {
+                                            contract = datastore.data
+                                            version = 'all'
+                                        }
+
                                         let pinToStore = {
-                                            contract: datastore.data,
+                                            contract: contract,
+                                            version: version,
                                             eachBlock: hasEachBlock,
                                             ifMempool: hasIfMempool
                                         }
+
                                         try {
                                             await db.collection("contracts").insertOne(pinToStore)
                                         } catch (e) {
@@ -918,7 +932,7 @@ module Daemon {
                                                                     utils.log('UPDATING UNSPENT WITH ID ' + checkUsxo[0]._id)
                                                                     await db.collection('sc_unspent').updateOne({ sxid: datastore.data.sxid, vout: vout }, { $set: { block: datastore.block } })
                                                                     updated = true
-                                                                }else{
+                                                                } else {
                                                                     updated = true
                                                                 }
                                                             } catch (e) {

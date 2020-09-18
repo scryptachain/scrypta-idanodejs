@@ -1161,7 +1161,7 @@ module Crypto {
                                             mempool['result']['analysis'][txid]['vout'] += mempool['result']['tx'][i]['vout'][voutx]['value']
                                             mempool['result']['analysis'][txid]['balances'][address]['vout'] += mempool['result']['tx'][i]['vout'][voutx]['value']
                                             txtotvout += mempool['result']['tx'][i]['vout'][voutx]['value']
-                                            if (receivingaddress === '') {
+                                            if (receivingaddress === '' && address !== '') {
                                                 receivingaddress = address
                                             }
 

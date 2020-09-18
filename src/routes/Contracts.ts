@@ -20,19 +20,19 @@ export async function run(req: express.Request, res: express.Response) {
     try {
       let decoded = Buffer.from(request['body']['message'], 'hex').toString('utf8')
       let parsed = JSON.parse(decoded)
-      if(parsed['contract'] !== undefined && parsed['function'] !== undefined && parsed['params'] !== undefined){
-        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+      if (parsed['contract'] !== undefined && parsed['function'] !== undefined && parsed['params'] !== undefined) {
+        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
           const db = client.db(global['db_name'])
           let check = await db.collection('contracts').find({ contract: parsed['contract'] }).toArray()
           client.close()
-          if(check[0] !== undefined){
+          if (check[0] !== undefined) {
             let run = await vm.run(parsed['contract'], request['body'], true)
             res.send(run)
-          }else{
+          } else {
             res.send({ message: 'Smart Contract not available at this node.', error: 400 })
           }
         })
-      }else{
+      } else {
         res.send({ message: 'Please send a valid reqeust', error: 400 })
       }
     } catch (e) {
@@ -51,23 +51,23 @@ export async function pin(req: express.Request, res: express.Response) {
     let wallet = new Crypto.Wallet
     let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
     let verify = await wallet.verifymessage(adminpubkey, request['body']['signature'], request['body']['message'])
-    
-    if(adminpubkey === request['body']['pubkey'] && verify !== false){
-      mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+
+    if (adminpubkey === request['body']['pubkey'] && verify !== false) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check = await db.collection('contracts').find({ contract: request['body']['message'] }).toArray()
         client.close()
-        if(check[0] !== undefined){
+        if (check[0] !== undefined) {
           res.send({ message: 'Contract pinned yet.', status: 501 })
-        }else{
+        } else {
           let unspent = await wallet.listunpent(request['body']['address'])
           let balance = 0
-          for(let k in unspent){
+          for (let k in unspent) {
             let utxo = unspent[k]
             balance += utxo['amount']
           }
 
-          if(balance > 0.001){
+          if (balance > 0.001) {
             var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
             var collection = '!*!'
             let refID = '!*!' + adminpubkey
@@ -75,12 +75,12 @@ export async function pin(req: express.Request, res: express.Response) {
             var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + request['body']['message'] + '*!*'
             let write = await wallet.write(process.env.NODE_KEY, request['body']['address'], dataToWrite, uuid, collection, refID, protocol)
             res.send({ message: 'Contract pinned.', tx: write, status: 200 })
-          }else{
+          } else {
             res.send({ message: 'Not enough funds.', status: 502 })
           }
         }
       })
-    }else{
+    } else {
       res.send({ message: 'Not authorized', error: 400 })
     }
   } else {
@@ -97,22 +97,22 @@ export async function unpin(req: express.Request, res: express.Response) {
     let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
     let verify = await wallet.verifymessage(adminpubkey, request['body']['signature'], request['body']['message'])
 
-    if(adminpubkey === request['body']['pubkey'] && verify !== false){
-      mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+    if (adminpubkey === request['body']['pubkey'] && verify !== false) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check = await db.collection('contracts').find({ contract: request['body']['message'] }).toArray()
         client.close()
-        if(check[0] === undefined){
+        if (check[0] === undefined) {
           res.send({ message: 'Contract unpinned yet.', status: 501 })
-        }else{
+        } else {
           let unspent = await wallet.listunpent(request['body']['address'])
           let balance = 0
-          for(let k in unspent){
+          for (let k in unspent) {
             let utxo = unspent[k]
             balance += utxo['amount']
           }
 
-          if(balance > 0.001){
+          if (balance > 0.001) {
             var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
             var collection = '!*!'
             let refID = '!*!' + adminpubkey
@@ -120,12 +120,12 @@ export async function unpin(req: express.Request, res: express.Response) {
             var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + request['body']['message'] + '*!*'
             let write = await wallet.write(process.env.NODE_KEY, request['body']['address'], dataToWrite, uuid, collection, refID, protocol)
             res.send({ message: 'Contract unpinned.', tx: write, status: 200 })
-          }else{
+          } else {
             res.send({ message: 'Not enough funds.', status: 502 })
           }
         }
       })
-    }else{
+    } else {
       res.send({ message: 'Not authorized', error: 400 })
     }
   } else {
