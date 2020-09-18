@@ -828,11 +828,14 @@ export async function scanchain(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: -1 }).toArray()
-
+        let uniq = []
         if (sidechain_datas[0] !== undefined) {
           for (let x in sidechain_datas) {
             delete sidechain_datas[x]._id
-            sidechain_datas[x].address = await wallet.getAddressFromPubKey(sidechain_datas[x].pubkey)
+            if(uniq.indexOf(sidechain_datas[x].sxid) === -1){
+              sidechain_datas[x].address = await wallet.getAddressFromPubKey(sidechain_datas[x].pubkey)
+              uniq.push(sidechain_datas[x].sxid)
+            }
           }
           sidechain_datas.sort(function (a, b) {
             return parseFloat(b.transaction.time) - parseFloat(a.transaction.time);
