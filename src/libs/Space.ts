@@ -173,6 +173,7 @@ module Space {
                 }
               }
             }
+            client.close()
             global['isCheckingSpace'] = false
           })
         }

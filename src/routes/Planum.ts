@@ -222,6 +222,7 @@ export async function send(req: express.Request, res: express.Response) {
             let totaloutputs = 0
             amountinput = math.round(amountinput, decimals)
             amount = math.round(amount, decimals)
+            client.close()
             if (amountinput >= fields.amount) {
 
               if (fields.to === check_sidechain[0].address && check_sidechain[0].data.burnable === false) {
@@ -379,6 +380,7 @@ export async function reissue(req: express.Request, res: express.Response) {
         const db = client.db(global['db_name'])
 
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        client.close()
         if (check_sidechain[0] !== undefined) {
           if (check_sidechain[0].data.genesis.reissuable === true) {
             let supply = parseFloat(fields.supply)
@@ -500,6 +502,7 @@ export async function getsidechain(req: express.Request, res: express.Response) 
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        client.close()
         if (check_sidechain[0] !== undefined) {
           res.json({
             sidechain: check_sidechain
@@ -540,6 +543,7 @@ export async function balance(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        client.close()
         var scwallet = new Sidechain.Wallet;
         let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
         if (check_sidechain[0] !== undefined) {
@@ -595,6 +599,7 @@ export async function transactions(req: express.Request, res: express.Response) 
           let unconfirmed = []
 
           let txs = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: -1 }).toArray()
+          client.close()
           for (let tx in txs) {
             let from = await wallet.getAddressFromPubKey(txs[tx].pubkey)
             if (from === fields.dapp_address || txs[tx].transaction.outputs[fields.dapp_address] !== undefined) {
@@ -708,6 +713,7 @@ export async function listunspent(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        client.close()
         var scwallet = new Sidechain.Wallet;
         let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
         
@@ -759,6 +765,7 @@ export async function scanaddress(req: express.Request, res: express.Response) {
         const db = client.db(global['db_name'])
         var scwallet = new Sidechain.Wallet;
         let sidechain_datas = await db.collection('written').find({ protocol: 'chain://' }).sort({ block: 1 }).toArray()
+        client.close()
         if (sidechain_datas[0] !== undefined) {
           let sidechains = []
           let addresses_sidechains = []
@@ -828,6 +835,7 @@ export async function scanchain(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ block: -1 }).toArray()
+        client.close()
         let uniq = []
         if (sidechain_datas[0] !== undefined) {
           for (let x in sidechain_datas) {
@@ -883,6 +891,7 @@ export async function validatetransaction(req: express.Request, res: express.Res
         var db = client.db(global['db_name'])
         var scwallet = new Sidechain.Wallet;
         let check_sidechain = await db.collection('written').find({ address: transactionToValidate.sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        client.close()
         if (check_sidechain[0] !== undefined) {
           let valid = true
           var amountinput = 0
@@ -1000,6 +1009,7 @@ export async function verifychain(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let sidechain_datas = await db.collection('sc_transactions').find({ "transaction.sidechain": fields.sidechain_address }).sort({ "transaction.time": 1 }).toArray()
+        client.close()
         let verified = true
         var wallet = new Crypto.Wallet;
         var sidechain = new Sidechain.Wallet;
@@ -1084,6 +1094,7 @@ export async function transaction(req: express.Request, res: express.Response) {
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         if (check_sidechain[0] !== undefined) {
           var written = await db.collection('sc_transactions').find({ "sxid": fields.sxid }).sort({ block: -1 }).limit(1).toArray()
+          client.close()
           delete written[0]._id
           res.json({
             transaction: written[0],
@@ -1158,6 +1169,8 @@ export function listchains(req: express.Request, res: express.Response) {
             }
           }
         }
+        
+        client.close()
 
         sidechains.sort(function (a, b) {
           return parseFloat(b.last_24) - parseFloat(a.last_24);
@@ -1194,6 +1207,7 @@ export async function shares(req: express.Request, res: express.Response) {
         if (check_sidechain[0] !== undefined) {
 
           let unspents = await db.collection('sc_unspent').find({ sidechain: fields.sidechain_address, redeemed: null }).sort({ block: 1 }).toArray()
+          client.close()
           let addresses = {}
           let shares = {}
           let percentages = {}
