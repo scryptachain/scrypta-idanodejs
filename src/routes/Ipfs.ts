@@ -286,7 +286,7 @@ export async function fallbackfile(req: express.Request, res: express.Response) 
     if (mimetype) {
       res.setHeader('Content-Type', mimetype.mime);
     }
-    res.end(content[0])
+    res.end(Buffer.from(content[0]).toString('hex'))
   }
   
 };
