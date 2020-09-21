@@ -260,7 +260,6 @@ export async function getfile(req: express.Request, res: express.Response) {
         content.push(chunk)
       }
       var mimetype = await fileType.fromBuffer(content[0])
-      console.log('MIMETYPE', mimetype)
       if (mimetype) {
         res.setHeader('Content-Type', mimetype.mime);
       }
@@ -284,7 +283,6 @@ export async function fallbackfile(req: express.Request, res: express.Response) 
       content.push(chunk)
     }
     var mimetype = await fileType.fromBuffer(content[0])
-    console.log('MIMETYPE', mimetype)
     if (mimetype) {
       res.setHeader('Content-Type', mimetype.mime);
     }
