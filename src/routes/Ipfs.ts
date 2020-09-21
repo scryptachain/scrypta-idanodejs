@@ -335,7 +335,7 @@ export async function filetype(req: express.Request, res: express.Response) {
         response = true
         clearTimeout(timeout)
         res.send({
-          data: mimetype,
+          data: mimetype.mime,
           status: 200
         })
       }
