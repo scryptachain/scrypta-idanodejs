@@ -341,31 +341,19 @@ export async function filetype(req: express.Request, res: express.Response) {
   }
 };
 
-export function fallbackfiletype(req: express.Request, res: express.Response) {
+export async function fallbackfiletype(req: express.Request, res: express.Response) {
   const hash = req.params.hash
-  global['ipfs'].cat(hash, async function (err, file) {
-    if (err) {
-      res.send({
-        message: 'CAN\'T RETRIEVE FILE',
-        status: 400
-      })
-    } else {
-      var mimetype = await fileType.fromBuffer(file)
-      if (mimetype) {
-        let details = mimetype.mime.split('/')
-        mimetype.type = details[0]
-        res.send({
-          data: mimetype,
-          status: 200
-        })
-      } else {
-        res.send({
-          message: 'CAN\'T RETRIEVE FILE',
-          status: 400
-        })
-      }
+  
+  for await (const file of global['ipfs'].get(hash)) {
+    if (!file.content) continue;
+    const content = []
+
+    for await (const chunk of file.content) {
+      content.push(chunk)
     }
-  })
+    var mimetype = await fileType.fromBuffer(content[0])
+    res.end(mimetype)
+  }
 };
 
 export async function pins(req: express.Request, res: express.Response) {
