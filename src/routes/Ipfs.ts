@@ -331,6 +331,7 @@ export async function filetype(req: express.Request, res: express.Response) {
         content.push(chunk)
       }
       var mimetype = await fileType.fromBuffer(content[0])
+      console.log(mimetype)
       if (!response) {
         response = true
         clearTimeout(timeout)
