@@ -236,6 +236,7 @@ export async function getfile(req: express.Request, res: express.Response) {
       for (let k in bootstrap) {
         let node = bootstrap[k].split(':')
         try {
+          console.log('fallback to ' + node[1])
           axios.get('http://' + node[1] + ':3001/ipfs-fallback/' + hash).then(async file => {
             if (!response && file.data.status !== 400) {
               response = true
@@ -259,6 +260,7 @@ export async function getfile(req: express.Request, res: express.Response) {
         content.push(chunk)
       }
       var mimetype = await fileType.fromBuffer(content[0])
+      console.log('MIMETYPE', mimetype)
       if (mimetype) {
         res.setHeader('Content-Type', mimetype.mime);
       }
@@ -271,29 +273,24 @@ export async function getfile(req: express.Request, res: express.Response) {
   }
 };
 
-export function fallbackfile(req: express.Request, res: express.Response) {
+export async function fallbackfile(req: express.Request, res: express.Response) {
   const hash = req.params.hash
 
-  global['ipfs'].cat(hash, async function (err, file) {
-    if (err) {
-      global['ipfs'].ls(hash, function (err, result) {
-        if (err) {
-          res.send({
-            message: 'CAN\'T RETRIEVE FILE OR FOLDER',
-            status: 400
-          })
-        } else {
-          res.send(result)
-        }
-      })
-    } else {
-      var mimetype = await fileType.fromBuffer(file)
-      if (mimetype) {
-        res.setHeader('Content-Type', mimetype.mime);
-      }
-      res.end(file.toString('hex'))
+  for await (const file of global['ipfs'].get(hash)) {
+    if (!file.content) continue;
+    const content = []
+
+    for await (const chunk of file.content) {
+      content.push(chunk)
     }
-  })
+    var mimetype = await fileType.fromBuffer(content[0])
+    console.log('MIMETYPE', mimetype)
+    if (mimetype) {
+      res.setHeader('Content-Type', mimetype.mime);
+    }
+    res.end(content[0])
+  }
+  
 };
 
 export async function filetype(req: express.Request, res: express.Response) {
@@ -331,12 +328,11 @@ export async function filetype(req: express.Request, res: express.Response) {
         content.push(chunk)
       }
       var mimetype = await fileType.fromBuffer(content[0])
-      console.log(mimetype)
       if (!response) {
         response = true
         clearTimeout(timeout)
         res.send({
-          data: mimetype.mime,
+          data: mimetype,
           status: 200
         })
       }
