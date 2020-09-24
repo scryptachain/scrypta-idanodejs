@@ -143,19 +143,22 @@ module Daemon {
                                 await task.redeemunspent(input['txid'], input['vout'], null)
                             }
 
-                            if (mempool['outputs'].length > 0 && pinned.mempool.length > 0) {
-                                for (let k in pinned.mempool) {
-                                    let contract = pinned.mempool[k]
+                            if (mempool['outputs'].length > 0 && pinned.length > 0) {
+                                for (let k in pinned) {
+                                    let contract = pinned[k]
                                     let request = {
                                         function: "ifMempool",
                                         params: mempool,
-                                        contract: contract
+                                        contract: contract.contract
                                     }
-                                    console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract)
+                                    console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract.contract)
                                     try {
                                         let hex = Buffer.from(JSON.stringify(request)).toString('hex')
                                         let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                        await vm.run(contract, signed, true)
+                                        let contractResponse = await vm.run(contract.contract, signed, true)
+                                        if(contractResponse !== undefined){
+                                            utils.log(contractResponse)
+                                        }
                                     } catch (e) {
                                         console.log(e)
                                     }
@@ -335,19 +338,22 @@ module Daemon {
                         let contracts = new Contracts.Local
                         let pinned = await contracts.pinned()
 
-                        if (pinned.block.length > 0) {
-                            for (let k in pinned.block) {
-                                let contract = pinned.block[k]
+                        if (pinned.length > 0) {
+                            for (let k in pinned) {
+                                let contract = pinned[k]
                                 let request = {
                                     function: "eachBlock",
                                     params: block,
-                                    contract: contract
+                                    contract: contract.contract
                                 }
-                                utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract)
+                                utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract.contract)
                                 try {
                                     let hex = Buffer.from(JSON.stringify(request)).toString('hex')
                                     let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                    await vm.run(contract, signed, true)
+                                    let contractResponse = await vm.run(contract.contract, signed, true)
+                                    if(contractResponse !== undefined){
+                                        utils.log(contractResponse)
+                                    }
                                 } catch (e) {
                                     utils.log(e)
                                 }
@@ -526,62 +532,6 @@ module Daemon {
                             if (datastore.protocol === 'bvc://' && global['pinipfs'] === true) {
                                 var task = new Daemon.Sync
                                 await task.pinipfsfolder(datastore.data)
-                            }
-
-                            if (datastore.protocol === 'pin://') {
-                                let wallet = new Crypto.Wallet
-                                let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
-                                let adminaddress = await wallet.getAddressFromPubKey(adminpubkey)
-                                utils.log('FOUND PIN FOR CONTRACT ' + datastore.data)
-                                utils.log('PINNED BY ' + datastore.address + ', ADMIN ADDRESS IS ' + adminaddress)
-                                if (datastore.address === adminaddress) {
-                                    let check = await db.collection('contracts').find({ contract: datastore.data }).toArray()
-                                    if (check[0] === undefined) {
-                                        utils.log('NEED TO PIN CONTRACT')
-                                        let pinned = await vm.read(datastore.data, true)
-                                        let hasEachBlock = false
-                                        if (pinned.functions !== undefined && pinned.functions.indexOf('eachBlock') !== -1) {
-                                            hasEachBlock = true
-                                        }
-                                        let hasIfMempool = false
-                                        if (pinned.functions !== undefined && pinned.functions.indexOf('ifMempool') !== -1) {
-                                            hasIfMempool = true
-                                        }
-
-                                        let contract = ''
-                                        let version = ''
-                                        if (datastore.data.indexOf(':') !== -1) {
-                                            let expcontract = datastore.data.split(':')
-                                            contract = expcontract[0]
-                                            version = expcontract[1]
-                                        } else {
-                                            contract = datastore.data
-                                            version = 'all'
-                                        }
-
-                                        let pinToStore = {
-                                            contract: contract,
-                                            version: version,
-                                            eachBlock: hasEachBlock,
-                                            ifMempool: hasIfMempool
-                                        }
-
-                                        try {
-                                            await db.collection("contracts").insertOne(pinToStore)
-                                        } catch (e) {
-                                            utils.log('DB ERROR', e)
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (datastore.protocol === 'unpin://') {
-                                let wallet = new Crypto.Wallet
-                                let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
-                                let adminaddress = await wallet.getAddressFromPubKey(adminpubkey)
-                                if (datastore.address === adminaddress) {
-                                    await db.collection('contracts').deleteOne({ contract: datastore.data })
-                                }
                             }
 
                             if (datastore.protocol === 'documenta://' && process.env.S3_BUCKET !== undefined) {

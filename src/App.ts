@@ -92,7 +92,9 @@ class App {
     app.express.post('/received', pdm.received)
 
     // SMART CONTRACTS
-    app.express.get('/contracts/:address', contracts.read)
+    app.express.get('/contracts', contracts.get)
+    app.express.get('/contracts/:address/:version', contracts.readversion)
+    app.express.get('/contracts/:address', contracts.readlast)
     app.express.post('/contracts/run', contracts.run)
     app.express.post('/contracts/pin', contracts.pin)
     app.express.post('/contracts/unpin', contracts.unpin)

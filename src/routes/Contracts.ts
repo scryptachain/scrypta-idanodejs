@@ -2,13 +2,20 @@ import express = require("express")
 const vm = require('@scrypta/vm')
 import * as Utilities from '../libs/Utilities'
 import * as Crypto from '../libs/Crypto'
-import { integritycheck } from "./Wallet"
+import * as Contracts from '../libs/Contracts'
 const mongo = require('mongodb').MongoClient
 import { v4 as uuidv4 } from 'uuid'
 
-export async function read(req: express.Request, res: express.Response) {
+export async function readlast(req: express.Request, res: express.Response) {
   let address = req.params.address
   let read = await vm.read(address, true)
+  res.send(read)
+}
+
+export async function readversion(req: express.Request, res: express.Response) {
+  let address = req.params.address
+  let version = req.params.version
+  let read = await vm.read(address, true, version)
   res.send(read)
 }
 
@@ -23,13 +30,30 @@ export async function run(req: express.Request, res: express.Response) {
       if (parsed['contract'] !== undefined && parsed['function'] !== undefined && parsed['params'] !== undefined) {
         mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
           const db = client.db(global['db_name'])
-          let check = await db.collection('contracts').find({ contract: parsed['contract'] }).toArray()
-          client.close()
-          if (check[0] !== undefined) {
-            let run = await vm.run(parsed['contract'], request['body'], true)
-            res.send(run)
-          } else {
-            res.send({ message: 'Smart Contract not available at this node.', error: 400 })
+          let local = new Contracts.Local
+          let pinned = await local.pinned()
+          let isPinned = false
+          let parsed = Buffer.from(request['body']['message'], 'hex').toString('utf-8')
+          try {
+            parsed = JSON.parse(parsed)
+            let contract = parsed['contract']
+            let version = parsed['version']
+            for (let k in pinned) {
+              if (pinned[k].contract === contract) {
+                isPinned = true
+                version = pinned[k].version
+              }
+            }
+            client.close()
+            if (isPinned) {
+              let run = await vm.run(parsed['contract'], request['body'], true, version)
+              res.send(run)
+            } else {
+              res.send({ message: 'Smart Contract not available at this node.', request: parsed, error: 400 })
+            }
+          } catch (e) {
+            console.log(e)
+            res.send({ message: 'Invalid request.', request: parsed, error: 400 })
           }
         })
       } else {
@@ -49,16 +73,32 @@ export async function pin(req: express.Request, res: express.Response) {
 
   if (request['body']['message'] !== undefined) {
     let wallet = new Crypto.Wallet
+    let local = new Contracts.Local
     let adminpubkey = await wallet.getPublicKey(process.env.NODE_KEY)
     let verify = await wallet.verifymessage(adminpubkey, request['body']['signature'], request['body']['message'])
 
     if (adminpubkey === request['body']['pubkey'] && verify !== false) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
-        let check = await db.collection('contracts').find({ contract: request['body']['message'] }).toArray()
+        let pinned = await local.pinned()
+        let isPinned = false
+        let pinnedobj
+        let contract
+        let version
+        if (request['body']['message'].indexOf(':') !== -1) {
+          let exp = request['body']['message'].split(':')
+          contract = exp[0]
+          version = exp[1]
+        }
+        for (let k in pinned) {
+          if (pinned[k].contract === contract) {
+            pinnedobj = pinned[k]
+            isPinned = true
+          }
+        }
         client.close()
-        if (check[0] !== undefined) {
-          res.send({ message: 'Contract pinned yet.', status: 501 })
+        if (isPinned) {
+          res.send({ message: 'Contract pinned yet.', pinned: pinnedobj, status: 501 })
         } else {
           let unspent = await wallet.listunpent(request['body']['address'])
           let balance = 0
@@ -100,9 +140,25 @@ export async function unpin(req: express.Request, res: express.Response) {
     if (adminpubkey === request['body']['pubkey'] && verify !== false) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
-        let check = await db.collection('contracts').find({ contract: request['body']['message'] }).toArray()
+        let local = new Contracts.Local
+        let pinned = await local.pinned()
+        let isPinned = false
+        let pinnedobj
+        let contract
+        let version
+        if (request['body']['message'].indexOf(':') !== -1) {
+          let exp = request['body']['message'].split(':')
+          contract = exp[0]
+          version = exp[1]
+        }
+        for (let k in pinned) {
+          if (pinned[k].contract === contract) {
+            pinnedobj = pinned[k]
+            isPinned = true
+          }
+        }
         client.close()
-        if (check[0] === undefined) {
+        if (!isPinned) {
           res.send({ message: 'Contract unpinned yet.', status: 501 })
         } else {
           let unspent = await wallet.listunpent(request['body']['address'])
@@ -131,4 +187,11 @@ export async function unpin(req: express.Request, res: express.Response) {
   } else {
     res.send({ message: 'Please send a valid reqeust', error: 400 })
   }
+}
+
+export async function get(req: express.Request, res: express.Response) {
+  let local = new Contracts.Local
+  let contracts = await local.all()
+  let pinned = await local.pinned()
+  res.send({ contracts: contracts, pinned: pinned })
 }
