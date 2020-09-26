@@ -156,7 +156,7 @@ module Daemon {
                                         let hex = Buffer.from(JSON.stringify(request)).toString('hex')
                                         let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
                                         let contractResponse = await vm.run(contract.contract, signed, true)
-                                        if(contractResponse !== undefined){
+                                        if(contractResponse !== undefined && contractResponse !== false){
                                             utils.log(contractResponse)
                                         }
                                     } catch (e) {
@@ -351,7 +351,7 @@ module Daemon {
                                     let hex = Buffer.from(JSON.stringify(request)).toString('hex')
                                     let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
                                     let contractResponse = await vm.run(contract.contract, signed, true)
-                                    if(contractResponse !== undefined){
+                                    if(contractResponse !== undefined && contractResponse !== false){
                                         utils.log(contractResponse)
                                     }
                                 } catch (e) {
