@@ -46,8 +46,12 @@ export async function run(req: express.Request, res: express.Response) {
             }
             client.close()
             if (isPinned) {
-              let run = await vm.run(parsed['contract'], request['body'], true, version)
-              res.send(run)
+              if (parsed['function'] !== 'eachBlock' && parsed['function'] !== 'ifMempool') {
+                let run = await vm.run(parsed['contract'], request['body'], true, version)
+                res.send(run)
+              } else {
+                res.send({ message: 'Can\'t run eachBlock or ifMempool function.', request: parsed, error: 400 })
+              }
             } else {
               res.send({ message: 'Smart Contract not available at this node.', request: parsed, error: 400 })
             }

@@ -716,7 +716,7 @@ export async function listunspent(req: express.Request, res: express.Response) {
         client.close()
         var scwallet = new Sidechain.Wallet;
         let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
-        
+
         let balance = 0
         for (let k in unspent) {
           balance += parseFloat(unspent[k].amount.toFixed(check_sidechain[0].data.genesis.decimals))
@@ -840,7 +840,7 @@ export async function scanchain(req: express.Request, res: express.Response) {
         if (sidechain_datas[0] !== undefined) {
           for (let x in sidechain_datas) {
             delete sidechain_datas[x]._id
-            if(uniq.indexOf(sidechain_datas[x].sxid) === -1){
+            if (uniq.indexOf(sidechain_datas[x].sxid) === -1) {
               sidechain_datas[x].address = await wallet.getAddressFromPubKey(sidechain_datas[x].pubkey)
               uniq.push(sidechain_datas[x].sxid)
             }
@@ -897,49 +897,64 @@ export async function validatetransaction(req: express.Request, res: express.Res
           var amountinput = 0
           var amountoutput = 0
           var isGenesis = false
-
+          let time = transactionToValidate.time
           if (transactionToValidate.inputs.length > 0) {
             for (let x in transactionToValidate.inputs) {
               let sxid = transactionToValidate.inputs[x].sxid
               let vout = transactionToValidate.inputs[x].vout
-              let validategenesis = await scwallet.validategenesis(sxid, transactionToValidate.sidechain)
-              if (validategenesis === false) {
-                let validateinput = await scwallet.validateinput(sxid, vout, transactionToValidate.sidechain, fields.address)
-                if (validateinput === false) {
-                  valid = false
-                  res.send({
-                    message: "Input " + sxid + ':' + vout + " not valid.",
-                    error: true,
-                    status: 404
-                  })
-                } else if (validateinput === true) {
-                  let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, transactionToValidate.sidechain, fields.sxid)
-                  if (isDoubleSpended === true) {
-                    valid = false
-                    res.send({
-                      message: "Input " + sxid + ':' + vout + " is spended yet.",
-                      error: true,
-                      status: 404
-                    })
-                  }
-                }
+              // VALIDATING INPUT TIME
+              let validatetime = true
+              if (transactionToValidate.inputs[x].time >= time) {
+                validatetime = false
               }
-              // CHECKING GENESIS
-              if (transactionToValidate.inputs[x].vout === 'genesis' || transactionToValidate.inputs[x].vout === 'reissue') {
-                isGenesis = true
-              }
-              if (check_sidechain[0].data.genesis !== undefined) {
-                if (valid === true && transactionToValidate.inputs[x].amount !== undefined) {
-                  let fixed = math.round(transactionToValidate.inputs[x].amount, check_sidechain[0].data.genesis.decimals)
-                  amountinput = math.sum(amountinput, fixed)
-                }
-              } else {
+
+              if (validatetime === false) {
                 valid = false
                 res.send({
-                  message: "Sidechain doesn't exist.",
+                  message: "Input time greater than input tx.",
                   error: true,
                   status: 404
                 })
+              } else {
+                let validategenesis = await scwallet.validategenesis(sxid, transactionToValidate.sidechain)
+                if (validategenesis === false) {
+                  let validateinput = await scwallet.validateinput(sxid, vout, transactionToValidate.sidechain, fields.address)
+                  if (validateinput === false) {
+                    valid = false
+                    res.send({
+                      message: "Input " + sxid + ':' + vout + " not valid.",
+                      error: true,
+                      status: 404
+                    })
+                  } else if (validateinput === true) {
+                    let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, transactionToValidate.sidechain, fields.sxid)
+                    if (isDoubleSpended === true) {
+                      valid = false
+                      res.send({
+                        message: "Input " + sxid + ':' + vout + " is spended yet.",
+                        error: true,
+                        status: 404
+                      })
+                    }
+                  }
+                }
+                // CHECKING GENESIS
+                if (transactionToValidate.inputs[x].vout === 'genesis' || transactionToValidate.inputs[x].vout === 'reissue') {
+                  isGenesis = true
+                }
+                if (check_sidechain[0].data.genesis !== undefined) {
+                  if (valid === true && transactionToValidate.inputs[x].amount !== undefined) {
+                    let fixed = math.round(transactionToValidate.inputs[x].amount, check_sidechain[0].data.genesis.decimals)
+                    amountinput = math.sum(amountinput, fixed)
+                  }
+                } else {
+                  valid = false
+                  res.send({
+                    message: "Sidechain doesn't exist.",
+                    error: true,
+                    status: 404
+                  })
+                }
               }
             }
           } else {
@@ -1169,7 +1184,7 @@ export function listchains(req: express.Request, res: express.Response) {
             }
           }
         }
-        
+
         client.close()
 
         sidechains.sort(function (a, b) {

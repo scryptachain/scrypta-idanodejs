@@ -149,18 +149,22 @@ module Daemon {
                                     let request = {
                                         function: "ifMempool",
                                         params: mempool,
-                                        contract: contract.contract
+                                        contract: contract.contract,
+                                        version: contract.version
                                     }
-                                    console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract.contract)
-                                    try {
-                                        let hex = Buffer.from(JSON.stringify(request)).toString('hex')
-                                        let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                        let contractResponse = await vm.run(contract.contract, signed, true)
-                                        if(contractResponse !== undefined && contractResponse !== false){
-                                            utils.log(contractResponse)
+                                    let contractDetails = await vm.read(contract.contract, true, contract.version)
+                                    if (contractDetails.functions.indexOf('ifMempool') !== -1) {
+                                        console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract.contract)
+                                        try {
+                                            let hex = Buffer.from(JSON.stringify(request)).toString('hex')
+                                            let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
+                                            let contractResponse = await vm.run(contract.contract, signed, true)
+                                            if (contractResponse !== undefined && contractResponse !== false) {
+                                                utils.log(contractResponse)
+                                            }
+                                        } catch (e) {
+                                            console.log(e)
                                         }
-                                    } catch (e) {
-                                        console.log(e)
                                     }
                                 }
                             }
@@ -344,18 +348,22 @@ module Daemon {
                                 let request = {
                                     function: "eachBlock",
                                     params: block,
-                                    contract: contract.contract
+                                    contract: contract.contract,
+                                    version: contract.version
                                 }
-                                utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract.contract)
-                                try {
-                                    let hex = Buffer.from(JSON.stringify(request)).toString('hex')
-                                    let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                    let contractResponse = await vm.run(contract.contract, signed, true)
-                                    if(contractResponse !== undefined && contractResponse !== false){
-                                        utils.log(contractResponse)
+                                let contractDetails = await vm.read(contract.contract, true, contract.version)
+                                if (contractDetails.functions.indexOf('eachBlock') !== -1) {
+                                    utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract.contract)
+                                    try {
+                                        let hex = Buffer.from(JSON.stringify(request)).toString('hex')
+                                        let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
+                                        let contractResponse = await vm.run(contract.contract, signed, true)
+                                        if (contractResponse !== undefined && contractResponse !== false) {
+                                            utils.log(contractResponse)
+                                        }
+                                    } catch (e) {
+                                        utils.log(e)
                                     }
-                                } catch (e) {
-                                    utils.log(e)
                                 }
                             }
                         }
