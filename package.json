@@ -1,6 +1,6 @@
 {
   "name": "scrypta-idanodejs",
-  "version": "2.1.8",
+  "version": "2.1.9",
   "description": "NodeJS implementation of Scrypta IdANode Technology",
   "main": "index.js",
   "scripts": {
@@ -19,7 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "@scrypta/core": "^2.4.8",
-    "@scrypta/vm": "^1.1.6",
+    "@scrypta/vm": "^1.1.7",
     "@types/mathjs": "^6.0.5",
     "@types/node": "14.11.2",
     "archiver": "^5.0.2",
