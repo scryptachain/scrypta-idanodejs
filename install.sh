@@ -33,6 +33,7 @@ server=1
 daemon=1
 index=1
 txindex=1
+datacarriersize=8000
 logtimestamps=1" > "/root/.lyra/lyra.conf"
 
 #INSTALL NODEJS
