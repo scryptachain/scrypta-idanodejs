@@ -7,6 +7,7 @@ const mongo = require('mongodb').MongoClient
 import * as Utilities from '../libs/Utilities'
 import { create, all } from 'mathjs'
 import { v4 as uuidv4 } from 'uuid';
+import Contracts = require("../libs/Contracts")
 const messages = require('../libs/p2p/messages.js')
 const CryptoJS = require('crypto-js')
 
@@ -26,13 +27,34 @@ export async function issue(req: express.Request, res: express.Response) {
   var request = await parser.body(req)
   if (request !== false) {
     let fields = request['body']
-    if (fields.name !== undefined && fields.burnable !== undefined && fields.supply !== undefined && fields.symbol !== undefined && fields.reissuable !== undefined && fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.version !== undefined && fields.private_key !== undefined && fields.decimals !== undefined) {
+    if (fields.name !== undefined && fields.burnable !== undefined && fields.supply !== undefined && fields.symbol !== undefined && fields.reissuable !== undefined && fields.extendable !== undefined && fields.dapp_address !== undefined && fields.pubkey !== undefined && fields.version !== undefined && fields.private_key !== undefined && fields.decimals !== undefined) {
       let supply = parseFloat(fields.supply)
       if (supply > 0) {
 
         var burnable = true
         if (fields.burnable === 'false' || fields.burnable === false) {
           burnable = false
+        }
+
+        var extendable = false
+        var contract = ''
+        let contractExist = false
+        if (fields.extendable === 'true' || fields.extendable === true) {
+          extendable = true
+          if (fields.contract !== undefined) {
+            let checkcontract = await wallet.request('validateaddress', [fields.contract])
+            if (checkcontract['result'].isvalid === true) {
+              contract = fields.contract
+            }
+          }
+        }
+
+        if(contract !== '' && extendable === true){
+          let local = new Contracts.Local
+          let checkexistence = await local.find(contract, 'latest')
+          if(checkexistence.address !== undefined && checkexistence.address === contract){
+            contractExist = true
+          }
         }
 
         var reissuable = true
@@ -54,96 +76,106 @@ export async function issue(req: express.Request, res: express.Response) {
           "owner": fields.dapp_address,
           "pubkey": fields.pubkey,
           "burnable": burnable,
+          "extendable": extendable,
+          "contract": contract,
           "version": fields.version,
           "dna": dna,
           "time": new Date().getTime()
         }
 
-        let sign = await wallet.signmessage(fields.private_key, JSON.stringify(genesis))
-        if (sign.address === fields.dapp_address && sign.pubkey === fields.pubkey) {
-          let signature = sign.signature
-          let sxid = sign.id
-          let issue = {
-            genesis: genesis,
-            signature: signature,
-            pubkey: sign.pubkey,
-            sxid: sxid
-          }
+        if ((extendable === true && contract !== '' && contractExist === true) || extendable === false) {
+          let sign = await wallet.signmessage(fields.private_key, JSON.stringify(genesis))
+          if (sign.address === fields.dapp_address && sign.pubkey === fields.pubkey) {
+            let signature = sign.signature
+            let sxid = sign.id
+            let issue = {
+              genesis: genesis,
+              signature: signature,
+              pubkey: sign.pubkey,
+              sxid: sxid
+            }
 
-          var ck = new CoinKey.createRandom(global['lyraInfo'])
-          var lyraprv = ck.privateWif;
-          var lyrakey = ck.publicKey.toString('hex')
-          let addresses = [sign.pubkey, lyrakey]
-          var txid = ''
-          wallet.request('createmultisig', [addresses.length, addresses]).then(async function (init) {
-            var trustlink = init['result'].address
-            txid = <string>await wallet.send2multisig(fields.private_key, fields.dapp_address, trustlink, 1, '', 0.001, true)
+            var ck = new CoinKey.createRandom(global['lyraInfo'])
+            var lyraprv = ck.privateWif;
+            var lyrakey = ck.publicKey.toString('hex')
+            let addresses = [sign.pubkey, lyrakey]
+            var txid = ''
+            wallet.request('createmultisig', [addresses.length, addresses]).then(async function (init) {
+              var trustlink = init['result'].address
+              txid = <string>await wallet.send2multisig(fields.private_key, fields.dapp_address, trustlink, 1, '', 0.001, true)
 
-            if (txid !== null && txid.length === 64) {
+              if (txid !== null && txid.length === 64) {
 
-              // WRITING SIDECHAIN TO BLOCKCHAIN
-              var private_keys = fields.private_key + "," + lyraprv
-              var redeemScript = init['result']['redeemScript']
-              var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
-              var collection = '!*!'
-              var refID = '!*!'
-              var protocol = '!*!chain://'
-              var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(issue) + '*!*'
+                // WRITING SIDECHAIN TO BLOCKCHAIN
+                var private_keys = fields.private_key + "," + lyraprv
+                var redeemScript = init['result']['redeemScript']
+                var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+                var collection = '!*!'
+                var refID = '!*!'
+                var protocol = '!*!chain://'
+                var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(issue) + '*!*'
 
-              let write = await wallet.writemultisig(private_keys, trustlink, redeemScript, dataToWrite, uuid, collection, refID, protocol)
+                let write = await wallet.writemultisig(private_keys, trustlink, redeemScript, dataToWrite, uuid, collection, refID, protocol)
 
-              // MOVE ALL FUNDS FROM SIDECHAIN ADDRESS TO OWNER ADDRESS
-              var uuidtx = uuidv4().replace(new RegExp('-', 'g'), '.')
+                // MOVE ALL FUNDS FROM SIDECHAIN ADDRESS TO OWNER ADDRESS
+                var uuidtx = uuidv4().replace(new RegExp('-', 'g'), '.')
 
-              let transaction = {}
-              transaction["sidechain"] = trustlink
-              transaction["inputs"] = [{ sxid: sxid, vout: "genesis" }]
-              transaction["outputs"] = {}
-              transaction["outputs"][fields.dapp_address] = supply
-              transaction["time"] = new Date().getTime()
+                let transaction = {}
+                transaction["sidechain"] = trustlink
+                transaction["inputs"] = [{ sxid: sxid, vout: "genesis" }]
+                transaction["outputs"] = {}
+                transaction["outputs"][fields.dapp_address] = supply
+                transaction["time"] = new Date().getTime()
 
-              let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
-              let genesistx = {
-                transaction: transaction,
-                pubkey: fields.pubkey,
-                signature: signtx.signature,
-                sxid: signtx.id
-              }
-              var genesisTxToWrite = '*!*' + uuidtx + collection + refID + protocol + '*=>' + JSON.stringify(genesistx) + '*!*'
+                let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
+                let genesistx = {
+                  transaction: transaction,
+                  pubkey: fields.pubkey,
+                  signature: signtx.signature,
+                  sxid: signtx.id
+                }
+                var genesisTxToWrite = '*!*' + uuidtx + collection + refID + protocol + '*=>' + JSON.stringify(genesistx) + '*!*'
 
-              let sendToOwner = await wallet.writemultisig(private_keys, trustlink, redeemScript, genesisTxToWrite, uuidtx, collection, refID, protocol)
+                let sendToOwner = await wallet.writemultisig(private_keys, trustlink, redeemScript, genesisTxToWrite, uuidtx, collection, refID, protocol)
 
-              if (sendToOwner !== false) {
-                res.send({
-                  issue: issue,
-                  funds_txid: txid,
-                  sidechain: write,
-                  genesis: sendToOwner,
-                  issued: true
-                })
+                if (sendToOwner !== false) {
+                  res.send({
+                    issue: issue,
+                    funds_txid: txid,
+                    sidechain: write,
+                    genesis: sendToOwner,
+                    issued: true
+                  })
+                } else {
+                  res.send({
+                    error: 'Error while sending init funds, sidechain can\'t be issued on the main chain.',
+                    issued: false
+                  })
+                }
               } else {
+                console.log('Balance insufficient for airdrop, sidechain can\'t be issued on the main chain.')
                 res.send({
-                  error: 'Error while sending init funds, sidechain can\'t be issued on the main chain.',
+                  error: 'Balance insufficient for airdrop, sidechain can\'t be issued on the main chain.',
                   issued: false
                 })
               }
-            } else {
-              console.log('Balance insufficient for airdrop, sidechain can\'t be issued on the main chain.')
-              res.send({
-                error: 'Balance insufficient for airdrop, sidechain can\'t be issued on the main chain.',
-                issued: false
-              })
-            }
-          })
+            })
+          } else {
+            res.send({
+              data: {
+                error: "Ownership not confirmed, calculated pubkey or address are not valid."
+              },
+              status: 422
+            })
+          }
         } else {
           res.send({
             data: {
-              error: "Ownership not confirmed, calculated pubkey or address are not valid."
+              error: "Contract address is not valid."
             },
             status: 422
           })
         }
-
       } else {
         res.send({
           data: {

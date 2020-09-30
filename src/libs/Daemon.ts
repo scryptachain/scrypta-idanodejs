@@ -4,7 +4,6 @@ import * as Crypto from './Crypto'
 import * as Sidechain from './Planum'
 import * as Utilities from './Utilities'
 import * as Contracts from './Contracts'
-import * as Space from './Space'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 import { create, all, exp } from 'mathjs'
@@ -542,7 +541,7 @@ module Daemon {
                                 await task.pinipfsfolder(datastore.data)
                             }
 
-                            if (datastore.protocol === 'documenta://' && process.env.S3_BUCKET !== undefined) {
+                            if (datastore.protocol === 'documenta://') {
                                 var wallet = new Crypto.Wallet;
                                 let valid = true
                                 let pubkey
@@ -661,8 +660,86 @@ module Daemon {
                                         var amountinput = 0
                                         var amountoutput = 0
                                         var isGenesis = false
+                                        var isExtended = false
 
-                                        if (datastore.data.transaction.inputs.length > 0) {
+                                        // CHECKING IF TRANSACTION IS CONTROLLED BY A SMART CONTRACT
+                                        if (datastore.data.contract !== undefined && datastore.data.contract.address !== undefined) {
+                                            isExtended = true
+                                            if (check_sidechain[0].data.genesis.extendable === true && check_sidechain[0].data.genesis.contract !== '' && check_sidechain[0].data.genesis.contract === datastore.data.contract.address) {
+                                                if (datastore.data.transaction.inputs.length > 0) {
+                                                    let toValidateByContract = datastore.data.transaction.inputs[0]
+                                                    if (toValidateByContract.function !== undefined && toValidateByContract.params !== undefined) {
+                                                        let searchRequest = {
+                                                            function: "index",
+                                                            params: { contract: datastore.data.contract.address },
+                                                            contract: 'LgSAtP3gPURByanZSM32kfEu9C1uyQ6Kfg',
+                                                            version: 'latest'
+                                                        }
+                                                        utils.log('SEARCH WHERE CONTRACT IS STORED')
+                                                        try {
+                                                            let searchhex = Buffer.from(JSON.stringify(searchRequest)).toString('hex')
+                                                            let searchsigned = await wallet.signmessage(process.env.NODE_KEY, searchhex)
+                                                            let maintainers = await vm.run(datastore.data.contract.address, searchsigned, true)
+                                                            if (maintainers !== undefined && maintainers !== false) {
+                                                                if(maintainers.length > 0){
+                                                                    // RUN CONTRACT AND LET'S SEE IF IS TRANSACTION VALID
+                                                                    let validationRequest = {
+                                                                        function: toValidateByContract.function,
+                                                                        params: toValidateByContract.params,
+                                                                        contract: datastore.data.contract.address,
+                                                                        version: datastore.data.contract.version
+                                                                    }
+                                                                    let validationhex = Buffer.from(JSON.stringify(validationRequest)).toString('hex')
+                                                                    let answered = false
+                                                                    let aix = 0
+                                                                    while(answered === false){
+                                                                        let idanode = maintainers[Math.floor(Math.random() * maintainers.length)]
+                                                                        utils.log('ASKING ' + idanode.url + ' TO VALIDATE TRANSACTION')
+                                                                        let validationsigned = await wallet.signmessage(process.env.NODE_KEY, validationhex)
+                                                                        let validationresponse = await axios.post(idanode.url + '/contracts/run', validationsigned)
+                                                                        if(validationresponse.data !== undefined){
+                                                                            answered = true
+                                                                            if(validationresponse.data === false){
+                                                                                valid = false
+                                                                            }else{
+                                                                                if(validationresponse !==  datastore.data.transaction.outputs){
+                                                                                    valid = false
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                        aix++
+                                                                        if(aix > 9){
+                                                                            answered = true
+                                                                            valid = false
+                                                                            utils.log('CAN\'T GET RESPONSE FROM MAINTAINERS')
+                                                                        }
+                                                                    }
+                                                                }else{
+                                                                    valid = false
+                                                                    utils.log('NO ONE MAINTAIN CONTRACT ' + datastore.data.contract.address)
+                                                                }
+                                                            }else{
+                                                                utils.log('INDEXER CONTRACT NOT WORKING')
+                                                                valid = false
+                                                            }
+                                                        } catch (e) {
+                                                            utils.log('ERROR WHILE SEARCHING INDEXED CONTRACT', e)
+                                                            valid = false
+                                                        }
+                                                    } else {
+                                                        utils.log('INVALID REQUEST')
+                                                        valid = false
+                                                    }
+                                                } else {
+                                                    valid = false
+                                                }
+                                            } else {
+                                                valid = false
+                                            }
+                                        }
+
+                                        // CHECK TRANSACTION INPUTS
+                                        if (datastore.data.transaction.inputs.length > 0 && !isExtended) {
                                             for (let x in datastore.data.transaction.inputs) {
                                                 let sxid = datastore.data.transaction.inputs[x].sxid
                                                 let vout = datastore.data.transaction.inputs[x].vout
@@ -698,6 +775,7 @@ module Daemon {
                                             valid = false
                                         }
 
+                                        // FIXING AMOUNTS VALUES 
                                         if (check_sidechain[0].data.genesis !== undefined) {
                                             if (valid === true) {
                                                 for (let x in datastore.data.transaction.outputs) {
@@ -711,7 +789,8 @@ module Daemon {
                                             valid = false
                                         }
 
-                                        if (!isGenesis) {
+                                        // CHECK OVERMINT
+                                        if (!isGenesis && !isExtended) {
                                             if (valid === true && amountoutput > amountinput) {
                                                 valid = false
                                                 utils.log('AMOUNT IS INVALID IN SIDECHAIN TRANSACTION ' + datastore.data.transaction.sidechain + ' ' + datastore.data.sxid + ' AT BLOCK ' + datastore.block + ' > OUT:' + amountoutput + ' IN: ' + amountinput)
@@ -735,6 +814,7 @@ module Daemon {
                                             valid = false
                                         }
 
+                                        // ALL VALID INSERTING TRANSACTION
                                         if (valid === true) {
                                             datastore.data.block = datastore.block
                                             let insertTx = false
@@ -755,24 +835,26 @@ module Daemon {
 
                                             // REEDIMING UNSPENT FOR EACH INPUT
                                             for (let x in datastore.data.transaction.inputs) {
-                                                let sxid = datastore.data.transaction.inputs[x].sxid
-                                                let vout = datastore.data.transaction.inputs[x].vout
-                                                if (global['sxidcache'].indexOf(sxid + ':' + vout) === -1 && isMempool) {
-                                                    global['sxidcache'].push(sxid + ':' + vout)
-                                                    await messages.signandbroadcast('planum-unspent', sxid + ':' + vout)
-                                                }
-                                                let updated = false
-                                                while (updated === false) {
-                                                    try {
-                                                        if (datastore.block !== null) {
-                                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
-                                                        } else {
-                                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                if (datastore.data.transaction.inputs[x].sxid !== undefined && datastore.data.transaction.inputs[x].vout !== undefined) {
+                                                    let sxid = datastore.data.transaction.inputs[x].sxid
+                                                    let vout = datastore.data.transaction.inputs[x].vout
+                                                    if (global['sxidcache'].indexOf(sxid + ':' + vout) === -1 && isMempool) {
+                                                        global['sxidcache'].push(sxid + ':' + vout)
+                                                        await messages.signandbroadcast('planum-unspent', sxid + ':' + vout)
+                                                    }
+                                                    let updated = false
+                                                    while (updated === false) {
+                                                        try {
+                                                            if (datastore.block !== null) {
+                                                                await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
+                                                            } else {
+                                                                await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                            }
+                                                            utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
+                                                            updated = true
+                                                        } catch (e) {
+                                                            utils.log('ERROR WHILE REDEEMING UNSPENT')
                                                         }
-                                                        utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
-                                                        updated = true
-                                                    } catch (e) {
-                                                        utils.log('ERROR WHILE REDEEMING UNSPENT')
                                                     }
                                                 }
                                             }
