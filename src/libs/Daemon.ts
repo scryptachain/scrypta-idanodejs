@@ -90,79 +90,81 @@ module Daemon {
                             console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
                             var wallet = new Crypto.Wallet
                             var mempool = await wallet.analyzeMempool()
-                            global['retrySync'] = 0
-                            for (var address in mempool['data_written']) {
-                                var data = mempool['data_written'][address]
-                                console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
-                                for (var dix in data) {
-                                    if (data[dix].protocol !== 'chain://') {
-                                        await task.storewritten(data[dix], true)
-                                    } else {
-                                        await task.storewritten(data[dix], true)
-                                        await task.storeplanum(data[dix], true)
+                            if (mempool !== false) {
+                                global['retrySync'] = 0
+                                for (var address in mempool['data_written']) {
+                                    var data = mempool['data_written'][address]
+                                    console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                                    for (var dix in data) {
+                                        if (data[dix].protocol !== 'chain://') {
+                                            await task.storewritten(data[dix], true)
+                                        } else {
+                                            await task.storewritten(data[dix], true)
+                                            await task.storeplanum(data[dix], true)
+                                        }
                                     }
                                 }
-                            }
 
-                            for (var address in mempool['data_received']) {
-                                var data = mempool['data_received'][address]
-                                console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
-                                for (var dix in data) {
-                                    await task.storereceived(data[dix])
+                                for (var address in mempool['data_received']) {
+                                    var data = mempool['data_received'][address]
+                                    console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
+                                    for (var dix in data) {
+                                        await task.storereceived(data[dix])
+                                    }
                                 }
-                            }
 
-                            for (var txid in mempool['analysis']) {
-                                for (var address in mempool['analysis'][txid]['balances']) {
-                                    var tx = mempool['analysis'][txid]['balances'][address]
-                                    var movements = mempool['analysis'][txid]['movements']
-                                    console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
-                                    await task.store(address, mempool, txid, tx, movements)
+                                for (var txid in mempool['analysis']) {
+                                    for (var address in mempool['analysis'][txid]['balances']) {
+                                        var tx = mempool['analysis'][txid]['balances'][address]
+                                        var movements = mempool['analysis'][txid]['movements']
+                                        console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
+                                        await task.store(address, mempool, txid, tx, movements)
+                                    }
                                 }
-                            }
 
-                            for (var i in mempool['outputs']) {
-                                let unspent = mempool['outputs'][i]
-                                var found = false
+                                for (var i in mempool['outputs']) {
+                                    let unspent = mempool['outputs'][i]
+                                    var found = false
+                                    for (var i in mempool['inputs']) {
+                                        let input = mempool['inputs'][i]
+                                        if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
+                                            found = true
+                                        }
+                                    }
+                                    if (found === false) {
+                                        await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
+                                    } else {
+                                        console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                                    }
+                                }
+
                                 for (var i in mempool['inputs']) {
                                     let input = mempool['inputs'][i]
-                                    if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
-                                        found = true
-                                    }
+                                    await task.redeemunspent(input['txid'], input['vout'], null)
                                 }
-                                if (found === false) {
-                                    await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
-                                } else {
-                                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
-                                }
-                            }
 
-                            for (var i in mempool['inputs']) {
-                                let input = mempool['inputs'][i]
-                                await task.redeemunspent(input['txid'], input['vout'], null)
-                            }
-
-                            if (mempool['outputs'].length > 0 && pinned.length > 0) {
-                                for (let k in pinned) {
-                                    let contract = pinned[k]
-                                    let request = {
-                                        function: "ifMempool",
-                                        params: mempool,
-                                        contract: contract.contract,
-                                        version: contract.version
-                                    }
-                                    let contractDetails = await vm.read(contract.contract, true, contract.version)
-                                    if (contractDetails.functions.indexOf('ifMempool') !== -1) {
-                                        console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract.contract)
-                                        try {
-                                            let hex = Buffer.from(JSON.stringify(request)).toString('hex')
-                                            let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                            let contractResponse = await vm.run(contract.contract, signed, true)
-                                            if (contractResponse !== undefined && contractResponse !== false) {
-                                                utils.log(contractResponse)
+                                if (mempool['outputs'].length > 0 && pinned.length > 0) {
+                                    for (let k in pinned) {
+                                        let contract = pinned[k]
+                                        let request = {
+                                            function: "ifMempool",
+                                            params: mempool,
+                                            contract: contract.contract,
+                                            version: contract.version
+                                        }
+                                        let contractDetails = await vm.read(contract.contract, true, contract.version)
+                                        if (contractDetails.functions.indexOf('ifMempool') !== -1) {
+                                            console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract.contract)
+                                            try {
+                                                let hex = Buffer.from(JSON.stringify(request)).toString('hex')
+                                                let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
+                                                let contractResponse = await vm.run(contract.contract, signed, true)
+                                                if (contractResponse !== undefined && contractResponse !== false) {
+                                                    utils.log(contractResponse)
+                                                }
+                                            } catch (e) {
+                                                console.log(e)
                                             }
-                                        } catch (e) {
-                                            console.log(e)
                                         }
                                     }
                                 }
@@ -244,133 +246,138 @@ module Daemon {
                         var wallet = new Crypto.Wallet
                         var blockhash = await wallet.request('getblockhash', [analyze])
                         var block = await wallet.analyzeBlock(blockhash['result'])
-
-                        for (var txid in block['analysis']) {
-                            for (var address in block['analysis'][txid]['balances']) {
-                                var tx = block['analysis'][txid]['balances'][address]
-                                var movements = block['analysis'][txid]['movements']
-                                var task = new Daemon.Sync
-                                console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
-                                let storedtx = await task.store(address, block, txid, tx, movements)
-                                if (storedtx === false) {
-                                    utils.log('ERROR ON STORE TRANSACTION')
-                                    response(false)
-                                }
-                            }
-                        }
-
-                        for (var i in block['outputs']) {
-                            let unspent = block['outputs'][i]
-                            var found = false
-                            for (var i in block['inputs']) {
-                                let input = block['inputs'][i]
-                                if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
-                                    found = true
-                                }
-                            }
-                            if (found === false) {
-                                let storedunspent = await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
-                                if (storedunspent === false) {
-                                    utils.log('ERROR ON STORE UNSPENT')
-                                    response(false)
-                                }
-                            } else {
-                                console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
-                            }
-                        }
-
-                        for (var i in block['inputs']) {
-                            let input = block['inputs'][i]
-                            let redeemedunspent = await task.redeemunspent(input['txid'], input['vout'], analyze)
-                            if (redeemedunspent === false) {
-                                utils.log('ERROR ON REDEEM UNSPENT')
-                                response(false)
-                            }
-                        }
-                        // console.log('CLEANING UTXO CACHE')
-                        global['utxocache'] = []
-                        global['txidcache'] = []
-                        // console.log('CLEANING USXO CACHE')
-                        global['usxocache'] = []
-                        global['sxidcache'] = []
-
-                        for (var address in block['data_written']) {
-                            var data = block['data_written'][address]
-                            console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
-                            for (var dix in data) {
-                                if (data[dix].protocol !== 'chain://') {
+                        if (block !== false) {
+                            for (var txid in block['analysis']) {
+                                for (var address in block['analysis'][txid]['balances']) {
+                                    var tx = block['analysis'][txid]['balances'][address]
+                                    var movements = block['analysis'][txid]['movements']
                                     var task = new Daemon.Sync
-                                    let storedwritten = await task.storewritten(data[dix], false, block['height'])
-                                    if (storedwritten === false) {
-                                        utils.log('ERROR ON STORE WRITTEN DATA')
+                                    console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
+                                    let storedtx = await task.store(address, block, txid, tx, movements)
+                                    if (storedtx === false) {
+                                        utils.log('ERROR ON STORE TRANSACTION')
                                         response(false)
                                     }
                                 }
                             }
-                        }
 
-                        for (var dix in block['planum']) {
-                            utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
-                            var task = new Daemon.Sync
-                            let storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
-                            if (storedwritten === false) {
-                                utils.log('ERROR STORING WRITTEN DATA ON PLANUM')
-                                response(false)
+                            for (var i in block['outputs']) {
+                                let unspent = block['outputs'][i]
+                                var found = false
+                                for (var i in block['inputs']) {
+                                    let input = block['inputs'][i]
+                                    if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
+                                        found = true
+                                    }
+                                }
+                                if (found === false) {
+                                    let storedunspent = await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
+                                    if (storedunspent === false) {
+                                        utils.log('ERROR ON STORE UNSPENT')
+                                        response(false)
+                                    }
+                                } else {
+                                    console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                                }
                             }
-                            let storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
-                            if (storedplanum === false) {
-                                utils.log('ERROR STORING PLANUM')
-                                response(false)
-                            }
-                        }
 
-                        for (var address in block['data_received']) {
-                            var data = block['data_received'][address]
-                            console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
-                            for (var dix in data) {
-                                var task = new Daemon.Sync
-                                let storedreceived = await task.storereceived(data[dix])
-                                if (storedreceived === false) {
-                                    utils.log('ERROR ON STORE RECEIVED')
+                            for (var i in block['inputs']) {
+                                let input = block['inputs'][i]
+                                let redeemedunspent = await task.redeemunspent(input['txid'], input['vout'], analyze)
+                                if (redeemedunspent === false) {
+                                    utils.log('ERROR ON REDEEM UNSPENT')
                                     response(false)
                                 }
                             }
-                        }
+                            // console.log('CLEANING UTXO CACHE')
+                            global['utxocache'] = []
+                            global['txidcache'] = []
+                            // console.log('CLEANING USXO CACHE')
+                            global['usxocache'] = []
+                            global['sxidcache'] = []
 
-                        // CHECK IF THERE ARE PINNED CONTRACTS
-                        let contracts = new Contracts.Local
-                        let pinned = await contracts.pinned()
-
-                        if (pinned.length > 0) {
-                            for (let k in pinned) {
-                                let contract = pinned[k]
-                                let request = {
-                                    function: "eachBlock",
-                                    params: block,
-                                    contract: contract.contract,
-                                    version: contract.version
-                                }
-                                let contractDetails = await vm.read(contract.contract, true, contract.version)
-                                if (contractDetails.functions.indexOf('eachBlock') !== -1) {
-                                    utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract.contract)
-                                    try {
-                                        let hex = Buffer.from(JSON.stringify(request)).toString('hex')
-                                        let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                        let contractResponse = await vm.run(contract.contract, signed, true)
-                                        if (contractResponse !== undefined && contractResponse !== false) {
-                                            utils.log(contractResponse)
+                            for (var address in block['data_written']) {
+                                var data = block['data_written'][address]
+                                console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                                for (var dix in data) {
+                                    if (data[dix].protocol !== 'chain://') {
+                                        var task = new Daemon.Sync
+                                        let storedwritten = await task.storewritten(data[dix], false, block['height'])
+                                        if (storedwritten === false) {
+                                            utils.log('ERROR ON STORE WRITTEN DATA')
+                                            response(false)
                                         }
-                                    } catch (e) {
-                                        utils.log(e)
                                     }
                                 }
                             }
-                        }
 
-                        var remains = blocks - analyze
-                        console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
-                        global['isAnalyzing'] = false
-                        response(block['height'])
+                            for (var dix in block['planum']) {
+                                utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
+                                var task = new Daemon.Sync
+                                let storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
+                                if (storedwritten === false) {
+                                    utils.log('ERROR STORING WRITTEN DATA ON PLANUM')
+                                    response(false)
+                                }
+                                let storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
+                                if (storedplanum === false) {
+                                    utils.log('ERROR STORING PLANUM')
+                                    response(false)
+                                }
+                            }
+
+                            for (var address in block['data_received']) {
+                                var data = block['data_received'][address]
+                                console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
+                                for (var dix in data) {
+                                    var task = new Daemon.Sync
+                                    let storedreceived = await task.storereceived(data[dix])
+                                    if (storedreceived === false) {
+                                        utils.log('ERROR ON STORE RECEIVED')
+                                        response(false)
+                                    }
+                                }
+                            }
+
+                            // CHECK IF THERE ARE PINNED CONTRACTS
+                            let contracts = new Contracts.Local
+                            let pinned = await contracts.pinned()
+
+                            if (pinned.length > 0) {
+                                for (let k in pinned) {
+                                    let contract = pinned[k]
+                                    let request = {
+                                        function: "eachBlock",
+                                        params: block,
+                                        contract: contract.contract,
+                                        version: contract.version
+                                    }
+                                    let contractDetails = await vm.read(contract.contract, true, contract.version)
+                                    if (contractDetails.functions.indexOf('eachBlock') !== -1) {
+                                        utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract.contract)
+                                        try {
+                                            let hex = Buffer.from(JSON.stringify(request)).toString('hex')
+                                            let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
+                                            let contractResponse = await vm.run(contract.contract, signed, true)
+                                            if (contractResponse !== undefined && contractResponse !== false) {
+                                                utils.log(contractResponse)
+                                            }
+                                        } catch (e) {
+                                            utils.log(e)
+                                        }
+                                    }
+                                }
+                            }
+
+                            var remains = blocks - analyze
+                            console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
+                            global['isAnalyzing'] = false
+                            response(block['height'])
+                        } else {
+                            global['isAnalyzing'] = false
+                            utils.log('ERROR, ANALYZING IN PROCESS')
+                            response(false)
+                        }
                     } else {
                         global['isAnalyzing'] = false
                         utils.log('ERROR, ANALYZING IN PROCESS')
@@ -681,7 +688,7 @@ module Daemon {
                                                             let searchsigned = await wallet.signmessage(process.env.NODE_KEY, searchhex)
                                                             let maintainers = await vm.run(datastore.data.contract.address, searchsigned, true)
                                                             if (maintainers !== undefined && maintainers !== false) {
-                                                                if(maintainers.length > 0){
+                                                                if (maintainers.length > 0) {
                                                                     // RUN CONTRACT AND LET'S SEE IF IS TRANSACTION VALID
                                                                     let validationRequest = {
                                                                         function: toValidateByContract.function,
@@ -692,33 +699,33 @@ module Daemon {
                                                                     let validationhex = Buffer.from(JSON.stringify(validationRequest)).toString('hex')
                                                                     let answered = false
                                                                     let aix = 0
-                                                                    while(answered === false){
+                                                                    while (answered === false) {
                                                                         let idanode = maintainers[Math.floor(Math.random() * maintainers.length)]
                                                                         utils.log('ASKING ' + idanode.url + ' TO VALIDATE TRANSACTION')
                                                                         let validationsigned = await wallet.signmessage(process.env.NODE_KEY, validationhex)
                                                                         let validationresponse = await axios.post(idanode.url + '/contracts/run', validationsigned)
-                                                                        if(validationresponse.data !== undefined){
+                                                                        if (validationresponse.data !== undefined) {
                                                                             answered = true
-                                                                            if(validationresponse.data === false){
+                                                                            if (validationresponse.data === false) {
                                                                                 valid = false
-                                                                            }else{
-                                                                                if(validationresponse !==  datastore.data.transaction.outputs){
+                                                                            } else {
+                                                                                if (validationresponse !== datastore.data.transaction.outputs) {
                                                                                     valid = false
                                                                                 }
                                                                             }
                                                                         }
                                                                         aix++
-                                                                        if(aix > 9){
+                                                                        if (aix > 9) {
                                                                             answered = true
                                                                             valid = false
                                                                             utils.log('CAN\'T GET RESPONSE FROM MAINTAINERS')
                                                                         }
                                                                     }
-                                                                }else{
+                                                                } else {
                                                                     valid = false
                                                                     utils.log('NO ONE MAINTAIN CONTRACT ' + datastore.data.contract.address)
                                                                 }
-                                                            }else{
+                                                            } else {
                                                                 utils.log('INDEXER CONTRACT NOT WORKING')
                                                                 valid = false
                                                             }
