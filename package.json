@@ -1,6 +1,6 @@
 {
   "name": "scrypta-idanodejs",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "NodeJS implementation of Scrypta IdANode Technology",
   "main": "index.js",
   "scripts": {
@@ -18,12 +18,12 @@
   "author": "Scrypta Foundation",
   "license": "MIT",
   "dependencies": {
-    "@scrypta/core": "^2.5.1",
+    "@scrypta/core": "^2.5.4",
     "@scrypta/vm": "^1.2.0",
     "@types/mathjs": "^6.0.5",
     "@types/node": "14.11.2",
     "archiver": "^5.0.2",
-    "aws-sdk": "^2.763.0",
+    "aws-sdk": "^2.764.0",
     "axios": "^0.20.0",
     "better-console": "^1.0.1",
     "body-parser": "^1.19.0",
@@ -55,7 +55,7 @@
     "request": "^2.88.2",
     "secp256k1": "^4.0.2",
     "socket.io": "^2.3.0",
-    "socket.io-client": "^2.3.0",
+    "socket.io-client": "^2.3.1",
     "underscore": "^1.11.0",
     "uuid": "^8.3.0"
   },

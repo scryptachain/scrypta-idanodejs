@@ -683,7 +683,7 @@ module Crypto {
         public async analyzeBlock(block) {
             return new Promise(response => {
                 var wallet = new Crypto.Wallet
-                wallet.request('getblock', [block]).then(function (block) {
+                wallet.request('getblock', [block]).then(async function (block) {
 
                     block['result']['totvin'] = 0
                     block['result']['totvout'] = 0
@@ -697,7 +697,7 @@ module Crypto {
                     block['result']['data_received'] = {}
 
                     //PARSING ALL TRANSACTIONS
-                    new Promise(async resolve => {
+                    try {
                         for (var i = 0; i < block['result']['tx'].length; i++) {
                             var txid = block['result']['tx'][i]
 
@@ -865,7 +865,7 @@ module Crypto {
                             var singledata = ''
                             var readchunks = []
                             console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata)
-                            let written_txid
+                            let written_txid = []
                             for (var wix in written) {
                                 let writtensplit = written[wix].split('|?||?||?|')
                                 var data = writtensplit[1]
@@ -1071,7 +1071,9 @@ module Crypto {
                         let res = block['result']
                         block['result'] = []
                         response(res)
-                    })
+                    }catch(e){
+                        response(false)
+                    }
                 })
             })
         }
@@ -1079,7 +1081,7 @@ module Crypto {
         public async analyzeMempool() {
             return new Promise(response => {
                 var wallet = new Crypto.Wallet
-                wallet.request('getrawmempool').then(function (mempool) {
+                wallet.request('getrawmempool').then(async function (mempool) {
                     mempool['result']['totvin'] = 0
                     mempool['result']['totvout'] = 0
                     mempool['result']['fees'] = 0
@@ -1092,7 +1094,7 @@ module Crypto {
                     mempool['result']['tx'] = []
                     var mempool_written = []
                     //PARSING ALL TRANSACTIONS
-                    new Promise(async resolve => {
+                    try {
                         for (var i = 0; i < mempool['result'].length; i++) {
                             var txid = mempool['result'][i]
 
@@ -1440,7 +1442,9 @@ module Crypto {
                         }
 
                         response(res)
-                    })
+                    }catch(e){
+                        response(false)
+                    }
                 })
             })
         }
