@@ -8,6 +8,7 @@ const CryptoJS = require('crypto-js')
 var cs = require('coinstring')
 var crypto = require('crypto')
 const secp256k1 = require('secp256k1')
+let utils = new Utilities.Parser
 
 module Crypto {
 
@@ -48,6 +49,7 @@ module Crypto {
                             }
                             response(JSON.parse(body))
                         } catch (err) {
+                            utils.log(err)
                             response(body)
                         }
                     } else {
@@ -683,21 +685,21 @@ module Crypto {
         public async analyzeBlock(block) {
             return new Promise(response => {
                 var wallet = new Crypto.Wallet
-                wallet.request('getblock', [block]).then(async function (block) {
+                try {
+                    wallet.request('getblock', [block]).then(async function (block) {
 
-                    block['result']['totvin'] = 0
-                    block['result']['totvout'] = 0
-                    block['result']['fees'] = 0
-                    block['result']['analysis'] = {}
-                    block['result']['inputs'] = []
-                    block['result']['outputs'] = []
-                    block['result']['planum'] = []
-                    block['result']['raw_written'] = {}
-                    block['result']['data_written'] = {}
-                    block['result']['data_received'] = {}
+                        block['result']['totvin'] = 0
+                        block['result']['totvout'] = 0
+                        block['result']['fees'] = 0
+                        block['result']['analysis'] = {}
+                        block['result']['inputs'] = []
+                        block['result']['outputs'] = []
+                        block['result']['planum'] = []
+                        block['result']['raw_written'] = {}
+                        block['result']['data_written'] = {}
+                        block['result']['data_received'] = {}
 
-                    //PARSING ALL TRANSACTIONS
-                    try {
+                        //PARSING ALL TRANSACTIONS
                         for (var i = 0; i < block['result']['tx'].length; i++) {
                             var txid = block['result']['tx'][i]
 
@@ -1071,30 +1073,32 @@ module Crypto {
                         let res = block['result']
                         block['result'] = []
                         response(res)
-                    }catch(e){
-                        response(false)
-                    }
-                })
+                    })
+                } catch (e) {
+                    utils.log('ERROR WHILE ANALYZING BLOCK', '', 'errors')
+                    utils.log(e, '', 'errors')
+                    response(false)
+                }
             })
         }
 
         public async analyzeMempool() {
             return new Promise(response => {
                 var wallet = new Crypto.Wallet
-                wallet.request('getrawmempool').then(async function (mempool) {
-                    mempool['result']['totvin'] = 0
-                    mempool['result']['totvout'] = 0
-                    mempool['result']['fees'] = 0
-                    mempool['result']['analysis'] = {}
-                    mempool['result']['inputs'] = []
-                    mempool['result']['outputs'] = []
-                    mempool['result']['raw_written'] = {}
-                    mempool['result']['data_written'] = {}
-                    mempool['result']['data_received'] = {}
-                    mempool['result']['tx'] = []
-                    var mempool_written = []
-                    //PARSING ALL TRANSACTIONS
-                    try {
+                try {
+                    wallet.request('getrawmempool').then(async function (mempool) {
+                        mempool['result']['totvin'] = 0
+                        mempool['result']['totvout'] = 0
+                        mempool['result']['fees'] = 0
+                        mempool['result']['analysis'] = {}
+                        mempool['result']['inputs'] = []
+                        mempool['result']['outputs'] = []
+                        mempool['result']['raw_written'] = {}
+                        mempool['result']['data_written'] = {}
+                        mempool['result']['data_received'] = {}
+                        mempool['result']['tx'] = []
+                        var mempool_written = []
+                        //PARSING ALL TRANSACTIONS
                         for (var i = 0; i < mempool['result'].length; i++) {
                             var txid = mempool['result'][i]
 
@@ -1442,10 +1446,12 @@ module Crypto {
                         }
 
                         response(res)
-                    }catch(e){
-                        response(false)
-                    }
-                })
+                    })
+                } catch (e) {
+                    utils.log('ERROR WHILE ANALYZING MEMPOOL', '', 'errors')
+                    utils.log(e, '', 'errors')
+                    response(false)
+                }
             })
         }
 

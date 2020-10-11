@@ -233,7 +233,7 @@ async function returnGitChecksum(version) {
       }
       response(false)
     } catch (e) {
-      console.log(e)
+      console.log(e, '', 'errors')
       response(false)
     }
   })

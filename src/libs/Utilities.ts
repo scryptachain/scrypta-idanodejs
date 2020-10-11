@@ -58,12 +58,12 @@ module Utilities {
         return formattedTime
     }
 
-    public log(what, color = ''){
-        const path = './log'
-
+    public log(what, color = '', type = 'log'){
+        const path = './logs/' + type
+        
         try {
             if (!fs.existsSync(path)) {
-                fs.writeFileSync('log', "");
+                fs.writeFileSync(path, "");
             }
             if(color === ''){
                 console.log(what)
@@ -81,7 +81,7 @@ module Utilities {
 
             let datetime = '['+year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds+']';
 
-            fs.appendFileSync('log', datetime + ' ' + what + "\n");
+            fs.appendFileSync(path, datetime + ' ' + what + "\n");
         } catch(err) {
         console.error(err)
         }

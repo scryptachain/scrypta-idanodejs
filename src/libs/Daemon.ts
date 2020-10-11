@@ -164,6 +164,8 @@ module Daemon {
                                                 }
                                             } catch (e) {
                                                 console.log(e)
+                                                utils.log('ERROR ON IFMEMPOOL CONTRACT', '', 'errors')
+                                                utils.log(e, '', 'errors')
                                             }
                                         }
                                     }
@@ -201,11 +203,12 @@ module Daemon {
                                                 }, 10)
                                             })
                                         } else {
-                                            utils.log('BLOCK NOT SYNCED, RETRY.', '\x1b[41m%s\x1b[0m')
+                                            utils.log('BLOCK NOT SYNCED, RETRY.', '\x1b[41m%s\x1b[0m', 'errors')
                                         }
                                     }
                                 } catch (e) {
-                                    utils.log(e)
+                                    utils.log('ERROR WHILE SYNCING BLOCK')
+                                    utils.log(e, '', 'errors')
                                     global['isSyncing'] = false
                                     setTimeout(function () {
                                         task.process()
@@ -218,7 +221,7 @@ module Daemon {
                         }
                     })
                 } catch (e) {
-                    utils.log(e)
+                    utils.log(e, '', 'errors')
                     global['isSyncing'] = false
                     setTimeout(function () {
                         var task = new Daemon.Sync
@@ -363,7 +366,7 @@ module Daemon {
                                                 utils.log(contractResponse)
                                             }
                                         } catch (e) {
-                                            utils.log(e)
+                                            utils.log(e, '', 'errors')
                                         }
                                     }
                                 }
@@ -384,8 +387,8 @@ module Daemon {
                         response(false)
                     }
                 } catch (e) {
-                    utils.log('ERROR ON ANALYZE FUNCTION')
-                    utils.log(e)
+                    utils.log('ERROR ON ANALYZE FUNCTION', '', 'errors')
+                    utils.log(e, '', 'errors')
                     global['isAnalyzing'] = false
                     response(false)
                 }
@@ -433,7 +436,7 @@ module Daemon {
                         response(block['height'])
                     })
                 } catch (e) {
-                    utils.log(e)
+                    utils.log(e, '', 'errors')
                     response(false)
                 }
             })
@@ -470,7 +473,7 @@ module Daemon {
                         response(true)
                     })
                 } catch (e) {
-                    utils.log(e)
+                    utils.log(e, '', 'errors')
                     response(false)
                 }
             })
@@ -488,7 +491,7 @@ module Daemon {
                         response(true)
                     })
                 } catch (e) {
-                    utils.log(e)
+                    utils.log(e, '', 'errors')
                     response(false)
                 }
             })
@@ -581,6 +584,8 @@ module Daemon {
                                             await db.collection("documenta").insertOne(file)
                                         } catch (e) {
                                             console.log('DB ERROR', e)
+                                            utils.log('DB ERROR', '', 'errors')
+                                            utils.log(e, '', 'errors')
                                         }
                                     } else {
                                         await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } })
@@ -595,6 +600,8 @@ module Daemon {
                                     await db.collection("written").insertOne(datastore)
                                 } catch (e) {
                                     console.log('DB ERROR', e)
+                                    utils.log('DB ERROR', '', 'errors')
+                                    utils.log(e, '', 'errors')
                                 }
                             }
                         } else {
@@ -609,7 +616,7 @@ module Daemon {
                         response('STORED')
                     })
                 } catch (e) {
-                    utils.log(e)
+                    utils.log(e, '', 'errors')
                     response(false)
                 }
             })
@@ -730,7 +737,8 @@ module Daemon {
                                                                 valid = false
                                                             }
                                                         } catch (e) {
-                                                            utils.log('ERROR WHILE SEARCHING INDEXED CONTRACT', e)
+                                                            utils.log('ERROR WHILE SEARCHING INDEXED CONTRACT', '', 'errors')
+                                                            utils.log(e, '', 'errors')
                                                             valid = false
                                                         }
                                                     } else {
@@ -836,7 +844,8 @@ module Daemon {
                                                         }
                                                     }
                                                 } catch (e) {
-                                                    utils.log('ERROR WHILE INSERTING PLANUM TX')
+                                                    utils.log('ERROR WHILE INSERTING PLANUM TX', '', 'errors')
+                                                    utils.log(e, '', 'errors')
                                                 }
                                             }
 
@@ -860,7 +869,8 @@ module Daemon {
                                                             utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
                                                             updated = true
                                                         } catch (e) {
-                                                            utils.log('ERROR WHILE REDEEMING UNSPENT')
+                                                            utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                            utils.log(e)
                                                         }
                                                     }
                                                 }
@@ -895,7 +905,8 @@ module Daemon {
                                                             }
                                                         }
                                                     } catch (e) {
-                                                        utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.')
+                                                        utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
+                                                        utils.log(e)
                                                     }
                                                 }
                                                 vout++
@@ -939,7 +950,8 @@ module Daemon {
                                                                 utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
                                                                 updated = true
                                                             } catch (e) {
-                                                                utils.log('ERROR WHILE REDEEMING UNSPENT')
+                                                                utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                                utils.log(e)
                                                             }
                                                         }
                                                     }
@@ -983,7 +995,8 @@ module Daemon {
                                                                     updated = true
                                                                 }
                                                             } catch (e) {
-                                                                utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.')
+                                                                utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
+                                                                utils.log(e)
                                                             }
                                                         }
                                                         vout++
@@ -1003,7 +1016,7 @@ module Daemon {
                         response('STORED')
                     })
                 } catch (e) {
-                    utils.log(e)
+                    utils.log(e, '', 'errors')
                     response(false)
                 }
             })
@@ -1022,8 +1035,8 @@ module Daemon {
                                 await db.collection("received").insertOne(datastore)
                                 utils.log('RECEIVED DATA ' + JSON.stringify(datastore))
                             } catch (e) {
-                                utils.log('DB ERROR')
-                                utils.log(e)
+                                utils.log('DB ERROR', '', 'errors')
+                                utils.log(e, '', 'errors')
                             }
                         } else {
                             utils.log('DATA ALREADY STORED.')
@@ -1035,7 +1048,7 @@ module Daemon {
                         response('STORED')
                     })
                 } catch (e) {
-                    utils.log(e)
+                    utils.log(e, '', 'errors')
                     response(false)
                 }
             })
@@ -1109,6 +1122,9 @@ module Daemon {
                         response(true)
                     })
                 } catch (e) {
+                    let utils = new Utilities.Parser
+                    utils.log('ERROR WHILE CONSOLIDATE', '', 'errors')
+                    utils.log(e, '', 'errors')
                     response(false)
                 }
             })

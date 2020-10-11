@@ -16,4 +16,5 @@ mongodb_data_testnet
 keys/public.pem
 keys/private.pem
 log
+errors
 idanode_bootstrap.gz
