@@ -10,6 +10,8 @@ import { v4 as uuidv4 } from 'uuid';
 import Contracts = require("../libs/Contracts")
 const messages = require('../libs/p2p/messages.js')
 const CryptoJS = require('crypto-js')
+const ScryptaCore = require('@scrypta/core')
+const scrypta = new ScryptaCore
 
 const config = {
   epsilon: 1e-12,
@@ -315,7 +317,7 @@ export async function send(req: express.Request, res: express.Response) {
                   let tx = {
                     transaction: transaction,
                     signature: signtx.signature,
-                    pubkey: fields.pubkey,
+                    pubkey: signtx.pubkey,
                     sxid: signtx.id
                   }
                   var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
