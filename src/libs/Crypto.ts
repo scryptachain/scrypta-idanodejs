@@ -1283,7 +1283,12 @@ module Crypto {
                                     console.log('CHECK FOR CHUCKED DATA')
                                     if (singledata === '' && data.indexOf('*!*') === 0) {
                                         console.log('INIT CHUCK SEARCH')
-                                        written_txid.push(writtensplit[0])
+                                        try{
+                                            written_txid.push(writtensplit[0])
+                                        }catch(e){
+                                            written_txid = []
+                                            written_txid.push(writtensplit[0])
+                                        }
                                         var prevcontrol = data.substr(-6).substr(0, 3)
                                         console.log('PREV CONTROL IS ' + prevcontrol)
                                         var nextcontrol = data.substr(-3)
