@@ -13,6 +13,8 @@ const LZUTF8 = require('lzutf8')
 const axios = require('axios')
 const fs = require('fs')
 const vm = require('@scrypta/vm')
+const ScryptaCore = require('@scrypta/core')
+const scrypta = new ScryptaCore
 
 const config = {
     epsilon: 1e-12,
@@ -204,6 +206,8 @@ module Daemon {
                                             })
                                         } else {
                                             utils.log('BLOCK NOT SYNCED, RETRY.', '\x1b[41m%s\x1b[0m', 'errors')
+                                            await scrypta.sleep('2000')
+                                            global['isSyncing'] = false
                                         }
                                     }
                                 } catch (e) {
@@ -1092,24 +1096,34 @@ module Daemon {
                                     }
 
                                     if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
-                                        utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION!')
-                                        await db.collection("transactions").updateOne({
-                                            address: tx.address, txid: tx.txid
-                                        }, {
-                                            $set: {
-                                                blockheight: block['height'],
-                                                blockhash: block['hash'],
-                                                time: block['time']
-                                            }
-                                        })
+                                        utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION ' + tx.address + ':' + tx.txid + '!')
+                                        try {
+                                            await db.collection("transactions").updateOne({
+                                                address: tx.address, txid: tx.txid
+                                            }, {
+                                                $set: {
+                                                    blockheight: block['height'],
+                                                    blockhash: block['hash'],
+                                                    time: block['time']
+                                                }
+                                            })
+                                        } catch (e) {
+                                            utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                            utils.log(e)
+                                        }
                                     } else {
                                         utils.log('TRANSACTION NOT FOUND, DELETE EVERYTHING RELATED')
-                                        await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
-                                        await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
-                                        await db.collection('unspent').deleteMany({ txid: tx.txid })
-                                        await db.collection('transactions').deleteMany({ txid: tx.txid })
-                                        await db.collection('received').deleteMany({ txid: tx.txid })
-                                        await db.collection('written').deleteMany({ txid: tx.txid })
+                                        try {
+                                            await db.collection('sc_unspent').deleteMany({ txid: tx.txid })
+                                            await db.collection('sc_transactions').deleteMany({ txid: tx.txid })
+                                            await db.collection('unspent').deleteMany({ txid: tx.txid })
+                                            await db.collection('transactions').deleteMany({ txid: tx.txid })
+                                            await db.collection('received').deleteMany({ txid: tx.txid })
+                                            await db.collection('written').deleteMany({ txid: tx.txid })
+                                        } catch (e) {
+                                            utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                            utils.log(e)
+                                        }
                                     }
                                 } else {
                                     utils.log('ELAPSED ' + elapsed + 's, EARLY TRANSACTION')

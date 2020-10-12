@@ -924,6 +924,8 @@ export async function validatetransaction(req: express.Request, res: express.Res
         var scwallet = new Sidechain.Wallet;
         let check_sidechain = await db.collection('written').find({ address: transactionToValidate.sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         client.close()
+        let error_code = ''
+        let checks_code = ''
         if (check_sidechain[0] !== undefined) {
           let valid = true
           var amountinput = 0
@@ -948,6 +950,7 @@ export async function validatetransaction(req: express.Request, res: express.Res
                   status: 404
                 })
               } else {
+                checks_code += '> TIME_VALIDATED'
                 let validategenesis = await scwallet.validategenesis(sxid, transactionToValidate.sidechain)
                 if (validategenesis === false) {
                   let validateinput = await scwallet.validateinput(sxid, vout, transactionToValidate.sidechain, fields.address)
@@ -968,6 +971,7 @@ export async function validatetransaction(req: express.Request, res: express.Res
                         status: 404
                       })
                     }
+                    checks_code += ' > DOUBLE_SPENDING_VALIDATED'
                   }
                 }
                 // CHECKING GENESIS
@@ -978,6 +982,7 @@ export async function validatetransaction(req: express.Request, res: express.Res
                   if (valid === true && transactionToValidate.inputs[x].amount !== undefined) {
                     let fixed = math.round(transactionToValidate.inputs[x].amount, check_sidechain[0].data.genesis.decimals)
                     amountinput = math.sum(amountinput, fixed)
+                    checks_code += ' > FIXED_AMOUNT_VALIDATED'
                   }
                 } else {
                   valid = false
@@ -990,6 +995,7 @@ export async function validatetransaction(req: express.Request, res: express.Res
               }
             }
           } else {
+            error_code = 'NO_INPUTS'
             valid = false
           }
 
@@ -999,10 +1005,12 @@ export async function validatetransaction(req: express.Request, res: express.Res
                 let fixed = math.round(transactionToValidate.outputs[x], check_sidechain[0].data.genesis.decimals)
                 amountoutput = math.sum(amountoutput, fixed)
               }
+              checks_code += ' > OUTPUT_VALIDATED'
             }
             amountoutput = math.round(amountoutput, check_sidechain[0].data.genesis.decimals)
             amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
           } else {
+            error_code = 'NO_SIDECHAIN'
             valid = false
           }
 
@@ -1014,6 +1022,8 @@ export async function validatetransaction(req: express.Request, res: express.Res
                 error: true,
                 status: 404
               })
+            }else{
+              checks_code += ' > NO_OVERMINT_VALIDATED'
             }
           }
 
@@ -1022,6 +1032,7 @@ export async function validatetransaction(req: express.Request, res: express.Res
           if (valid === true && fields.pubkey !== undefined && fields.signature !== undefined && transactionToValidate !== undefined) {
             let validatesign = await wallet.verifymessage(fields.pubkey, fields.signature, JSON.stringify(transactionToValidate))
             if (validatesign === false) {
+              error_code = 'SIGN_CHECK_FAIL'
               valid = false
             }
           } else {
@@ -1034,6 +1045,13 @@ export async function validatetransaction(req: express.Request, res: express.Res
               valid: true,
               status: 200
             })
+          }else{
+            res.send({
+              message: "Transaction is not valid",
+              valid: false,
+              status: error_code,
+              checks: checks_code
+            })
           }
         } else {
           res.send({
@@ -1042,6 +1060,12 @@ export async function validatetransaction(req: express.Request, res: express.Res
             status: 404
           })
         }
+      })
+    }else{
+      res.send({
+        message: "Nothing to validate",
+        error: true,
+        status: 404
       })
     }
   }

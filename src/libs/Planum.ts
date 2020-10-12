@@ -150,7 +150,7 @@ module SideChain {
                             }
                         }
                         if(existat === ''){
-                            utils.log('UNSPENT '+sxid+':'+vout+' DOESN\'T EXIST!')
+                            utils.log('CAN\'T FIND UNSPENT IN TRANSACTION '+sxid+':'+vout+' DOESN\'T EXIST!')
                         }
                     }else{
                         valid = false
