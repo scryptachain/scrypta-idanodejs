@@ -127,8 +127,9 @@ export async function read(req: express.Request, res: express.Response) {
         if(request['body']['collection'] !== undefined){
             filters['collection'] = request['body']['collection']
         }
-        if(request['body']['refID'] !== undefined){
-            filters['refID'] = request['body']['refID']
+        let pubkey = ''
+        if(request['body']['signature'] !== undefined){
+            pubkey = request['body']['signature']
         }
         if(request['body']['history'] !== undefined){
             history = request['body']['history']
@@ -136,7 +137,18 @@ export async function read(req: express.Request, res: express.Response) {
             history = false
         }
 
-        if(request['body']['address'] !== undefined){
+        if(request['body']['pubkey'] !== undefined){
+            mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+                const db = client.db(global['db_name'])
+                let result = await db.collection('written').find({"data.pubkey": request['body']['pubkey'] }).sort({block: -1}).toArray()
+                client.close()
+                let data = await parseDB(result, filters, history)
+                res.json({
+                    data: data,
+                    status: 200
+                })
+            })
+        }else if(request['body']['address'] !== undefined){
             mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
                 const db = client.db(global['db_name'])
                 let result = await db.collection('written').find({address: request['body']['address']}).sort({block: -1}).toArray()
