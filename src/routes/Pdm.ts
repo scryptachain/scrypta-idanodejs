@@ -127,6 +127,9 @@ export async function read(req: express.Request, res: express.Response) {
         if(request['body']['collection'] !== undefined){
             filters['collection'] = request['body']['collection']
         }
+        if(request['body']['refID'] !== undefined){	
+            filters['refID'] = request['body']['refID']
+        }
         let pubkey = ''
         if(request['body']['signature'] !== undefined){
             pubkey = request['body']['signature']
