@@ -121,7 +121,7 @@ class App {
     app.express.post('/sidechain/scan', sidechains.scanchain)
     app.express.post('/sidechain/verify', sidechains.verifychain)
     app.express.post('/sidechain/validate', sidechains.validatetransaction)
-    app.express.get('/sidechain/supply/:sidechain', sidechains.gettotalsupply)
+    app.express.get('/sidechain/check/:sidechain', sidechains.checksidechain)
     
     //IPFS
     app.express.get('/ipfs/info', ipfs.info)

@@ -205,59 +205,61 @@ export async function issue(req: express.Request, res: express.Response) {
   }
 };
 
-export function gettotalsupply(req: express.Request, res: express.Response) {
-  return new Promise(async response => {
-    if (req.params.sidechain !== undefined) {
-      const sidechain = req.params.sidechain
-      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-        const db = client.db(global['db_name'])
-        let supply = 0
-        let verified = true
-        let sxids = []
-        let cap = 0
-        let issued = 0
-        let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
-        if (check_sidechain[0] !== undefined) {
+export async function checksidechain(req: express.Request, res: express.Response) {
+  if (req.params.sidechain !== undefined) {
+    const sidechain = req.params.sidechain
+    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+      const db = client.db(global['db_name'])
+      let supply = 0
+      let verified = true
+      let sxids = []
+      let cap = 0
+      let issued = 0
+      let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+      if (check_sidechain[0] !== undefined) {
 
-          let issue = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
-          let unspents = await db.collection('sc_unspent').find({ sidechain: sidechain, redeemed: null }).sort({ block: 1 }).toArray()
-          issued += issue[0].data.genesis.supply
-          let reissues = await db.collection('written').find({ address: check_sidechain[0].data.genesis.owner, "data.reissue": { $exists: true } }).sort({ block: 1 }).toArray()
-          let decimals = check_sidechain[0].data.genesis.decimals
+        let issue = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        let unspents = await db.collection('sc_unspent').find({ sidechain: sidechain, redeemed: null }).sort({ block: 1 }).toArray()
+        issued += issue[0].data.genesis.supply
+        let reissues = await db.collection('written').find({ address: check_sidechain[0].data.genesis.owner, "data.reissue": { $exists: true } }).sort({ block: 1 }).toArray()
+        let decimals = check_sidechain[0].data.genesis.decimals
 
-          // CALCULATING REISSUES
-          let reissuestxs = []
-          for (let k in reissues) {
-            if (reissuestxs.indexOf(reissues[k].data.signature) === -1) {
-              reissuestxs.push(reissues[k].data.signature)
-              issued = math.sum(issued, reissues[k].data.reissue.supply)
-            }
+        // CALCULATING REISSUES
+        let reissuestxs = []
+        for (let k in reissues) {
+          if (reissuestxs.indexOf(reissues[k].data.signature) === -1) {
+            reissuestxs.push(reissues[k].data.signature)
+            issued = math.sum(issued, reissues[k].data.reissue.supply)
           }
-          
-          // CALCULATING CURRENT CAP
-          for (let x in unspents) {
-            let unspent = unspents[x]
-            if (unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid + ':' + unspent.vout) === -1) {
-              sxids.push(unspent.sxid + ':' + unspent.vout)
-              let amount = math.round(unspent.amount, decimals)
-              cap = math.sum(cap, amount)
-            }
-          }
-          cap = math.round(cap, decimals)
-          issued = math.round(issued, decimals)
-          if (cap !== issued) {
-            verified = false
-          }
-          client.close()
-          res.send({ cap: cap, issued: issued, verified: verified })
-        } else {
-          res.send('Sidechain not found.')
         }
-      })
-    } else {
-      res.send('Provide sidechain first.')
-    }
-  })
+
+        // CALCULATING CURRENT CAP
+        for (let x in unspents) {
+          let unspent = unspents[x]
+          if (unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid + ':' + unspent.vout) === -1) {
+            sxids.push(unspent.sxid + ':' + unspent.vout)
+            let amount = math.round(unspent.amount, decimals)
+            cap = math.sum(cap, amount)
+          }
+        }
+        cap = math.round(cap, decimals)
+        issued = math.round(issued, decimals)
+        if (cap !== issued) {
+          verified = false
+        }
+
+        // TODO: CHECK CONSENSUS BALANCE
+        
+        client.close()
+        check_sidechain[0].data.genesis.address = sidechain
+        res.send({ cap: cap, issued: issued, verified: verified, sidechain: check_sidechain[0].data.genesis })
+      } else {
+        res.send('Sidechain not found.')
+      }
+    })
+  } else {
+    res.send('Provide sidechain first.')
+  }
 }
 
 export async function send(req: express.Request, res: express.Response) {
