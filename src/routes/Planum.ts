@@ -237,11 +237,6 @@ export async function checksidechain(req: express.Request, res: express.Response
         for (let x in unspents) {
           let unspent = unspents[x]
           if (unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid + ':' + unspent.vout) === -1) {
-            if(shares[unspent.address] === undefined){
-              shares[unspent.address] = []
-            }
-            shares[unspent.address].push(unspent)
-            sxids.push(unspent.sxid + ':' + unspent.vout)
             let amount = math.round(unspent.amount, decimals)
             cap = math.sum(cap, amount)
           }
@@ -254,7 +249,7 @@ export async function checksidechain(req: express.Request, res: express.Response
 
         client.close()
         check_sidechain[0].data.genesis.address = sidechain
-        let sidechain_hash = CryptoJS.SHA256(JSON.stringify(shares)).toString(CryptoJS.enc.Hex)
+        let sidechain_hash = CryptoJS.SHA256(JSON.stringify(sxids)).toString(CryptoJS.enc.Hex)
         res.send({ cap: cap, issued: issued, verified: verified, sidechain: check_sidechain[0].data.genesis, status: sidechain_hash })
       } else {
         res.send('Sidechain not found.')
