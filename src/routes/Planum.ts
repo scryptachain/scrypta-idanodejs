@@ -210,7 +210,6 @@ export async function checksidechain(req: express.Request, res: express.Response
     const sidechain = req.params.sidechain
     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
       const db = client.db(global['db_name'])
-      let supply = 0
       let verified = true
       let sxids = []
       let cap = 0
@@ -234,9 +233,14 @@ export async function checksidechain(req: express.Request, res: express.Response
         }
 
         // CALCULATING CURRENT CAP
+        let shares = {}
         for (let x in unspents) {
           let unspent = unspents[x]
           if (unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid + ':' + unspent.vout) === -1) {
+            if(shares[unspent.address] === undefined){
+              shares[unspent.address] = []
+            }
+            shares[unspent.address].push(unspent)
             sxids.push(unspent.sxid + ':' + unspent.vout)
             let amount = math.round(unspent.amount, decimals)
             cap = math.sum(cap, amount)
@@ -248,11 +252,10 @@ export async function checksidechain(req: express.Request, res: express.Response
           verified = false
         }
 
-        // TODO: CHECK CONSENSUS BALANCE
-        
         client.close()
         check_sidechain[0].data.genesis.address = sidechain
-        res.send({ cap: cap, issued: issued, verified: verified, sidechain: check_sidechain[0].data.genesis })
+        let sidechain_hash = CryptoJS.SHA256(JSON.stringify(shares)).toString(CryptoJS.enc.Hex)
+        res.send({ cap: cap, issued: issued, verified: verified, sidechain: check_sidechain[0].data.genesis, status: sidechain_hash })
       } else {
         res.send('Sidechain not found.')
       }
@@ -1375,14 +1378,11 @@ export async function shares(req: express.Request, res: express.Response) {
             burned = addresses[fields.sidechain_address]
           }
 
-          let sidechain_hash = CryptoJS.SHA256(JSON.stringify(shares)).toString(CryptoJS.enc.Hex)
-
           res.json({
             shares: shares,
             cap: math.round(cap, decimals),
             burned: math.round(burned, decimals),
-            sidechain: check_sidechain[0].address,
-            hash: sidechain_hash
+            sidechain: check_sidechain[0].address
           })
 
         } else {
