@@ -263,7 +263,7 @@ export async function checksidechain(req: express.Request, res: express.Response
         if(verified === true && req.params.consensus !== undefined){
           scrypta.staticnodes = true
           if(process.env.LINKED_NODES !== undefined){
-            scrypta.mainnetIdaNodes = process.env.LINKED_NODES
+            scrypta.mainnetIdaNodes = process.env.LINKED_NODES.split(',')
           }
           var consensus = 0
           var nodes = 0
