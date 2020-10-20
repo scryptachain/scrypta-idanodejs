@@ -281,7 +281,7 @@ export async function checksidechain(req: express.Request, res: express.Response
                   }
                 }
               }else if(process.env.PUBLIC_DOMAIN !== undefined && process.env.PUBLIC_DOMAIN === node){
-                consensus--
+                nodes--
               }
             }catch(e){
               utils.log('NODE ' + node + ' NOT WORKING', '', 'errors')
