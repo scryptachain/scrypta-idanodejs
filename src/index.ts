@@ -47,6 +47,7 @@ if (process.env.RATELIMIT !== undefined) {
 const nodeprocess = async () => {
   let port = await nextAvailable(3001, '0.0.0.0')
   app.engine('html', require('ejs').renderFile)
+  app.set('trust proxy', 1)
   app.use(limiter)
   app.use(helmet())
 

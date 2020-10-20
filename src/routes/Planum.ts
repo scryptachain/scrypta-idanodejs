@@ -12,6 +12,8 @@ const messages = require('../libs/p2p/messages.js')
 const CryptoJS = require('crypto-js')
 const ScryptaCore = require('@scrypta/core')
 const scrypta = new ScryptaCore
+const axios = require('axios')
+const utils = new Utilities.Parser
 
 const config = {
   epsilon: 1e-12,
@@ -216,7 +218,6 @@ export async function checksidechain(req: express.Request, res: express.Response
       let issued = 0
       let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
       if (check_sidechain[0] !== undefined) {
-
         let issue = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         let unspents = await db.collection('sc_unspent').find({ sidechain: sidechain, redeemed: null }).sort({ block: 1 }).toArray()
         issued += issue[0].data.genesis.supply
@@ -233,12 +234,15 @@ export async function checksidechain(req: express.Request, res: express.Response
         }
 
         // CALCULATING CURRENT CAP
-        let shares = {}
+        let users = []
         for (let x in unspents) {
           let unspent = unspents[x]
           if (unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid + ':' + unspent.vout) === -1) {
             let amount = math.round(unspent.amount, decimals)
             cap = math.sum(cap, amount)
+            if(users.indexOf(unspent.address) === -1){
+              users.push(unspent.address)
+            }
           }
         }
         cap = math.round(cap, decimals)
@@ -246,11 +250,52 @@ export async function checksidechain(req: express.Request, res: express.Response
         if (cap !== issued) {
           verified = false
         }
-
-        client.close()
-        check_sidechain[0].data.genesis.address = sidechain
         let sidechain_hash = CryptoJS.SHA256(JSON.stringify(sxids)).toString(CryptoJS.enc.Hex)
-        res.send({ cap: cap, issued: issued, verified: verified, sidechain: check_sidechain[0].data.genesis, status: sidechain_hash })
+        let response = { 
+          user_count: users.length, 
+          cap: cap, issued: issued, 
+          verified: verified, 
+          sidechain: check_sidechain[0].data.genesis, 
+          status: sidechain_hash, 
+          users: users 
+        }
+        check_sidechain[0].data.genesis.address = sidechain
+        if(verified === true && req.params.consensus !== undefined){
+          scrypta.staticnodes = true
+          if(process.env.LINKED_NODES !== undefined){
+            scrypta.mainnetIdaNodes = process.env.LINKED_NODES
+          }
+          var consensus = 0
+          var nodes = 0
+          nodes = scrypta.mainnetIdaNodes.length
+          for(let k in scrypta.mainnetIdaNodes){
+            let node = scrypta.mainnetIdaNodes[k]
+              try{
+                if(process.env.PUBLIC_DOMAIN === undefined || node !== process.env.PUBLIC_DOMAIN){
+                let status = await axios.get(node + '/sidechain/check/' + sidechain, { timeout: 2000 }).catch(err => {
+                  utils.log("ERROR ON IDANODE " + node, '', 'errors')
+                })
+                if(status.data !== undefined && status.data.verified !== undefined && status.data.verified === true){
+                  if(status.data.status === sidechain_hash){
+                    consensus++
+                  }
+                }
+              }else if(process.env.PUBLIC_DOMAIN !== undefined && process.env.PUBLIC_DOMAIN === node){
+                consensus--
+              }
+            }catch(e){
+              utils.log('NODE ' + node + ' NOT WORKING', '', 'errors')
+            }
+          }
+          var percentage = Math.round(consensus / nodes * 100)
+          response['consensus'] = consensus + '/' + nodes
+          response['reliability'] = percentage
+          if(percentage < 50){
+            response.verified = false
+          }
+        }
+        client.close()
+        res.send(response)
       } else {
         res.send('Sidechain not found.')
       }
