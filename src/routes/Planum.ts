@@ -275,6 +275,7 @@ export async function checksidechain(req: express.Request, res: express.Response
                 if(process.env.PUBLIC_DOMAIN === undefined || node !== process.env.PUBLIC_DOMAIN){
                 let status = await axios.get(node + '/sidechain/check/' + sidechain, { timeout: 2000 }).catch(err => {
                   utils.log("ERROR ON IDANODE " + node, '', 'errors')
+                  nodes--
                 })
                 if(status.data !== undefined && status.data.verified !== undefined && status.data.verified === true){
                   if(status.data.status === sidechain_hash){
