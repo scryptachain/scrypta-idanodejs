@@ -249,7 +249,7 @@ export async function checksidechain(req: express.Request, res: express.Response
         cap = math.round(cap, decimals)
         issued = math.round(issued, decimals)
         if (cap !== issued) {
-          verified = false
+          // verified = false
         }
         let sidechain_hash = CryptoJS.SHA256(JSON.stringify(sxids)).toString(CryptoJS.enc.Hex)
         let response = { 
