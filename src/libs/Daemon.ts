@@ -181,7 +181,13 @@ module Daemon {
                             global['remainingBlocks'] = remains
                             if (remains === 0) {
                                 // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
+                                try{
                                 await task.consolidatestored()
+                                }catch(e){
+                                    utils.log('ERROR WHILE CONSOLIDATING', '', 'errors')
+                                    await scrypta.sleep('2000')
+                                    global['isSyncing'] = false
+                                }
                             }
                             if (global['syncLock'] === false) {
                                 let utils = new Utilities.Parser
@@ -321,7 +327,11 @@ module Daemon {
                                 if (block['planum'].length > 0) {
                                     let cleaned = false
                                     while (cleaned === false) {
-                                        cleaned = await task.cleanplanum(block['planum'])
+                                        try{
+                                            cleaned = await task.cleanplanum(block['planum'])
+                                        }catch(e){
+                                            utils.log('ERROR CLEANING PLANUM', '', 'errors')
+                                        }
                                     }
                                 }
                                 for (var dix in block['planum']) {
@@ -329,18 +339,26 @@ module Daemon {
                                     var task = new Daemon.Sync
                                     let storedwritten = false
                                     while (storedwritten === false) {
-                                        storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
-                                        if (storedwritten === false) {
-                                            utils.log('ERROR STORING WRITTEN DATA ON PLANUM')
-                                            // response(false)
+                                        try{
+                                            storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
+                                            if (storedwritten === false) {
+                                                utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
+                                            }
+                                        }catch(e){
+                                            storedwritten = false
+                                            utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
                                         }
                                     }
                                     let storedplanum = false
                                     while (storedplanum === false) {
-                                        storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
-                                        if (storedplanum === false) {
-                                            utils.log('ERROR STORING PLANUM')
-                                            // response(false)
+                                        try{
+                                            storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
+                                            if (storedplanum === false) {
+                                                utils.log('ERROR STORING PLANUM', '', 'errors')
+                                            }
+                                        }catch(e){
+                                            storedplanum = false
+                                            utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
                                         }
                                     }
                                 }
@@ -938,9 +956,9 @@ module Daemon {
                                                     while (updated === false) {
                                                         try {
                                                             if (datastore.block !== null) {
-                                                                await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
                                                             } else {
-                                                                await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
                                                             }
                                                             let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
                                                             if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
@@ -1034,7 +1052,7 @@ module Daemon {
                         } else {
                             utils.log('DATA ALREADY STORED.')
                             if (check[0].block === undefined || check[0].block === null) {
-                                await db.collection("sc_transactions").updateOne({ txid: datastore.txid }, { $set: { block: datastore.block } })
+                                await db.collection("sc_transactions").updateMany({ txid: datastore.txid }, { $set: { block: datastore.block } })
                             }
                         }
                         client.close()
