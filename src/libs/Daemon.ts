@@ -183,7 +183,7 @@ module Daemon {
                             if (remains === 0) {
                                 // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
                                 try {
-                                    await task.consolidatestored()
+                                    // await task.consolidatestored()
                                 } catch (e) {
                                     utils.log('ERROR WHILE CONSOLIDATING', '', 'errors')
                                     utils.log(e, '', 'errors')
@@ -426,17 +426,23 @@ module Daemon {
                                 response(block['height'])
                             } else {
                                 global['isAnalyzing'] = false
-                                utils.log('ERROR, ANALYTING TASK FAILED')
+                                utils.log('ERROR, ANALYZING TASK FAILED', '', 'errors')
+                                setTimeout(function () {
+                                    task.process()
+                                }, 500)
                                 response(false)
                             }
                         } else {
                             global['isAnalyzing'] = false
-                            utils.log('ERROR, CAN\'T GET BLOCK DETAILS')
+                            utils.log('ERROR, CAN\'T GET BLOCK DETAILS', '', 'errors')
+                            setTimeout(function () {
+                                task.process()
+                            }, 500)
                             response(false)
                         }
                     } else {
                         global['isAnalyzing'] = false
-                        utils.log('ERROR, ANALYZING IN PROCESS')
+                        utils.log('ERROR, ANALYZING IN PROCESS', '', 'errors')
                         response(false)
                     }
                 } catch (e) {
