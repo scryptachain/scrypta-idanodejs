@@ -317,19 +317,30 @@ module Daemon {
                                     }
                                 }
                             }
-
+                            if (block['planum'].length > 0) {
+                                let cleaned = false
+                                while (cleaned === false) {
+                                    cleaned = await task.cleanplanum(block['planum'])
+                                }
+                            }
                             for (var dix in block['planum']) {
                                 utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
                                 var task = new Daemon.Sync
-                                let storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
-                                if (storedwritten === false) {
-                                    utils.log('ERROR STORING WRITTEN DATA ON PLANUM')
-                                    response(false)
+                                let storedwritten = false
+                                while (storedwritten === false) {
+                                    storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
+                                    if (storedwritten === false) {
+                                        utils.log('ERROR STORING WRITTEN DATA ON PLANUM')
+                                        // response(false)
+                                    }
                                 }
-                                let storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
-                                if (storedplanum === false) {
-                                    utils.log('ERROR STORING PLANUM')
-                                    response(false)
+                                let storedplanum = false
+                                while (storedplanum === false) {
+                                    storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
+                                    if (storedplanum === false) {
+                                        utils.log('ERROR STORING PLANUM')
+                                        // response(false)
+                                    }
                                 }
                             }
 
@@ -524,7 +535,7 @@ module Daemon {
             })
         }
 
-        private async storewritten(datastore, isMempool = false, block = null) {
+        private async storewritten(datastore, isMempool = false, block = null): Promise<any> {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
                 try {
@@ -626,11 +637,70 @@ module Daemon {
             })
         }
 
-        private async storeplanum(datastore, isMempool = false, block = null) {
+        private async cleanplanum(transactions): Promise<boolean> {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
                 try {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                        if (!err) {
+                            var db = client.db(global['db_name'])
+                            try{
+                                for (let y in transactions) {
+                                    let datastore = transactions[y]
+                                    for (let x in datastore.data.transaction.inputs) {
+                                        let sxid = datastore.data.transaction.inputs[x].sxid
+                                        let vout = datastore.data.transaction.inputs[x].vout
+                                        try{
+                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null } })
+                                        }catch(e){
+                                            utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                            client.close()
+                                            response(false)
+                                        }
+                                    }
+                                }
+                                try{
+                                    await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, block: null })
+                                }catch(e){
+                                    utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                    client.close()
+                                    response(false)
+                                }
+                                try{
+                                    await db.collection('sc_unspent').deleteMany({ block: null })
+                                }catch(e){
+                                    utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                    client.close()
+                                    response(false)
+                                }
+                                utils.log('CLEAN SUCCESS ON BLOCK', '', 'log')
+                                client.close()
+                                response(true)
+                            }catch(e){
+                                utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                client.close()
+                                response(false)
+                            }
+                        } else {
+                            client.close()
+                            response(false)
+                        }
+                    })
+                } catch (e) {
+                    response(false)
+                }
+            })
+        }
+
+        private async storeplanum(datastore, isMempool = false, block = null): Promise<any> {
+            return new Promise(async response => {
+                const utils = new Utilities.Parser
+                try {
+                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                        if(err){
+                            client.close()
+                            response(false)
+                        }
                         var db = client.db(global['db_name'])
                         datastore.block = block
                         if (datastore.protocol === 'chain://') {
@@ -645,7 +715,7 @@ module Daemon {
                                     await db.collection("sc_transactions").insertOne(datastore.data)
                                 } else {
                                     utils.log('GENESIS SXID ALREADY STORED.')
-                                    if (datastore.block === null) {
+                                    if (datastore.block !== null) {
                                         await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
                                     }
                                 }
@@ -659,7 +729,7 @@ module Daemon {
                                     await db.collection("sc_transactions").insertOne(datastore.data)
                                 } else {
                                     utils.log('REISSUE SXID ALREADY STORED.')
-                                    if (datastore.block === null) {
+                                    if (datastore.block !== null) {
                                         await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
                                     }
                                 }
@@ -858,10 +928,6 @@ module Daemon {
                                                 if (datastore.data.transaction.inputs[x].sxid !== undefined && datastore.data.transaction.inputs[x].vout !== undefined) {
                                                     let sxid = datastore.data.transaction.inputs[x].sxid
                                                     let vout = datastore.data.transaction.inputs[x].vout
-                                                    if (global['sxidcache'].indexOf(sxid + ':' + vout) === -1 && isMempool) {
-                                                        global['sxidcache'].push(sxid + ':' + vout)
-                                                        await messages.signandbroadcast('planum-unspent', sxid + ':' + vout)
-                                                    }
                                                     let updated = false
                                                     while (updated === false) {
                                                         try {
@@ -921,95 +987,7 @@ module Daemon {
                                             utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID')
                                         }
                                     } else {
-                                        // VALIDATING DATA ALREADY STORED FROM MEMPOOL
-                                        let doublespending = false
-                                        if (!isMempool) { // IGNORING IF WE'RE STILL WORKING WITH MEMPOOL
-                                            if (datastore.block !== null) { // BE SURE THAT STORED IS NOT VALIDATED
-                                                utils.log('SIDECHAIN TRANSACTION ALREADY STORED FROM MEMPOOL, VALIDATING.')
-                                                for (let x in datastore.data.transaction.inputs) {
-                                                    let sxid = datastore.data.transaction.inputs[x].sxid
-                                                    let vout = datastore.data.transaction.inputs[x].vout
-                                                    // CHECKING FOR DOUBLE SPENDING
-                                                    let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
-                                                    if (isDoubleSpended === true) {
-                                                        utils.log('INPUT ' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block + ' IS DOUBLE SPENDED')
-                                                        doublespending = true
-                                                    }
-                                                }
-
-                                                if (!doublespending) {
-                                                    // UPDATING BLOCK
-                                                    utils.log('INPUTS AREN\'T DOUBLE SPENDED')
-                                                    for (let x in datastore.data.transaction.inputs) {
-                                                        let sxid = datastore.data.transaction.inputs[x].sxid
-                                                        let vout = datastore.data.transaction.inputs[x].vout
-                                                        let updated = false
-                                                        while (updated === false) {
-                                                            try {
-                                                                if (datastore.block !== null) {
-                                                                    await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
-                                                                } else {
-                                                                    await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
-                                                                }
-                                                                utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
-                                                                updated = true
-                                                            } catch (e) {
-                                                                utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
-                                                                utils.log(e)
-                                                            }
-                                                        }
-                                                    }
-
-                                                    await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
-                                                    utils.log('TRANSACTION IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + datastore.data.sxid + ' AT BLOCK ' + datastore.block + ' IS VALID')
-
-                                                    // CREATING UNSPENT FOR EACH VOUT
-                                                    let vout = 0
-                                                    for (let x in datastore.data.transaction.outputs) {
-                                                        let amount = datastore.data.transaction.outputs[x]
-                                                        let unspent = {
-                                                            txid: datastore.data.txid,
-                                                            sxid: datastore.data.sxid,
-                                                            vout: vout,
-                                                            address: x,
-                                                            amount: amount,
-                                                            sidechain: datastore.data.transaction.sidechain,
-                                                            block: datastore.block,
-                                                            redeemed: null,
-                                                            redeemblock: null,
-                                                            time: datastore.data.transaction.time
-                                                        }
-                                                        utils.log('UNSPENT IS ' + JSON.stringify(unspent))
-                                                        let updated = false
-                                                        while (updated === false) {
-                                                            try {
-                                                                let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                                if (checkUsxo[0] === undefined) {
-                                                                    utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
-                                                                    await db.collection('sc_unspent').insertOne(unspent)
-                                                                    let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                                    if (checkInsertedUsxo[0] !== undefined) {
-                                                                        updated = true
-                                                                    }
-                                                                } else if (checkUsxo[0].block === null) {
-                                                                    utils.log('UPDATING UNSPENT WITH ID ' + checkUsxo[0]._id)
-                                                                    await db.collection('sc_unspent').updateOne({ sxid: datastore.data.sxid, vout: vout }, { $set: { block: datastore.block } })
-                                                                    updated = true
-                                                                } else {
-                                                                    updated = true
-                                                                }
-                                                            } catch (e) {
-                                                                utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
-                                                                utils.log(e)
-                                                            }
-                                                        }
-                                                        vout++
-                                                    }
-                                                } else {
-                                                    utils.log('TRANSACTION FROM MEMPOOL IS DOUBLE SPENDED!')
-                                                }
-                                            }
-                                        }
+                                        utils.log('TRANSACTION STORED YET', '', 'errors')
                                     }
                                 } else {
                                     console.log('SIDECHAIN DOESN\'T EXIST!')
