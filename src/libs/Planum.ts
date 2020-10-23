@@ -38,6 +38,7 @@ module SideChain {
                     let check_genesis = await db.collection('sc_transactions').find({sxid: sxid}).sort({block: 1}).toArray()
                     // console.log('CHECK_GENESIS')
                     if(check_genesis !== undefined && check_genesis[0] !== undefined && check_genesis[0].genesis !== undefined && check_genesis[0].sxid === sxid){
+                        client.close()
                         response(true)
                     }else{
                         // console.log('CHECK_REISSUE')
@@ -57,7 +58,7 @@ module SideChain {
                     }
                 })
             }catch(e){
-                utils.log(e)
+                utils.log(e, '', 'errors')
                 response(false)
             }
         });
@@ -109,7 +110,7 @@ module SideChain {
                     response(valid)
                 })
             }catch(e){
-                utils.log(e)
+                utils.log(e, '', 'errors')
                 response(false)
             }
         })
@@ -161,7 +162,7 @@ module SideChain {
                     response(valid)
                 })
             }catch(e){
-                utils.log(e)
+                utils.log(e, '', 'errors')
                 response(false)
             }
         })

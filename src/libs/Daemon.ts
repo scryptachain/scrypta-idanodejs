@@ -179,17 +179,20 @@ module Daemon {
 
                         if (analyze <= blocks) {
                             global['remainingBlocks'] = remains
+                            let errors = false
                             if (remains === 0) {
                                 // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
-                                try{
-                                await task.consolidatestored()
-                                }catch(e){
+                                try {
+                                    await task.consolidatestored()
+                                } catch (e) {
                                     utils.log('ERROR WHILE CONSOLIDATING', '', 'errors')
+                                    utils.log(e, '', 'errors')
                                     await scrypta.sleep('2000')
                                     global['isSyncing'] = false
+                                    errors = true
                                 }
                             }
-                            if (global['syncLock'] === false) {
+                            if (global['syncLock'] === false && errors === false) {
                                 let utils = new Utilities.Parser
                                 try {
                                     let synced: any = false
@@ -258,7 +261,7 @@ module Daemon {
 
                         var wallet = new Crypto.Wallet
                         var blockhash = await wallet.request('getblockhash', [analyze])
-                        if(blockhash !== undefined && blockhash !== null && blockhash['result'] !== undefined && blockhash['result'] !== null){
+                        if (blockhash !== undefined && blockhash !== null && blockhash['result'] !== undefined && blockhash['result'] !== null) {
                             var block = await wallet.analyzeBlock(blockhash['result'])
                             if (block !== false) {
                                 for (var txid in block['analysis']) {
@@ -310,68 +313,78 @@ module Daemon {
                                 global['usxocache'] = []
                                 global['sxidcache'] = []
 
+                                // STORE GENERAL DATA
                                 for (var address in block['data_written']) {
                                     var data = block['data_written'][address]
                                     console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
                                     for (var dix in data) {
                                         if (data[dix].protocol !== 'chain://') {
                                             var task = new Daemon.Sync
-                                            let storedwritten = await task.storewritten(data[dix], false, block['height'])
-                                            if (storedwritten === false) {
-                                                utils.log('ERROR ON STORE WRITTEN DATA')
-                                                response(false)
+                                            let storedwritten = false
+                                            while(storedwritten === false){
+                                                storedwritten = await task.storewritten(data[dix], false, block['height'])
+                                                if (storedwritten === false) {
+                                                    utils.log('ERROR ON STORE WRITTEN DATA', '', 'errors')
+                                                }
                                             }
                                         }
                                     }
                                 }
+
+                                // CLEAN PLANUN MEMPOOL
                                 if (block['planum'].length > 0) {
                                     let cleaned = false
                                     while (cleaned === false) {
-                                        try{
+                                        try {
                                             cleaned = await task.cleanplanum(block['planum'])
-                                        }catch(e){
+                                        } catch (e) {
                                             utils.log('ERROR CLEANING PLANUM', '', 'errors')
                                         }
                                     }
                                 }
+
+                                //STORE PLANUM DATA
                                 for (var dix in block['planum']) {
                                     utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
                                     var task = new Daemon.Sync
                                     let storedwritten = false
                                     while (storedwritten === false) {
-                                        try{
+                                        try {
                                             storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
                                             if (storedwritten === false) {
                                                 utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
                                             }
-                                        }catch(e){
+                                        } catch (e) {
                                             storedwritten = false
                                             utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
                                         }
                                     }
                                     let storedplanum = false
                                     while (storedplanum === false) {
-                                        try{
+                                        try {
                                             storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
                                             if (storedplanum === false) {
                                                 utils.log('ERROR STORING PLANUM', '', 'errors')
                                             }
-                                        }catch(e){
+                                        } catch (e) {
                                             storedplanum = false
-                                            utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
+                                            utils.log('ERROR STORING PLANUM DATA ON PLANUM', '', 'errors')
                                         }
                                     }
                                 }
 
+                                // STORE RECEIVED DATA
                                 for (var address in block['data_received']) {
                                     var data = block['data_received'][address]
                                     console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
                                     for (var dix in data) {
                                         var task = new Daemon.Sync
-                                        let storedreceived = await task.storereceived(data[dix])
-                                        if (storedreceived === false) {
-                                            utils.log('ERROR ON STORE RECEIVED')
-                                            response(false)
+                                        let storedreceived = false
+                                        while(storedreceived === false){
+                                            storedreceived = await task.storereceived(data[dix])
+                                            if (storedreceived === false) {
+                                                utils.log('ERROR ON STORE RECEIVED', '', 'errors')
+                                            }
                                         }
                                     }
                                 }
@@ -379,7 +392,8 @@ module Daemon {
                                 // CHECK IF THERE ARE PINNED CONTRACTS
                                 let contracts = new Contracts.Local
                                 let pinned = await contracts.pinned()
-
+                                
+                                // RUN CONTRACTS CALLS
                                 if (pinned.length > 0) {
                                     for (let k in pinned) {
                                         let contract = pinned[k]
@@ -412,12 +426,12 @@ module Daemon {
                                 response(block['height'])
                             } else {
                                 global['isAnalyzing'] = false
-                                utils.log('ERROR, ANALYZING IN PROCESS')
+                                utils.log('ERROR, ANALYTING TASK FAILED')
                                 response(false)
                             }
-                        }else{
+                        } else {
                             global['isAnalyzing'] = false
-                            utils.log('ERROR, ANALYZING IN PROCESS')
+                            utils.log('ERROR, CAN\'T GET BLOCK DETAILS')
                             response(false)
                         }
                     } else {
@@ -579,6 +593,8 @@ module Daemon {
                                         global['ipfs'].pin.add(parsehash[1], function (err) {
                                             if (err) {
                                                 throw err
+                                                client.close()
+                                                response(false)
                                             }
                                         })
                                     }
@@ -622,9 +638,10 @@ module Daemon {
                                         try {
                                             await db.collection("documenta").insertOne(file)
                                         } catch (e) {
-                                            console.log('DB ERROR', e)
                                             utils.log('DB ERROR', '', 'errors')
                                             utils.log(e, '', 'errors')
+                                            client.close()
+                                            response(false)
                                         }
                                     } else {
                                         await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } })
@@ -638,9 +655,10 @@ module Daemon {
                                 try {
                                     await db.collection("written").insertOne(datastore)
                                 } catch (e) {
-                                    console.log('DB ERROR', e)
                                     utils.log('DB ERROR', '', 'errors')
                                     utils.log(e, '', 'errors')
+                                    client.close()
+                                    response(false)
                                 }
                             }
                         } else {
@@ -668,31 +686,31 @@ module Daemon {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         if (!err) {
                             var db = client.db(global['db_name'])
-                            try{
+                            try {
                                 for (let y in transactions) {
                                     let datastore = transactions[y]
                                     for (let x in datastore.data.transaction.inputs) {
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
-                                        try{
+                                        try {
                                             await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null } })
-                                        }catch(e){
+                                        } catch (e) {
                                             utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                             client.close()
                                             response(false)
                                         }
                                     }
                                 }
-                                try{
+                                try {
                                     await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, block: null })
-                                }catch(e){
+                                } catch (e) {
                                     utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                     client.close()
                                     response(false)
                                 }
-                                try{
+                                try {
                                     await db.collection('sc_unspent').deleteMany({ block: null })
-                                }catch(e){
+                                } catch (e) {
                                     utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                     client.close()
                                     response(false)
@@ -700,7 +718,7 @@ module Daemon {
                                 utils.log('CLEAN SUCCESS ON BLOCK', '', 'log')
                                 client.close()
                                 response(true)
-                            }catch(e){
+                            } catch (e) {
                                 utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                 client.close()
                                 response(false)
@@ -721,7 +739,7 @@ module Daemon {
                 const utils = new Utilities.Parser
                 try {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                        if(err){
+                        if (err) {
                             client.close()
                             response(false)
                         }
@@ -763,8 +781,13 @@ module Daemon {
                             if (datastore.data.transaction !== undefined) {
                                 var scwallet = new Sidechain.Wallet;
                                 console.log('PLANUM TRANSACTION FOUND.')
-                                let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
-                                let check_sidechain = await db.collection('written').find({ address: datastore.data.transaction.sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+                                try {
+                                    var check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
+                                    var check_sidechain = await db.collection('written').find({ address: datastore.data.transaction.sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+                                } catch (e) {
+                                    client.close()
+                                    response(false)
+                                }
                                 if (check_sidechain[0] !== undefined) {
                                     if (check[0] === undefined) {
                                         // TRANSACTION NEVER STORED
@@ -927,7 +950,7 @@ module Daemon {
                                             valid = false
                                         }
 
-                                        // ALL VALID INSERTING TRANSACTION
+                                        // ALL VALID, INSERTING TRANSACTION IN DB
                                         if (valid === true) {
                                             datastore.data.block = datastore.block
                                             let insertTx = false
@@ -964,7 +987,7 @@ module Daemon {
                                                             if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
                                                                 updated = true
                                                                 utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
-                                                            }else{
+                                                            } else {
                                                                 utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
                                                             }
                                                         } catch (e) {
@@ -1015,8 +1038,6 @@ module Daemon {
                                         } else {
                                             utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID')
                                         }
-                                    } else {
-                                        utils.log('TRANSACTION STORED YET', '', 'errors')
                                     }
                                 } else {
                                     console.log('SIDECHAIN DOESN\'T EXIST!')
@@ -1033,7 +1054,7 @@ module Daemon {
             })
         }
 
-        private async storereceived(datastore) {
+        private async storereceived(datastore): Promise<any> {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
                 try {
@@ -1048,6 +1069,8 @@ module Daemon {
                             } catch (e) {
                                 utils.log('DB ERROR', '', 'errors')
                                 utils.log(e, '', 'errors')
+                                client.close()
+                                response(false)
                             }
                         } else {
                             utils.log('DATA ALREADY STORED.')
