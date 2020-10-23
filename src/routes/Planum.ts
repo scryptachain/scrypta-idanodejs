@@ -254,7 +254,8 @@ export async function checksidechain(req: express.Request, res: express.Response
         let sidechain_hash = CryptoJS.SHA256(JSON.stringify(sxids)).toString(CryptoJS.enc.Hex)
         let response = { 
           user_count: users.length, 
-          cap: cap, issued: issued, 
+          cap: cap, issued: issued,
+          nodes: [], 
           verified: verified, 
           sidechain: check_sidechain[0].data.genesis, 
           status: sidechain_hash, 
@@ -280,6 +281,7 @@ export async function checksidechain(req: express.Request, res: express.Response
                 if(status.data !== undefined && status.data.verified !== undefined && status.data.verified === true){
                   if(status.data.status === sidechain_hash){
                     consensus++
+                    response.nodes.push(node)
                   }
                 }
               }else if(process.env.PUBLIC_DOMAIN !== undefined && process.env.PUBLIC_DOMAIN === node){

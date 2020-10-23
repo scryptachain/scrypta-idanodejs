@@ -687,72 +687,49 @@ module Crypto {
                 var wallet = new Crypto.Wallet
                 try {
                     wallet.request('getblock', [block]).then(async function (block) {
+                        if (block !== null && block['result'] !== null) {
+                            block['result']['totvin'] = 0
+                            block['result']['totvout'] = 0
+                            block['result']['fees'] = 0
+                            block['result']['analysis'] = {}
+                            block['result']['inputs'] = []
+                            block['result']['outputs'] = []
+                            block['result']['planum'] = []
+                            block['result']['raw_written'] = {}
+                            block['result']['data_written'] = {}
+                            block['result']['data_received'] = {}
 
-                        block['result']['totvin'] = 0
-                        block['result']['totvout'] = 0
-                        block['result']['fees'] = 0
-                        block['result']['analysis'] = {}
-                        block['result']['inputs'] = []
-                        block['result']['outputs'] = []
-                        block['result']['planum'] = []
-                        block['result']['raw_written'] = {}
-                        block['result']['data_written'] = {}
-                        block['result']['data_received'] = {}
+                            //PARSING ALL TRANSACTIONS
+                            for (var i = 0; i < block['result']['tx'].length; i++) {
+                                var txid = block['result']['tx'][i]
 
-                        //PARSING ALL TRANSACTIONS
-                        for (var i = 0; i < block['result']['tx'].length; i++) {
-                            var txid = block['result']['tx'][i]
+                                var tx = await wallet.request('getrawtransaction', [txid, 1])
+                                if (tx !== undefined) {
+                                    block['result']['tx'][i] = tx['result']
 
-                            var tx = await wallet.request('getrawtransaction', [txid, 1])
-                            if (tx !== undefined) {
-                                block['result']['tx'][i] = tx['result']
+                                    var txtotvin = 0
+                                    var txtotvout = 0
+                                    block['result']['analysis'][txid] = {}
+                                    block['result']['analysis'][txid]['vin'] = 0
+                                    block['result']['analysis'][txid]['vout'] = 0
+                                    block['result']['analysis'][txid]['balances'] = {}
 
-                                var txtotvin = 0
-                                var txtotvout = 0
-                                block['result']['analysis'][txid] = {}
-                                block['result']['analysis'][txid]['vin'] = 0
-                                block['result']['analysis'][txid]['vout'] = 0
-                                block['result']['analysis'][txid]['balances'] = {}
-
-                                //FETCHING ALL VIN
-                                for (var vinx = 0; vinx < block['result']['tx'][i]['vin'].length; vinx++) {
-                                    var vout = block['result']['tx'][i]['vin'][vinx]['vout']
-                                    if (block['result']['tx'][i]['vin'][vinx]['txid']) {
-                                        //console.log('ANALYZING VIN ' + vinx)
-                                        var txvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid'], 1])
-                                        let input = {
-                                            txid: tx['result']['vin'][vinx]['txid'],
-                                            vout: txvin['result']['vout'][vout]['n']
-                                        }
-                                        block['result']['inputs'].push(input)
-                                        block['result']['tx'][i]['vin'][vinx]['value'] = txvin['result']['vout'][vout]['value']
-                                        block['result']['totvin'] += txvin['result']['vout'][vout]['value']
-                                        block['result']['tx'][i]['vin'][vinx]['addresses'] = txvin['result']['vout'][vout]['scriptPubKey']['addresses']
-                                        for (var key in txvin['result']['vout'][vout]['scriptPubKey']['addresses']) {
-                                            var address = txvin['result']['vout'][vout]['scriptPubKey']['addresses'][key]
-                                            if (block['result']['analysis'][txid]['balances'][address] === undefined) {
-                                                block['result']['analysis'][txid]['balances'][address] = {}
-                                                block['result']['analysis'][txid]['balances'][address]['value'] = 0
-                                                block['result']['analysis'][txid]['balances'][address]['type'] = 'TX'
-                                                block['result']['analysis'][txid]['balances'][address]['vin'] = 0
-                                                block['result']['analysis'][txid]['balances'][address]['vout'] = 0
+                                    //FETCHING ALL VIN
+                                    for (var vinx = 0; vinx < block['result']['tx'][i]['vin'].length; vinx++) {
+                                        var vout = block['result']['tx'][i]['vin'][vinx]['vout']
+                                        if (block['result']['tx'][i]['vin'][vinx]['txid']) {
+                                            //console.log('ANALYZING VIN ' + vinx)
+                                            var txvin = await wallet.request('getrawtransaction', [tx['result']['vin'][vinx]['txid'], 1])
+                                            let input = {
+                                                txid: tx['result']['vin'][vinx]['txid'],
+                                                vout: txvin['result']['vout'][vout]['n']
                                             }
-                                            block['result']['analysis'][txid]['balances'][address]['value'] -= txvin['result']['vout'][vout]['value']
-                                            block['result']['analysis'][txid]['vin'] += txvin['result']['vout'][vout]['value']
-                                            block['result']['analysis'][txid]['balances'][address]['vin'] += txvin['result']['vout'][vout]['value']
-                                            txtotvin += txvin['result']['vout'][vout]['value']
-                                        }
-                                    }
-                                }
-                                //PARSING ALL VOUT
-                                var receivingaddress = ''
-                                for (var voutx = 0; voutx < block['result']['tx'][i]['vout'].length; voutx++) {
-                                    //console.log('ANALYZING VOUT ' + voutx)
-                                    if (block['result']['tx'][i]['vout'][voutx]['value'] >= 0) {
-                                        block['result']['totvout'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                        //CHECKING VALUES OUT
-                                        if (block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses']) {
-                                            block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses'].forEach(function (address, index) {
+                                            block['result']['inputs'].push(input)
+                                            block['result']['tx'][i]['vin'][vinx]['value'] = txvin['result']['vout'][vout]['value']
+                                            block['result']['totvin'] += txvin['result']['vout'][vout]['value']
+                                            block['result']['tx'][i]['vin'][vinx]['addresses'] = txvin['result']['vout'][vout]['scriptPubKey']['addresses']
+                                            for (var key in txvin['result']['vout'][vout]['scriptPubKey']['addresses']) {
+                                                var address = txvin['result']['vout'][vout]['scriptPubKey']['addresses'][key]
                                                 if (block['result']['analysis'][txid]['balances'][address] === undefined) {
                                                     block['result']['analysis'][txid]['balances'][address] = {}
                                                     block['result']['analysis'][txid]['balances'][address]['value'] = 0
@@ -760,319 +737,345 @@ module Crypto {
                                                     block['result']['analysis'][txid]['balances'][address]['vin'] = 0
                                                     block['result']['analysis'][txid]['balances'][address]['vout'] = 0
                                                 }
-                                                block['result']['analysis'][txid]['balances'][address]['value'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                                block['result']['analysis'][txid]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                                block['result']['analysis'][txid]['balances'][address]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                                txtotvout += block['result']['tx'][i]['vout'][voutx]['value']
-                                                if (receivingaddress === '') {
-                                                    receivingaddress = address
-                                                }
-
-                                                let outputs = {
-                                                    txid: txid,
-                                                    vout: voutx,
-                                                    address: address,
-                                                    scriptPubKey: block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'],
-                                                    amount: block['result']['tx'][i]['vout'][voutx]['value']
-                                                }
-                                                block['result']['outputs'].push(outputs)
-                                            })
+                                                block['result']['analysis'][txid]['balances'][address]['value'] -= txvin['result']['vout'][vout]['value']
+                                                block['result']['analysis'][txid]['vin'] += txvin['result']['vout'][vout]['value']
+                                                block['result']['analysis'][txid]['balances'][address]['vin'] += txvin['result']['vout'][vout]['value']
+                                                txtotvin += txvin['result']['vout'][vout]['value']
+                                            }
                                         }
-                                        //CHECKING OP_RETURN
-                                        if (block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1) {
-                                            //console.log('CHECKING OP_RETURN')
-                                            var parser = new Utilities.Parser
-                                            var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ', ''))
-                                            var addressdata
-                                            var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
-                                            if (addresswrite === receivingaddress || receivingaddress === '') {
-                                                addressdata = addresswrite
-                                                if (block['result']['raw_written'][addressdata] === undefined) {
-                                                    block['result']['raw_written'][addressdata] = []
-                                                }
-                                                block['result']['raw_written'][addressdata].push(txid + '|?||?||?|' + OP_RETURN)
-                                            } else {
-                                                addressdata = receivingaddress
-                                                if (block['result']['data_received'][addressdata] === undefined) {
-                                                    block['result']['data_received'][addressdata] = []
-                                                }
-                                                block['result']['data_received'][addressdata].push({
-                                                    txid: txid,
-                                                    block: block['result']['height'],
-                                                    address: addressdata,
-                                                    sender: addresswrite,
-                                                    data: OP_RETURN
+                                    }
+                                    //PARSING ALL VOUT
+                                    var receivingaddress = ''
+                                    for (var voutx = 0; voutx < block['result']['tx'][i]['vout'].length; voutx++) {
+                                        //console.log('ANALYZING VOUT ' + voutx)
+                                        if (block['result']['tx'][i]['vout'][voutx]['value'] >= 0) {
+                                            block['result']['totvout'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                            //CHECKING VALUES OUT
+                                            if (block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses']) {
+                                                block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses'].forEach(function (address, index) {
+                                                    if (block['result']['analysis'][txid]['balances'][address] === undefined) {
+                                                        block['result']['analysis'][txid]['balances'][address] = {}
+                                                        block['result']['analysis'][txid]['balances'][address]['value'] = 0
+                                                        block['result']['analysis'][txid]['balances'][address]['type'] = 'TX'
+                                                        block['result']['analysis'][txid]['balances'][address]['vin'] = 0
+                                                        block['result']['analysis'][txid]['balances'][address]['vout'] = 0
+                                                    }
+                                                    block['result']['analysis'][txid]['balances'][address]['value'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                                    block['result']['analysis'][txid]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                                    block['result']['analysis'][txid]['balances'][address]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                                    txtotvout += block['result']['tx'][i]['vout'][voutx]['value']
+                                                    if (receivingaddress === '') {
+                                                        receivingaddress = address
+                                                    }
+
+                                                    let outputs = {
+                                                        txid: txid,
+                                                        vout: voutx,
+                                                        address: address,
+                                                        scriptPubKey: block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'],
+                                                        amount: block['result']['tx'][i]['vout'][voutx]['value']
+                                                    }
+                                                    block['result']['outputs'].push(outputs)
                                                 })
                                             }
+                                            //CHECKING OP_RETURN
+                                            if (block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].indexOf('OP_RETURN') !== -1) {
+                                                //console.log('CHECKING OP_RETURN')
+                                                var parser = new Utilities.Parser
+                                                var OP_RETURN = parser.hex2a(block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['asm'].replace('OP_RETURN ', ''))
+                                                var addressdata
+                                                var addresswrite = block['result']['tx'][i]['vin'][0]['addresses'][0]
+                                                if (addresswrite === receivingaddress || receivingaddress === '') {
+                                                    addressdata = addresswrite
+                                                    if (block['result']['raw_written'][addressdata] === undefined) {
+                                                        block['result']['raw_written'][addressdata] = []
+                                                    }
+                                                    block['result']['raw_written'][addressdata].push(txid + '|?||?||?|' + OP_RETURN)
+                                                } else {
+                                                    addressdata = receivingaddress
+                                                    if (block['result']['data_received'][addressdata] === undefined) {
+                                                        block['result']['data_received'][addressdata] = []
+                                                    }
+                                                    block['result']['data_received'][addressdata].push({
+                                                        txid: txid,
+                                                        block: block['result']['height'],
+                                                        address: addressdata,
+                                                        sender: addresswrite,
+                                                        data: OP_RETURN
+                                                    })
+                                                }
 
+                                            }
                                         }
                                     }
-                                }
 
-                                //CHECKING GENERATION
-                                var generated = 0
-                                if (txtotvin < txtotvout) {
-                                    generated = txtotvout - txtotvin
-                                    block['result']['generated'] = generated
+                                    //CHECKING GENERATION
+                                    var generated = 0
+                                    if (txtotvin < txtotvout) {
+                                        generated = txtotvout - txtotvin
+                                        block['result']['generated'] = generated
+                                    }
                                 }
                             }
-                        }
 
-                        //CALCULATING FEES
-                        var blocktotvalue = block['result']['totvin'] + block['result']['generated']
-                        block['result']['fees'] = (block['result']['totvout'] - blocktotvalue) * -1
+                            //CALCULATING FEES
+                            var blocktotvalue = block['result']['totvin'] + block['result']['generated']
+                            block['result']['fees'] = (block['result']['totvout'] - blocktotvalue) * -1
 
-                        //CHECKING TRANSACTION TYPE
-                        for (let txid in block['result']['analysis']) {
-                            block['result']['analysis'][txid]['movements'] = {}
-                            block['result']['analysis'][txid]['movements']['from'] = []
-                            block['result']['analysis'][txid]['movements']['to'] = []
+                            //CHECKING TRANSACTION TYPE
+                            for (let txid in block['result']['analysis']) {
+                                block['result']['analysis'][txid]['movements'] = {}
+                                block['result']['analysis'][txid]['movements']['from'] = []
+                                block['result']['analysis'][txid]['movements']['to'] = []
 
-                            for (let address in block['result']['analysis'][txid]['balances']) {
-                                if (block['result']['analysis'][txid]['vin'] < block['result']['analysis'][txid]['vout']) {
+                                for (let address in block['result']['analysis'][txid]['balances']) {
+                                    if (block['result']['analysis'][txid]['vin'] < block['result']['analysis'][txid]['vout']) {
+                                        if (block['result']['analysis'][txid]['balances'][address]['vin'] > 0) {
+                                            if (block['result']['analysis'][txid]['balances'][address]['vin'] < block['result']['analysis'][txid]['balances'][address]['vout']) {
+                                                block['result']['analysis'][txid]['balances'][address]['type'] = 'STAKE'
+                                            }
+                                        } else {
+                                            block['result']['analysis'][txid]['balances'][address]['type'] = 'REWARD'
+                                        }
+                                    }
                                     if (block['result']['analysis'][txid]['balances'][address]['vin'] > 0) {
-                                        if (block['result']['analysis'][txid]['balances'][address]['vin'] < block['result']['analysis'][txid]['balances'][address]['vout']) {
-                                            block['result']['analysis'][txid]['balances'][address]['type'] = 'STAKE'
+                                        block['result']['analysis'][txid]['movements']['from'].push(address)
+                                    }
+                                    if (block['result']['analysis'][txid]['balances'][address]['vout'] > 0) {
+                                        block['result']['analysis'][txid]['movements']['to'].push(address)
+                                    }
+                                }
+
+                            }
+
+                            //COMPACTING DATA AGAIN
+                            for (let addressdata in block['result']['raw_written']) {
+                                var written = []
+
+                                if (global['chunkcache'][addressdata] !== undefined) {
+                                    for (let y in global['chunkcache'][addressdata]) {
+                                        if (block['result']['raw_written'][addressdata].indexOf(global['chunkcache'][addressdata][y]) === -1) {
+                                            written.push(global['chunkcache'][addressdata][y])
                                         }
+                                    }
+                                }
+
+                                for (let y in block['result']['raw_written'][addressdata]) {
+                                    written.push(block['result']['raw_written'][addressdata][y])
+                                }
+
+                                var singledata = ''
+                                var readchunks = []
+                                console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata)
+                                let written_txid = []
+                                for (var wix in written) {
+                                    let writtensplit = written[wix].split('|?||?||?|')
+                                    var data = writtensplit[1]
+                                    var checkhead = data.substr(0, 3)
+                                    var checkfoot = data.substr(-3)
+                                    // console.log('CHECKING HEAD ' + checkhead)
+                                    // console.log('CHECKING FOOT ' + checkfoot)
+
+                                    if (singledata === '' && checkhead === checkfoot && checkhead === '*!*' && checkfoot === '*!*') {
+                                        singledata = data;
+                                        if (block['result']['data_written'][addressdata] === undefined) {
+                                            block['result']['data_written'][addressdata] = []
+                                        }
+                                        console.log('FOUND SINGLE DATA.')
+                                        written_txid = writtensplit[0]
+                                        endofdata = 'Y'
                                     } else {
-                                        block['result']['analysis'][txid]['balances'][address]['type'] = 'REWARD'
-                                    }
-                                }
-                                if (block['result']['analysis'][txid]['balances'][address]['vin'] > 0) {
-                                    block['result']['analysis'][txid]['movements']['from'].push(address)
-                                }
-                                if (block['result']['analysis'][txid]['balances'][address]['vout'] > 0) {
-                                    block['result']['analysis'][txid]['movements']['to'].push(address)
-                                }
-                            }
-
-                        }
-
-                        //COMPACTING DATA AGAIN
-                        for (let addressdata in block['result']['raw_written']) {
-                            var written = []
-
-                            if (global['chunkcache'][addressdata] !== undefined) {
-                                for (let y in global['chunkcache'][addressdata]) {
-                                    if (block['result']['raw_written'][addressdata].indexOf(global['chunkcache'][addressdata][y]) === -1) {
-                                        written.push(global['chunkcache'][addressdata][y])
-                                    }
-                                }
-                            }
-
-                            for (let y in block['result']['raw_written'][addressdata]) {
-                                written.push(block['result']['raw_written'][addressdata][y])
-                            }
-
-                            var singledata = ''
-                            var readchunks = []
-                            console.log('WRITTEN DATA FOUND FOR ADDRESS ' + addressdata)
-                            let written_txid = []
-                            for (var wix in written) {
-                                let writtensplit = written[wix].split('|?||?||?|')
-                                var data = writtensplit[1]
-                                var checkhead = data.substr(0, 3)
-                                var checkfoot = data.substr(-3)
-                                // console.log('CHECKING HEAD ' + checkhead)
-                                // console.log('CHECKING FOOT ' + checkfoot)
-
-                                if (singledata === '' && checkhead === checkfoot && checkhead === '*!*' && checkfoot === '*!*') {
-                                    singledata = data;
-                                    if (block['result']['data_written'][addressdata] === undefined) {
-                                        block['result']['data_written'][addressdata] = []
-                                    }
-                                    console.log('FOUND SINGLE DATA.')
-                                    written_txid = writtensplit[0]
-                                    endofdata = 'Y'
-                                } else {
-                                    console.log('CHECK FOR CHUCKED DATA')
-                                    written_txid = []
-                                    if (singledata === '' && data.indexOf('*!*') === 0) {
-                                        console.log('INIT CHUCK SEARCH')
-                                        written_txid.push(writtensplit[0])
-                                        var prevcontrol = data.substr(-6).substr(0, 3)
-                                        console.log('PREV CONTROL IS ' + prevcontrol)
-                                        var nextcontrol = data.substr(-3)
-                                        console.log('NEXT CONTROL IS ' + nextcontrol)
-                                        var chunkcontrol = prevcontrol + nextcontrol
-                                        singledata += '*!*'
-                                        console.log('SINGLEDATA IS', singledata)
-                                        console.log('NEED TO FIND ' + chunkcontrol)
-                                        var endofdata = 'N'
-                                        var idc = 0
-                                        var idct = 0
-                                        var idctt = 0
-                                        while (endofdata === 'N') {
-                                            idct++
-                                            idctt++
-                                            console.log('CHECKING INDEX ' + idc)
-                                            if (written[idc] !== undefined) {
-                                                let checkdatasplit = written[idc].split('|?||?||?|')
-                                                var checkdata = checkdatasplit[1].substr(0, 6)
-                                                console.log('CHECKING ' + checkdata + ' AGAINST ' + chunkcontrol)
-                                                if (checkdata === chunkcontrol && readchunks.indexOf(idc) === -1) {
-                                                    readchunks.push(idc)
-                                                    console.log('\x1b[33m%s\x1b[0m', 'CHUNK FOUND ' + chunkcontrol + ' at #' + idc)
-                                                    idct = 0
-                                                    if (checkdata.indexOf('*!*') !== -1) {
-                                                        singledata += data.substr(6, data.length)
-                                                        console.log('END OF DATA')
-                                                        endofdata = 'Y';
-                                                    } else {
-                                                        var chunk = ''
-                                                        var datalm3 = 0
-                                                        if (data.indexOf('*!*') === 0 && singledata === '*!*') {
-                                                            chunk = data.substr(3, data.length)
-                                                            datalm3 = data.length - 3
+                                        console.log('CHECK FOR CHUCKED DATA')
+                                        written_txid = []
+                                        if (singledata === '' && data.indexOf('*!*') === 0) {
+                                            console.log('INIT CHUCK SEARCH')
+                                            written_txid.push(writtensplit[0])
+                                            var prevcontrol = data.substr(-6).substr(0, 3)
+                                            console.log('PREV CONTROL IS ' + prevcontrol)
+                                            var nextcontrol = data.substr(-3)
+                                            console.log('NEXT CONTROL IS ' + nextcontrol)
+                                            var chunkcontrol = prevcontrol + nextcontrol
+                                            singledata += '*!*'
+                                            console.log('SINGLEDATA IS', singledata)
+                                            console.log('NEED TO FIND ' + chunkcontrol)
+                                            var endofdata = 'N'
+                                            var idc = 0
+                                            var idct = 0
+                                            var idctt = 0
+                                            while (endofdata === 'N') {
+                                                idct++
+                                                idctt++
+                                                console.log('CHECKING INDEX ' + idc)
+                                                if (written[idc] !== undefined) {
+                                                    let checkdatasplit = written[idc].split('|?||?||?|')
+                                                    var checkdata = checkdatasplit[1].substr(0, 6)
+                                                    console.log('CHECKING ' + checkdata + ' AGAINST ' + chunkcontrol)
+                                                    if (checkdata === chunkcontrol && readchunks.indexOf(idc) === -1) {
+                                                        readchunks.push(idc)
+                                                        console.log('\x1b[33m%s\x1b[0m', 'CHUNK FOUND ' + chunkcontrol + ' at #' + idc)
+                                                        idct = 0
+                                                        if (checkdata.indexOf('*!*') !== -1) {
+                                                            singledata += data.substr(6, data.length)
+                                                            console.log('END OF DATA')
+                                                            endofdata = 'Y';
                                                         } else {
-                                                            chunk = data.substr(6, data.length)
-                                                            datalm3 = data.length - 6
-                                                        }
-                                                        chunk = chunk.substr(0, datalm3)
-                                                        singledata += chunk
-                                                        written_txid.push(checkdatasplit[0])
-                                                        console.log('CHUNKED DATA IS ' + chunk)
-                                                        if (written[idc] !== undefined) {
-                                                            let checkdatasplitidc = written[idc].split('|?||?||?|')
-                                                            var data = checkdatasplitidc[1]
-                                                            var prevcontrol = data.substr(-6).substr(0, 3)
-                                                            console.log('PREV CONTROL IS ' + prevcontrol)
-                                                            var nextcontrol = data.substr(-3)
-                                                            console.log('NEXT CONTROL IS ' + nextcontrol)
-                                                            chunkcontrol = prevcontrol + nextcontrol
-                                                            if (chunkcontrol.indexOf('*!*') !== -1) {
-                                                                singledata += data.substr(6, data.length)
-                                                                console.log('END OF DATA')
-                                                                endofdata = 'Y'
+                                                            var chunk = ''
+                                                            var datalm3 = 0
+                                                            if (data.indexOf('*!*') === 0 && singledata === '*!*') {
+                                                                chunk = data.substr(3, data.length)
+                                                                datalm3 = data.length - 3
                                                             } else {
-                                                                console.log('NEED TO FIND ' + chunkcontrol)
-                                                                idc = 0
+                                                                chunk = data.substr(6, data.length)
+                                                                datalm3 = data.length - 6
                                                             }
-                                                            idc++
-                                                        } else {
-                                                            idc = 0
-                                                            console.log('RESTARTING')
-                                                            //endofdata = 'Y'
+                                                            chunk = chunk.substr(0, datalm3)
+                                                            singledata += chunk
+                                                            written_txid.push(checkdatasplit[0])
+                                                            console.log('CHUNKED DATA IS ' + chunk)
+                                                            if (written[idc] !== undefined) {
+                                                                let checkdatasplitidc = written[idc].split('|?||?||?|')
+                                                                var data = checkdatasplitidc[1]
+                                                                var prevcontrol = data.substr(-6).substr(0, 3)
+                                                                console.log('PREV CONTROL IS ' + prevcontrol)
+                                                                var nextcontrol = data.substr(-3)
+                                                                console.log('NEXT CONTROL IS ' + nextcontrol)
+                                                                chunkcontrol = prevcontrol + nextcontrol
+                                                                if (chunkcontrol.indexOf('*!*') !== -1) {
+                                                                    singledata += data.substr(6, data.length)
+                                                                    console.log('END OF DATA')
+                                                                    endofdata = 'Y'
+                                                                } else {
+                                                                    console.log('NEED TO FIND ' + chunkcontrol)
+                                                                    idc = 0
+                                                                }
+                                                                idc++
+                                                            } else {
+                                                                idc = 0
+                                                                console.log('RESTARTING')
+                                                                //endofdata = 'Y'
+                                                            }
                                                         }
+                                                    } else {
+                                                        idc++
+                                                    }
+
+                                                    let max = 1000 * written.length
+                                                    if (idctt > max) {
+                                                        endofdata = 'Y'
+                                                        console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
                                                     }
                                                 } else {
-                                                    idc++
+                                                    //endofdata = 'Y'
+                                                    idc = 0
+                                                    console.log('RESTARTING')
                                                 }
-
-                                                let max = 1000 * written.length
-                                                if (idctt > max) {
-                                                    endofdata = 'Y'
-                                                    console.log('\x1b[33m%s\x1b[0m', 'MALFORMED DATA, CAN\'T REBUILD')
-                                                }
-                                            } else {
-                                                //endofdata = 'Y'
-                                                idc = 0
-                                                console.log('RESTARTING')
                                             }
+
                                         }
+                                    }
 
-                                    }
-                                }
-
-                                checkhead = singledata.substr(0, 3)
-                                checkfoot = singledata.substr(-3)
-                                if (endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*') {
-                                    //console.log('COMPLETED DATA ' + singledata)
-                                    if (global['chunkcache'][addressdata] !== undefined) {
-                                        // RESETTING CACHE DATA
-                                        global['chunkcache'][addressdata] = []
-                                    }
-                                    if (block['result']['data_written'][addressdata] === undefined) {
-                                        block['result']['data_written'][addressdata] = []
-                                    }
-                                    singledata = singledata.substr(3)
-                                    var datalm3 = singledata.length - 3
-                                    singledata = singledata.substr(0, datalm3)
-                                    var split = singledata.split('*=>')
-                                    var headsplit = split[0].split('!*!')
-                                    var datastore
-
-                                    try {
-                                        datastore = JSON.parse(split[1])
-                                    } catch (e) {
-                                        datastore = split[1]
-                                    }
-                                    if (headsplit[1] !== undefined) {
-                                        var collection = headsplit[1]
-                                    } else {
-                                        var collection = ''
-                                    }
-                                    if (headsplit[2] !== undefined) {
-                                        var refID = headsplit[2]
-                                    } else {
-                                        var refID = ''
-                                    }
-                                    if (headsplit[3] !== undefined) {
-                                        var protocol = headsplit[3]
-                                    } else {
-                                        var protocol = ''
-                                    }
-                                    if (datastore === undefined) {
-                                        datastore = ''
-                                    }
-                                    var parsed = {
-                                        address: addressdata,
-                                        uuid: headsplit[0],
-                                        collection: collection,
-                                        refID: refID,
-                                        protocol: protocol,
-                                        data: datastore,
-                                        block: block['result']['height'],
-                                        blockhash: block['result']['hash'],
-                                        time: block['result']['time'],
-                                        txid: written_txid
-                                    }
-                                    singledata = ''
-                                    if (block['result']['data_written'][addressdata].indexOf(parsed) === -1) {
-                                        block['result']['data_written'][addressdata].push(parsed)
-                                    }
-                                    if (protocol === 'chain://') {
-                                        if (block['result']['planum'] === undefined) {
-                                            block['result']['planum'] = []
+                                    checkhead = singledata.substr(0, 3)
+                                    checkfoot = singledata.substr(-3)
+                                    if (endofdata === 'Y' && checkhead === '*!*' && checkfoot === '*!*') {
+                                        //console.log('COMPLETED DATA ' + singledata)
+                                        if (global['chunkcache'][addressdata] !== undefined) {
+                                            // RESETTING CACHE DATA
+                                            global['chunkcache'][addressdata] = []
                                         }
-                                        if (parsed['data']['transaction'] !== undefined && parsed['data']['transaction']['time'] !== undefined) {
-                                            parsed['tx_time'] = parsed['data']['transaction']['time']
+                                        if (block['result']['data_written'][addressdata] === undefined) {
+                                            block['result']['data_written'][addressdata] = []
+                                        }
+                                        singledata = singledata.substr(3)
+                                        var datalm3 = singledata.length - 3
+                                        singledata = singledata.substr(0, datalm3)
+                                        var split = singledata.split('*=>')
+                                        var headsplit = split[0].split('!*!')
+                                        var datastore
+
+                                        try {
+                                            datastore = JSON.parse(split[1])
+                                        } catch (e) {
+                                            datastore = split[1]
+                                        }
+                                        if (headsplit[1] !== undefined) {
+                                            var collection = headsplit[1]
                                         } else {
-                                            if (parsed['data']['genesis'] !== undefined && parsed['data']['genesis']['time'] !== undefined) {
-                                                parsed['tx_time'] = parsed['data']['genesis']['time']
+                                            var collection = ''
+                                        }
+                                        if (headsplit[2] !== undefined) {
+                                            var refID = headsplit[2]
+                                        } else {
+                                            var refID = ''
+                                        }
+                                        if (headsplit[3] !== undefined) {
+                                            var protocol = headsplit[3]
+                                        } else {
+                                            var protocol = ''
+                                        }
+                                        if (datastore === undefined) {
+                                            datastore = ''
+                                        }
+                                        var parsed = {
+                                            address: addressdata,
+                                            uuid: headsplit[0],
+                                            collection: collection,
+                                            refID: refID,
+                                            protocol: protocol,
+                                            data: datastore,
+                                            block: block['result']['height'],
+                                            blockhash: block['result']['hash'],
+                                            time: block['result']['time'],
+                                            txid: written_txid
+                                        }
+                                        singledata = ''
+                                        if (block['result']['data_written'][addressdata].indexOf(parsed) === -1) {
+                                            block['result']['data_written'][addressdata].push(parsed)
+                                        }
+                                        if (protocol === 'chain://') {
+                                            if (block['result']['planum'] === undefined) {
+                                                block['result']['planum'] = []
+                                            }
+                                            if (parsed['data']['transaction'] !== undefined && parsed['data']['transaction']['time'] !== undefined) {
+                                                parsed['tx_time'] = parsed['data']['transaction']['time']
                                             } else {
-                                                parsed['tx_time'] = parsed['data']['time']
+                                                if (parsed['data']['genesis'] !== undefined && parsed['data']['genesis']['time'] !== undefined) {
+                                                    parsed['tx_time'] = parsed['data']['genesis']['time']
+                                                } else {
+                                                    parsed['tx_time'] = parsed['data']['time']
+                                                }
+                                            }
+                                            if (parsed.data !== undefined && parsed.data !== 'undefined') {
+                                                if (block['result']['planum'].indexOf(parsed) === -1) {
+                                                    block['result']['planum'].push(parsed)
+                                                }
                                             }
                                         }
-                                        if (parsed.data !== undefined && parsed.data !== 'undefined') {
-                                            if (block['result']['planum'].indexOf(parsed) === -1) {
-                                                block['result']['planum'].push(parsed)
-                                            }
+                                    } else {
+                                        if (global['chunkcache'][addressdata] === undefined) {
+                                            global['chunkcache'][addressdata] = []
                                         }
-                                    }
-                                } else {
-                                    if (global['chunkcache'][addressdata] === undefined) {
-                                        global['chunkcache'][addressdata] = []
-                                    }
-                                    //PUSHING CHUNKS INTO CACHE
-                                    for (let y in block['result']['raw_written'][addressdata]) {
-                                        if (global['chunkcache'][addressdata].includes(block['result']['raw_written'][addressdata][y]) === false) {
-                                            global['chunkcache'][addressdata].push(block['result']['raw_written'][addressdata][y])
+                                        //PUSHING CHUNKS INTO CACHE
+                                        for (let y in block['result']['raw_written'][addressdata]) {
+                                            if (global['chunkcache'][addressdata].includes(block['result']['raw_written'][addressdata][y]) === false) {
+                                                global['chunkcache'][addressdata].push(block['result']['raw_written'][addressdata][y])
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        delete block['result']['tx']
-                        if (Object.keys(block['result']['planum']).length > 0) {
-                            block['result']['planum'].sort(function (a, b) {
-                                return parseFloat(a.tx_time) - parseFloat(b.tx_time);
-                            });
+                            delete block['result']['tx']
+                            if (Object.keys(block['result']['planum']).length > 0) {
+                                block['result']['planum'].sort(function (a, b) {
+                                    return parseFloat(a.tx_time) - parseFloat(b.tx_time);
+                                });
+                            }
+                            let res = block['result']
+                            block['result'] = []
+                            response(res)
+                        } else {
+                            response(false)
                         }
-                        let res = block['result']
-                        block['result'] = []
-                        response(res)
                     })
                 } catch (e) {
                     utils.log('ERROR WHILE ANALYZING BLOCK', '', 'errors')
@@ -1283,9 +1286,9 @@ module Crypto {
                                     console.log('CHECK FOR CHUCKED DATA')
                                     if (singledata === '' && data.indexOf('*!*') === 0) {
                                         console.log('INIT CHUCK SEARCH')
-                                        try{
+                                        try {
                                             written_txid.push(writtensplit[0])
-                                        }catch(e){
+                                        } catch (e) {
                                             written_txid = []
                                             written_txid.push(writtensplit[0])
                                         }
