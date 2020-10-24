@@ -7,6 +7,8 @@ import * as Contracts from './Contracts'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 import { create, all, exp } from 'mathjs'
+import { Console } from "console";
+import SideChain = require("./Planum");
 const messages = require('./p2p/messages.js')
 const console = require('better-console')
 const LZUTF8 = require('lzutf8')
@@ -198,9 +200,9 @@ module Daemon {
                                 try {
                                     let synced: any = false
                                     while (synced === false) {
-                                        try{
+                                        try {
                                             synced = await task.analyze()
-                                        }catch(e){
+                                        } catch (e) {
                                             utils.log('ERROR WHILE ANALYZING BLOCK', '', 'errors')
                                             utils.log(e)
                                         }
@@ -276,7 +278,7 @@ module Daemon {
                         var wallet = new Crypto.Wallet
                         let blockhash = null
                         let hashfound = false
-                        while(hashfound === false){
+                        while (hashfound === false) {
                             blockhash = await wallet.request('getblockhash', [analyze])
                             if (blockhash !== undefined && blockhash !== null && blockhash['result'] !== undefined && blockhash['result'] !== null) {
                                 hashfound = true
@@ -285,9 +287,9 @@ module Daemon {
                         if (blockhash !== undefined && blockhash !== null && blockhash['result'] !== undefined && blockhash['result'] !== null) {
                             let block = false
                             let analyzed = false
-                            while(block === false){
+                            while (block === false) {
                                 let analyzation = await wallet.analyzeBlock(blockhash['result'])
-                                if(analyzation !== false){
+                                if (analyzation !== false) {
                                     block = analyzation
                                     analyzed = true
                                 }
@@ -371,38 +373,78 @@ module Daemon {
                                             utils.log('ERROR CLEANING PLANUM', '', 'errors')
                                         }
                                     }
-                                }
 
-                                //STORE PLANUM DATA
-                                for (var dix in block['planum']) {
-                                    utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
-                                    var task = new Daemon.Sync
-                                    let storedwritten = false
-                                    while (storedwritten === false) {
-                                        try {
-                                            storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
-                                            if (storedwritten === false) {
+                                    let sidechains = []
+                                    //STORE PLANUM DATA
+                                    for (var dix in block['planum']) {
+                                        utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
+                                        var task = new Daemon.Sync
+                                        let storedwritten = false
+                                        while (storedwritten === false) {
+                                            try {
+                                                storedwritten = await task.storewritten(block['planum'][dix], false, block['height'])
+                                                if (storedwritten === false) {
+                                                    utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
+                                                }
+                                            } catch (e) {
+                                                storedwritten = false
                                                 utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
                                             }
-                                        } catch (e) {
-                                            storedwritten = false
-                                            utils.log('ERROR STORING WRITTEN DATA ON PLANUM', '', 'errors')
+                                        }
+                                        let storedplanum = false
+                                        if (sidechains.indexOf(block['planum'][dix]['data']['transaction']['sidechain']) === -1) {
+                                            sidechains.push(block['planum'][dix]['data']['transaction']['sidechain'])
+                                        }
+                                        while (storedplanum === false) {
+                                            try {
+                                                storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
+                                                if (storedplanum === false) {
+                                                    utils.log('ERROR STORING PLANUM', '', 'errors')
+                                                }
+                                            } catch (e) {
+                                                storedplanum = false
+                                                utils.log('ERROR STORING PLANUM DATA ON PLANUM', '', 'errors')
+                                            }
                                         }
                                     }
-                                    let storedplanum = false
-                                    while (storedplanum === false) {
-                                        try {
-                                            storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
-                                            if (storedplanum === false) {
-                                                utils.log('ERROR STORING PLANUM', '', 'errors')
+
+                                    utils.log('CHECK ' + sidechains.length + ' CHANGED SIDECHAINS')
+                                    for (let sxi in sidechains) {
+                                        let sidechain = sidechains[sxi]
+                                        utils.log('START CHECKING ' + sidechain)
+                                        let checked = false
+                                        let validated = false
+                                        while (checked === false) {
+                                            try {
+                                                let resultvalidation = await task.checkplanum(sidechain)
+                                                utils.log('VALIDATION RESULT IS ' + JSON.stringify(resultvalidation))
+                                                if (resultvalidation.validated === false && resultvalidation.checked === true) {
+                                                    checked = true
+                                                } else if (resultvalidation.validated === true && resultvalidation.checked === true) {
+                                                    validated = true
+                                                    checked = true
+                                                }
+                                            } catch (e) {
+                                                utils.log('ERROR WHILE VALIDATING SIDECHAIN', '', 'errors')
+                                                utils.log(e)
                                             }
-                                        } catch (e) {
-                                            storedplanum = false
-                                            utils.log('ERROR STORING PLANUM DATA ON PLANUM', '', 'errors')
+                                        }
+                                        if (validated === false) {
+                                            let cleaned = false
+                                            while (cleaned === false) {
+                                                try {
+                                                    cleaned = await task.cleanplanum(block['planum'], block['height'])
+                                                } catch (e) {
+                                                    utils.log('ERROR CLEANING PLANUM', '', 'errors')
+                                                }
+                                            }
+                                            utils.log('ERROR WHILE STORING SIDECHAINS TRANSACTIONS, NOW IS INVALID, RETRY SYNC BLOCK.', '', 'errors')
+                                            response(false)
+                                        } else {
+                                            utils.log('SIDECHAIN ' + sidechain + ' SUCCESSFULLY VALIDATED AFTER CHANGE', '\x1b[32m%s\x1b[0m')
                                         }
                                     }
                                 }
-
                                 // STORE RECEIVED DATA
                                 for (var address in block['data_received']) {
                                     var data = block['data_received'][address]
@@ -420,7 +462,7 @@ module Daemon {
                                 }
 
                                 // CHECK IF THERE ARE PINNED CONTRACTS
-                                try{
+                                try {
                                     let contracts = new Contracts.Local
                                     let pinned = await contracts.pinned()
 
@@ -450,7 +492,7 @@ module Daemon {
                                             }
                                         }
                                     }
-                                }catch(e){
+                                } catch (e) {
                                     utils.log('ERROR WHILE RUNNING CONTRACTS', '', 'errors')
                                     utils.log(e)
                                 }
@@ -785,6 +827,71 @@ module Daemon {
                     })
                 } catch (e) {
                     response(false)
+                }
+            })
+        }
+
+        private async checkplanum(sidechain): Promise<any> {
+            return new Promise(async response => {
+                const utils = new Utilities.Parser
+                try {
+                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                        if (!err) {
+                            var db = client.db(global['db_name'])
+                            let sxids = []
+                            let cap = 0
+                            let issued = 0
+                            let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+                            if (check_sidechain[0] !== undefined) {
+                                let issue = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+                                let unspents = await db.collection('sc_unspent').find({ sidechain: sidechain, redeemed: null }).sort({ block: 1 }).toArray()
+                                issued += issue[0].data.genesis.supply
+                                let reissues = await db.collection('written').find({ address: check_sidechain[0].data.genesis.owner, "data.reissue": { $exists: true }, "data.reissue.sidechain": sidechain }).sort({ block: 1 }).toArray()
+                                let decimals = check_sidechain[0].data.genesis.decimals
+
+                                // CALCULATING REISSUES
+                                let reissuestxs = []
+                                for (let k in reissues) {
+                                    let check = await db.collection('sc_transactions').find({ sxid: reissues[k].data.sxid }).limit(1).toArray()
+                                    if (check[0] !== undefined) {
+                                        if (reissuestxs.indexOf(reissues[k].data.signature) === -1) {
+                                            reissuestxs.push(reissues[k].data.signature)
+                                            issued = math.sum(issued, reissues[k].data.reissue.supply)
+                                        }
+                                    }
+                                }
+
+                                // CALCULATING CURRENT CAP
+                                let users = []
+                                for (let x in unspents) {
+                                    let unspent = unspents[x]
+                                    if (unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid + ':' + unspent.vout) === -1) {
+                                        sxids.push(unspent.sxid + ':' + unspent.vout)
+                                        let amount = math.round(unspent.amount, decimals)
+                                        cap = math.sum(cap, amount)
+                                        if (users.indexOf(unspent.address) === -1) {
+                                            users.push(unspent.address)
+                                        }
+                                    }
+                                }
+                                cap = math.round(cap, decimals)
+                                issued = math.round(issued, decimals)
+                                utils.log('SIDECHAIN ' + sidechain + ' ISSUED ' + issued + ' NOW CAP IS ' + cap)
+                                if (cap !== issued) {
+                                    response({ checked: true, validated: false })
+                                } else {
+                                    response({ checked: true, validated: true })
+                                }
+                            } else {
+                                response({ checked: true, validated: false })
+                            }
+                        } else {
+                            response({ checked: false, validated: false })
+                        }
+                    })
+                } catch (e) {
+                    utils.log('CAN\'T VALIDATE PLANUM, RETRY.')
+                    response({ checked: false, validated: false })
                 }
             })
         }

@@ -221,15 +221,18 @@ export async function checksidechain(req: express.Request, res: express.Response
         let issue = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         let unspents = await db.collection('sc_unspent').find({ sidechain: sidechain, redeemed: null }).sort({ block: 1 }).toArray()
         issued += issue[0].data.genesis.supply
-        let reissues = await db.collection('written').find({ address: check_sidechain[0].data.genesis.owner, "data.reissue": { $exists: true } }).sort({ block: 1 }).toArray()
+        let reissues = await db.collection('written').find({ address: check_sidechain[0].data.genesis.owner, "data.reissue": { $exists: true }, "data.reissue.sidechain": sidechain }).sort({ block: 1 }).toArray()
         let decimals = check_sidechain[0].data.genesis.decimals
 
         // CALCULATING REISSUES
         let reissuestxs = []
         for (let k in reissues) {
-          if (reissuestxs.indexOf(reissues[k].data.signature) === -1) {
-            reissuestxs.push(reissues[k].data.signature)
-            issued = math.sum(issued, reissues[k].data.reissue.supply)
+          let check = await db.collection('sc_transactions').find({ sxid: reissues[k].data.sxid }).limit(1).toArray()
+          if (check[0] !== undefined) {
+            if (reissuestxs.indexOf(reissues[k].data.signature) === -1) {
+              reissuestxs.push(reissues[k].data.signature)
+              issued = math.sum(issued, reissues[k].data.reissue.supply)
+            }
           }
         }
 
@@ -241,60 +244,57 @@ export async function checksidechain(req: express.Request, res: express.Response
             sxids.push(unspent.sxid + ':' + unspent.vout)
             let amount = math.round(unspent.amount, decimals)
             cap = math.sum(cap, amount)
-            if(users.indexOf(unspent.address) === -1){
+            if (users.indexOf(unspent.address) === -1) {
               users.push(unspent.address)
             }
           }
         }
         cap = math.round(cap, decimals)
         issued = math.round(issued, decimals)
-        if (cap !== issued) {
-          // verified = false
-        }
         let sidechain_hash = CryptoJS.SHA256(JSON.stringify(sxids)).toString(CryptoJS.enc.Hex)
-        let response = { 
-          user_count: users.length, 
+        let response = {
+          user_count: users.length,
           cap: cap, issued: issued,
-          nodes: [], 
-          verified: verified, 
-          sidechain: check_sidechain[0].data.genesis, 
-          status: sidechain_hash, 
-          users: users 
+          nodes: [],
+          verified: verified,
+          sidechain: check_sidechain[0].data.genesis,
+          status: sidechain_hash,
+          users: users
         }
         check_sidechain[0].data.genesis.address = sidechain
-        if(verified === true && req.params.consensus !== undefined){
+        if (verified === true && req.params.consensus !== undefined) {
           scrypta.staticnodes = true
-          if(process.env.LINKED_NODES !== undefined){
+          if (process.env.LINKED_NODES !== undefined) {
             scrypta.mainnetIdaNodes = process.env.LINKED_NODES.split(',')
           }
           var consensus = 0
           var nodes = 0
           nodes = scrypta.mainnetIdaNodes.length
-          for(let k in scrypta.mainnetIdaNodes){
+          for (let k in scrypta.mainnetIdaNodes) {
             let node = scrypta.mainnetIdaNodes[k]
-              try{
-                if(process.env.PUBLIC_DOMAIN === undefined || node !== process.env.PUBLIC_DOMAIN){
+            try {
+              if (process.env.PUBLIC_DOMAIN === undefined || node !== process.env.PUBLIC_DOMAIN) {
                 let status = await axios.get(node + '/sidechain/check/' + sidechain, { timeout: 2000 }).catch(err => {
                   utils.log("ERROR ON IDANODE " + node, '', 'errors')
                   nodes--
                 })
-                if(status.data !== undefined && status.data.verified !== undefined && status.data.verified === true){
-                  if(status.data.status === sidechain_hash){
+                if (status.data !== undefined && status.data.verified !== undefined && status.data.verified === true) {
+                  if (status.data.status === sidechain_hash) {
                     consensus++
                     response.nodes.push(node)
                   }
                 }
-              }else if(process.env.PUBLIC_DOMAIN !== undefined && process.env.PUBLIC_DOMAIN === node){
+              } else if (process.env.PUBLIC_DOMAIN !== undefined && process.env.PUBLIC_DOMAIN === node) {
                 nodes--
               }
-            }catch(e){
+            } catch (e) {
               utils.log('NODE ' + node + ' NOT WORKING', '', 'errors')
             }
           }
           var percentage = Math.round(consensus / nodes * 100)
           response['consensus'] = consensus + '/' + nodes
           response['reliability'] = percentage
-          if(percentage < 50){
+          if (percentage < 50) {
             response.verified = false
           }
         }
