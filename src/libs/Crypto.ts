@@ -682,7 +682,7 @@ module Crypto {
             })
         }
 
-        public async analyzeBlock(block) {
+        public async analyzeBlock(block): Promise<any> {
             return new Promise(response => {
                 var wallet = new Crypto.Wallet
                 try {

@@ -180,6 +180,7 @@ module Daemon {
                         if (analyze <= blocks) {
                             global['remainingBlocks'] = remains
                             let errors = false
+                            /* TODO: FIX CONSOLIDATION PROCESS
                             if (remains === 0) {
                                 // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
                                 try {
@@ -191,21 +192,34 @@ module Daemon {
                                     global['isSyncing'] = false
                                     errors = true
                                 }
-                            }
+                            }*/
                             if (global['syncLock'] === false && errors === false) {
                                 let utils = new Utilities.Parser
                                 try {
                                     let synced: any = false
                                     while (synced === false) {
-                                        synced = await task.analyze()
-                                        if (synced !== false) {
+                                        try{
+                                            synced = await task.analyze()
+                                        }catch(e){
+                                            utils.log('ERROR WHILE ANALYZING BLOCK', '', 'errors')
+                                            utils.log(e)
+                                        }
+                                        if (synced !== false && parseInt(synced) > 0) {
                                             global['retrySync'] = 0
                                             utils.log('SUCCESSFULLY SYNCED BLOCK ' + synced, '\x1b[46m%s\x1b[0m')
                                             mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                                                 var db = client.db(global['db_name'])
-                                                const savecheck = await db.collection('blocks').find({ block: synced }).toArray()
-                                                if (savecheck[0] === undefined) {
-                                                    await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() })
+                                                let saved = false
+                                                while (saved === false) {
+                                                    try {
+                                                        await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() })
+                                                        let savecheck = await db.collection('blocks').find({ block: synced }).toArray()
+                                                        if (savecheck[0] !== undefined && savecheck[0].block === synced) {
+                                                            saved = true
+                                                        }
+                                                    } catch (e) {
+                                                        utils.log('ERROR WHILE SAVING BLOCK CHECK', '', 'errors')
+                                                    }
                                                 }
                                                 global['isSyncing'] = false
                                                 client.close()
@@ -260,10 +274,26 @@ module Daemon {
                         console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
 
                         var wallet = new Crypto.Wallet
-                        var blockhash = await wallet.request('getblockhash', [analyze])
+                        let blockhash = null
+                        let hashfound = false
+                        while(hashfound === false){
+                            blockhash = await wallet.request('getblockhash', [analyze])
+                            if (blockhash !== undefined && blockhash !== null && blockhash['result'] !== undefined && blockhash['result'] !== null) {
+                                hashfound = true
+                            }
+                        }
                         if (blockhash !== undefined && blockhash !== null && blockhash['result'] !== undefined && blockhash['result'] !== null) {
-                            var block = await wallet.analyzeBlock(blockhash['result'])
-                            if (block !== false) {
+                            let block = false
+                            let analyzed = false
+                            while(block === false){
+                                let analyzation = await wallet.analyzeBlock(blockhash['result'])
+                                if(analyzation !== false){
+                                    block = analyzation
+                                    analyzed = true
+                                }
+                            }
+
+                            if (analyzed !== false) {
                                 for (var txid in block['analysis']) {
                                     for (var address in block['analysis'][txid]['balances']) {
                                         var tx = block['analysis'][txid]['balances'][address]
@@ -321,7 +351,7 @@ module Daemon {
                                         if (data[dix].protocol !== 'chain://') {
                                             var task = new Daemon.Sync
                                             let storedwritten = false
-                                            while(storedwritten === false){
+                                            while (storedwritten === false) {
                                                 storedwritten = await task.storewritten(data[dix], false, block['height'])
                                                 if (storedwritten === false) {
                                                     utils.log('ERROR ON STORE WRITTEN DATA', '', 'errors')
@@ -336,7 +366,7 @@ module Daemon {
                                     let cleaned = false
                                     while (cleaned === false) {
                                         try {
-                                            cleaned = await task.cleanplanum(block['planum'])
+                                            cleaned = await task.cleanplanum(block['planum'], block['height'])
                                         } catch (e) {
                                             utils.log('ERROR CLEANING PLANUM', '', 'errors')
                                         }
@@ -380,7 +410,7 @@ module Daemon {
                                     for (var dix in data) {
                                         var task = new Daemon.Sync
                                         let storedreceived = false
-                                        while(storedreceived === false){
+                                        while (storedreceived === false) {
                                             storedreceived = await task.storereceived(data[dix])
                                             if (storedreceived === false) {
                                                 utils.log('ERROR ON STORE RECEIVED', '', 'errors')
@@ -390,34 +420,39 @@ module Daemon {
                                 }
 
                                 // CHECK IF THERE ARE PINNED CONTRACTS
-                                let contracts = new Contracts.Local
-                                let pinned = await contracts.pinned()
-                                
-                                // RUN CONTRACTS CALLS
-                                if (pinned.length > 0) {
-                                    for (let k in pinned) {
-                                        let contract = pinned[k]
-                                        let request = {
-                                            function: "eachBlock",
-                                            params: block,
-                                            contract: contract.contract,
-                                            version: contract.version
-                                        }
-                                        let contractDetails = await vm.read(contract.contract, true, contract.version)
-                                        if (contractDetails.functions.indexOf('eachBlock') !== -1) {
-                                            utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract.contract)
-                                            try {
-                                                let hex = Buffer.from(JSON.stringify(request)).toString('hex')
-                                                let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                                let contractResponse = await vm.run(contract.contract, signed, true)
-                                                if (contractResponse !== undefined && contractResponse !== false) {
-                                                    utils.log(contractResponse)
+                                try{
+                                    let contracts = new Contracts.Local
+                                    let pinned = await contracts.pinned()
+
+                                    // RUN CONTRACTS CALLS
+                                    if (pinned.length > 0) {
+                                        for (let k in pinned) {
+                                            let contract = pinned[k]
+                                            let request = {
+                                                function: "eachBlock",
+                                                params: block,
+                                                contract: contract.contract,
+                                                version: contract.version
+                                            }
+                                            let contractDetails = await vm.read(contract.contract, true, contract.version)
+                                            if (contractDetails.functions.indexOf('eachBlock') !== -1) {
+                                                utils.log('RUNNING EACHBLOCK TRANSACTION IN CONTRACT ' + contract.contract)
+                                                try {
+                                                    let hex = Buffer.from(JSON.stringify(request)).toString('hex')
+                                                    let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
+                                                    let contractResponse = await vm.run(contract.contract, signed, true)
+                                                    if (contractResponse !== undefined && contractResponse !== false) {
+                                                        utils.log(contractResponse)
+                                                    }
+                                                } catch (e) {
+                                                    utils.log(e, '', 'errors')
                                                 }
-                                            } catch (e) {
-                                                utils.log(e, '', 'errors')
                                             }
                                         }
                                     }
+                                }catch(e){
+                                    utils.log('ERROR WHILE RUNNING CONTRACTS', '', 'errors')
+                                    utils.log(e)
                                 }
 
                                 var remains = blocks - analyze
@@ -426,7 +461,7 @@ module Daemon {
                                 response(block['height'])
                             } else {
                                 global['isAnalyzing'] = false
-                                utils.log('ERROR, ANALYZING TASK FAILED', '', 'errors')
+                                utils.log('ERROR, ANALYZING BLOCK FAILED', '', 'errors')
                                 setTimeout(function () {
                                     task.process()
                                 }, 500)
@@ -446,7 +481,7 @@ module Daemon {
                         response(false)
                     }
                 } catch (e) {
-                    utils.log('ERROR ON ANALYZE FUNCTION', '', 'errors')
+                    utils.log('ERROR INSIDE ANALYZE FUNCTION', '', 'errors')
                     utils.log(e, '', 'errors')
                     global['isAnalyzing'] = false
                     response(false)
@@ -685,7 +720,7 @@ module Daemon {
             })
         }
 
-        private async cleanplanum(transactions): Promise<boolean> {
+        private async cleanplanum(transactions, blockheight): Promise<boolean> {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
                 try {
@@ -699,7 +734,7 @@ module Daemon {
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
                                         try {
-                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null } })
+                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } })
                                         } catch (e) {
                                             utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                             client.close()
@@ -709,6 +744,20 @@ module Daemon {
                                 }
                                 try {
                                     await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, block: null })
+                                } catch (e) {
+                                    utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                    client.close()
+                                    response(false)
+                                }
+                                try {
+                                    await db.collection('sc_unspent').deleteMany({ block: blockheight })
+                                } catch (e) {
+                                    utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                    client.close()
+                                    response(false)
+                                }
+                                try {
+                                    await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, block: blockheight })
                                 } catch (e) {
                                     utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                     client.close()
@@ -1043,6 +1092,74 @@ module Daemon {
                                             // TRANSACTION STORED CORRECTLY
                                         } else {
                                             utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID')
+                                        }
+                                    } else {
+                                        // BE SURE WE'RE NOT IN MEMPOOL
+                                        if (isMempool === false && block !== null) {
+                                            utils.log('PLANUM TRANSACTION EXISTS, BE SURE ALL IS REDEEMED AND OUTPUTS CREATED')
+                                            // REEDIMING UNSPENT FOR EACH INPUT
+                                            for (let x in datastore.data.transaction.inputs) {
+                                                if (datastore.data.transaction.inputs[x].sxid !== undefined && datastore.data.transaction.inputs[x].vout !== undefined) {
+                                                    let sxid = datastore.data.transaction.inputs[x].sxid
+                                                    let vout = datastore.data.transaction.inputs[x].vout
+                                                    let updated = false
+                                                    while (updated === false) {
+                                                        try {
+                                                            if (datastore.block !== null) {
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
+                                                            } else {
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                            }
+                                                            let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
+                                                            if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
+                                                                updated = true
+                                                                utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
+                                                            } else {
+                                                                utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                            }
+                                                        } catch (e) {
+                                                            utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                            utils.log(e)
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            // CREATING UNSPENT FOR EACH VOUT
+                                            let vout = 0
+                                            for (let x in datastore.data.transaction.outputs) {
+                                                let amount = datastore.data.transaction.outputs[x]
+                                                let unspent = {
+                                                    txid: datastore.data.txid,
+                                                    sxid: datastore.data.sxid,
+                                                    vout: vout,
+                                                    address: x,
+                                                    amount: amount,
+                                                    sidechain: datastore.data.transaction.sidechain,
+                                                    block: datastore.block,
+                                                    redeemed: null,
+                                                    redeemblock: null,
+                                                    time: datastore.data.transaction.time
+                                                }
+                                                let inserted = false
+                                                while (inserted === false) {
+                                                    try {
+                                                        let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                        if (checkUsxo[0] === undefined) {
+                                                            utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
+                                                            await db.collection('sc_unspent').insertOne(unspent)
+                                                            let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                            if (checkInsertedUsxo[0] !== undefined) {
+                                                                inserted = true
+                                                            }
+                                                        }
+                                                    } catch (e) {
+                                                        utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
+                                                        utils.log(e)
+                                                    }
+                                                }
+                                                vout++
+                                            }
                                         }
                                     }
                                 } else {
