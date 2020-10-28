@@ -38,7 +38,7 @@ module Contracts {
                             }
                             if (unique.indexOf(contract) === -1) {
                                 unique.push(contract)
-                                res.push({contract: pinned[k].data, version: version})
+                                res.push({contract: contract, version: version})
                             }
                         }
                     }
