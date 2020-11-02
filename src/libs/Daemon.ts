@@ -229,6 +229,14 @@ module Daemon {
                                                     task.process()
                                                 }, 10)
                                             })
+                                        } else if(synced === 'RESTART') {
+                                            global['isSyncing'] = false
+                                            synced = true
+                                            utils.log('SIDECHAIN NOT WORKING, RESTARTING PROCESS.', '\x1b[41m%s\x1b[0m', 'errors')
+                                            await scrypta.sleep('2000')
+                                            setTimeout(function () {
+                                                task.process()
+                                            }, 10)
                                         } else {
                                             utils.log('BLOCK NOT SYNCED, RETRY.', '\x1b[41m%s\x1b[0m', 'errors')
                                             await scrypta.sleep('2000')
@@ -443,7 +451,7 @@ module Daemon {
                                                 let last = await db.collection('blocks').find().sort({ block: -1 }).limit(1).toArray()
                                                 await db.collection('blocks').deleteOne({block: last[0].block})
                                                 utils.log('ERROR WHILE STORING SIDECHAINS TRANSACTIONS, NOW IS INVALID, RETRY SYNC BLOCK.', '', 'errors')
-                                                response(false)
+                                                response('RESTART')
                                             })
                                         } else {
                                             utils.log('SIDECHAIN ' + sidechain + ' SUCCESSFULLY VALIDATED AFTER CHANGE', '\x1b[32m%s\x1b[0m')
@@ -775,11 +783,15 @@ module Daemon {
                         if (!err) {
                             var db = client.db(global['db_name'])
                             try {
+                                let sidechains = []
                                 for (let y in transactions) {
                                     let datastore = transactions[y]
                                     for (let x in datastore.data.transaction.inputs) {
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
+                                        if(sidechains.indexOf(datastore.data.transaction.sidechain) === -1){
+                                            sidechains.push(datastore.data.transaction.sidechain)
+                                        }
                                         try {
                                             await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } })
                                         } catch (e) {
@@ -789,33 +801,37 @@ module Daemon {
                                         }
                                     }
                                 }
-                                try {
-                                    await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, block: null })
-                                } catch (e) {
-                                    utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
-                                    client.close()
-                                    response(false)
-                                }
-                                try {
-                                    await db.collection('sc_unspent').deleteMany({ block: blockheight })
-                                } catch (e) {
-                                    utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
-                                    client.close()
-                                    response(false)
-                                }
-                                try {
-                                    await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, block: blockheight })
-                                } catch (e) {
-                                    utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
-                                    client.close()
-                                    response(false)
-                                }
-                                try {
-                                    await db.collection('sc_unspent').deleteMany({ block: null })
-                                } catch (e) {
-                                    utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
-                                    client.close()
-                                    response(false)
+                                utils.log('CLEANING SIDECHAINS ' + JSON.stringify(sidechains))
+                                for(let k in sidechains){
+                                    let sidechain = sidechains[k]
+                                    try {
+                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null })
+                                    } catch (e) {
+                                        utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                        }
+                                    try {
+                                        await db.collection('sc_unspent').deleteMany({ block: blockheight, sidechain: sidechain })
+                                    } catch (e) {
+                                        utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
+                                    try {
+                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: blockheight })
+                                    } catch (e) {
+                                        utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
+                                    try {
+                                        await db.collection('sc_unspent').deleteMany({ block: null, sidechain: sidechain })
+                                    } catch (e) {
+                                        utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
                                 }
                                 utils.log('CLEAN SUCCESS ON BLOCK', '', 'log')
                                 client.close()

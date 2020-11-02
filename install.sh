@@ -47,6 +47,7 @@ echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/
 sudo apt-get update
 sudo apt-get install -y mongodb-org
 mkdir mongodb_data
+ulimit -n 640000
 
 #DOWNLOADING NODE MODULES
 npm install
