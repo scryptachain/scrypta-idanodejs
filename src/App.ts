@@ -23,6 +23,7 @@ global['syncTimeout'] = null
 global['limit'] = 200
 global['isCheckingSpace'] = false
 global['remainingBlocks'] = 0
+global['restartSync'] = 0
 
 if(process.env.TESTNET !== undefined){
   if(process.env.TESTNET === 'true'){

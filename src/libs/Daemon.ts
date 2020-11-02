@@ -448,12 +448,17 @@ module Daemon {
                                             }
                                             mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                                                 var db = client.db(global['db_name'])
-                                                let last = await db.collection('blocks').find().sort({ block: -1 }).limit(1).toArray()
-                                                await db.collection('blocks').deleteOne({block: last[0].block})
+                                                global['restartSync'] = global['restartSync'] + 1
+                                                let lasts = await db.collection('blocks').find().sort({ block: -1 }).limit(global['restartSync']).toArray()
+                                                for(let k in lasts){
+                                                    let last = lasts[k]
+                                                    await db.collection('blocks').deleteOne({block: last[0].block})
+                                                }
                                                 utils.log('ERROR WHILE STORING SIDECHAINS TRANSACTIONS, NOW IS INVALID, RETRY SYNC BLOCK.', '', 'errors')
                                                 response('RESTART')
                                             })
                                         } else {
+                                            global['restartSync'] = 0
                                             utils.log('SIDECHAIN ' + sidechain + ' SUCCESSFULLY VALIDATED AFTER CHANGE', '\x1b[32m%s\x1b[0m')
                                         }
                                     }
