@@ -54,7 +54,7 @@ export async function initP2P() {
               global['connected'][node] = false
             })
 
-            global['nodes'][bootstrap[k]].on('planum-unspent', async function (data) {
+            /*global['nodes'][bootstrap[k]].on('planum-unspent', async function (data) {
               let pubkey
               if (data.pubKey !== undefined) {
                 pubkey = data.pubKey
@@ -68,7 +68,7 @@ export async function initP2P() {
                 }
                 console.log('Received used unspent ' + data.message)
               }
-            })
+            })*/
           }
         }
       }

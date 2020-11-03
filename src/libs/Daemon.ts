@@ -809,6 +809,7 @@ module Daemon {
                                 utils.log('CLEANING SIDECHAINS ' + JSON.stringify(sidechains))
                                 for(let k in sidechains){
                                     let sidechain = sidechains[k]
+                                    utils.log('CLEANING ' + sidechain, '', 'log')
                                     try {
                                         await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null })
                                     } catch (e) {
