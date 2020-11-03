@@ -346,30 +346,13 @@ module Daemon {
                                         response(false)
                                     }
                                 }
+                                
                                 // console.log('CLEANING UTXO CACHE')
                                 global['utxocache'] = []
                                 global['txidcache'] = []
                                 // console.log('CLEANING USXO CACHE')
                                 global['usxocache'] = []
                                 global['sxidcache'] = []
-
-                                // STORE GENERAL DATA
-                                for (var address in block['data_written']) {
-                                    var data = block['data_written'][address]
-                                    console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
-                                    for (var dix in data) {
-                                        if (data[dix].protocol !== 'chain://') {
-                                            var task = new Daemon.Sync
-                                            let storedwritten = false
-                                            while (storedwritten === false) {
-                                                storedwritten = await task.storewritten(data[dix], false, block['height'])
-                                                if (storedwritten === false) {
-                                                    utils.log('ERROR ON STORE WRITTEN DATA', '', 'errors')
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
 
                                 // CLEAN PLANUN MEMPOOL
                                 if (block['planum'].length > 0) {
@@ -463,6 +446,25 @@ module Daemon {
                                         }
                                     }
                                 }
+
+                                // STORE GENERAL DATA
+                                for (var address in block['data_written']) {
+                                    var data = block['data_written'][address]
+                                    console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                                    for (var dix in data) {
+                                        if (data[dix].protocol !== 'chain://') {
+                                            var task = new Daemon.Sync
+                                            let storedwritten = false
+                                            while (storedwritten === false) {
+                                                storedwritten = await task.storewritten(data[dix], false, block['height'])
+                                                if (storedwritten === false) {
+                                                    utils.log('ERROR ON STORE WRITTEN DATA', '', 'errors')
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
                                 // STORE RECEIVED DATA
                                 for (var address in block['data_received']) {
                                     var data = block['data_received'][address]

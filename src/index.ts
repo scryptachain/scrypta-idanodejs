@@ -253,9 +253,10 @@ async function runIdaNode() {
   } else {
     console.info('IDANODE IS VALID.')
   }
+  
   setInterval(function () {
     checkConnections()
-  }, 1000)
+  }, 5000)
 
   if (sync === true) {
     global['state'] = 'ON'
