@@ -69,7 +69,7 @@ module Daemon {
                         var last
                         if (sync[0] === undefined) {
                             utils.log('Sync lock not found, creating')
-                            await db.collection('blocks').insertOne({ block: 0, time: new Date().getTime() });
+                            await db.collection('blocks').insertOne({ block: 0, time: new Date().getTime() }, { w: 1, j: true });
                             last = 0
                         } else {
                             last = sync[0].block
@@ -182,11 +182,10 @@ module Daemon {
                         if (analyze <= blocks) {
                             global['remainingBlocks'] = remains
                             let errors = false
-                            /* TODO: FIX CONSOLIDATION PROCESS
                             if (remains === 0) {
                                 // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
                                 try {
-                                    // await task.consolidatestored()
+                                    await task.consolidatestored()
                                 } catch (e) {
                                     utils.log('ERROR WHILE CONSOLIDATING', '', 'errors')
                                     utils.log(e, '', 'errors')
@@ -194,7 +193,7 @@ module Daemon {
                                     global['isSyncing'] = false
                                     errors = true
                                 }
-                            }*/
+                            }
                             if (global['syncLock'] === false && errors === false) {
                                 let utils = new Utilities.Parser
                                 try {
@@ -214,7 +213,7 @@ module Daemon {
                                                 let saved = false
                                                 while (saved === false) {
                                                     try {
-                                                        await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() })
+                                                        await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() }, { w: 1, j: true })
                                                         let savecheck = await db.collection('blocks').find({ block: synced }).toArray()
                                                         if (savecheck[0] !== undefined && savecheck[0].block === synced) {
                                                             saved = true
@@ -229,7 +228,7 @@ module Daemon {
                                                     task.process()
                                                 }, 10)
                                             })
-                                        } else if(synced === 'RESTART') {
+                                        } else if (synced === 'RESTART') {
                                             global['isSyncing'] = false
                                             synced = true
                                             utils.log('SIDECHAIN NOT WORKING, RESTARTING PROCESS.', '\x1b[41m%s\x1b[0m', 'errors')
@@ -346,7 +345,7 @@ module Daemon {
                                         response(false)
                                     }
                                 }
-                                
+
                                 // console.log('CLEANING UTXO CACHE')
                                 global['utxocache'] = []
                                 global['txidcache'] = []
@@ -433,9 +432,9 @@ module Daemon {
                                                 var db = client.db(global['db_name'])
                                                 global['restartSync'] = global['restartSync'] + 1
                                                 let lasts = await db.collection('blocks').find().sort({ block: -1 }).limit(global['restartSync']).toArray()
-                                                for(let k in lasts){
+                                                for (let k in lasts) {
                                                     let last = lasts[k]
-                                                    await db.collection('blocks').deleteOne({block: last[0].block})
+                                                    await db.collection('blocks').deleteOne({ block: last[0].block })
                                                 }
                                                 utils.log('ERROR WHILE STORING SIDECHAINS TRANSACTIONS, NOW IS INVALID, RETRY SYNC BLOCK.', '', 'errors')
                                                 response('RESTART')
@@ -573,7 +572,7 @@ module Daemon {
                                     blockheight: block['height'],
                                     time: block['time'],
                                     inserted: new Date().getTime()
-                                }
+                                }, { w: 1, j: true }
                             )
                         } else if (check[0].blockheight === null && block['height'] !== undefined) {
                             await db.collection("transactions").updateOne({
@@ -584,7 +583,7 @@ module Daemon {
                                     blockhash: block['hash'],
                                     time: block['time']
                                 }
-                            })
+                            }, { upsert: true, writeConcern: { w: 1, j: true } })
                         } else {
                             console.log('TX ALREADY STORED.')
                         }
@@ -617,11 +616,11 @@ module Daemon {
                                     block: block,
                                     redeemed: null,
                                     redeemblock: null
-                                }
+                                }, { w: 1, j: true }
                             )
                         } else if (check[0].block === null && block !== null) {
                             console.log('\x1b[36m%s\x1b[0m', 'UPDATING BLOCK NOW!')
-                            await db.collection("unspent").updateOne({ txid: txid, vout: vout }, { $set: { block: block } })
+                            await db.collection("unspent").updateOne({ txid: txid, vout: vout }, { $set: { block: block } }, { upsert: true, writeConcern: { w: 1, j: true } })
                         } else {
                             console.log('UNSPENT ALREADY STORED.')
                         }
@@ -642,7 +641,7 @@ module Daemon {
                     console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT NOW!')
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         var db = client.db(global['db_name'])
-                        await db.collection('unspent').updateOne({ txid: txid, vout: vout }, { $set: { redeemblock: block, redeemed: txid } })
+                        await db.collection('unspent').updateOne({ txid: txid, vout: vout }, { $set: { redeemblock: block, redeemed: txid } }, { w: 1, j: true })
                         client.close()
                         response(true)
                     })
@@ -739,7 +738,7 @@ module Daemon {
                                         file.block = datastore.block
                                         file.time = new Date().getTime()
                                         try {
-                                            await db.collection("documenta").insertOne(file)
+                                            await db.collection("documenta").insertOne(file, { w: 1, j: true })
                                         } catch (e) {
                                             utils.log('DB ERROR', '', 'errors')
                                             utils.log(e, '', 'errors')
@@ -747,7 +746,7 @@ module Daemon {
                                             response(false)
                                         }
                                     } else {
-                                        await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } })
+                                        await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
                                         console.log('FILE STORED YET')
                                     }
                                 }
@@ -756,7 +755,7 @@ module Daemon {
 
                             if (datastore.uuid !== undefined && datastore.uuid !== '') {
                                 try {
-                                    await db.collection("written").insertOne(datastore)
+                                    await db.collection("written").insertOne(datastore, { w: 1, j: true })
                                 } catch (e) {
                                     utils.log('DB ERROR', '', 'errors')
                                     utils.log(e, '', 'errors')
@@ -796,11 +795,11 @@ module Daemon {
                                     for (let x in datastore.data.transaction.inputs) {
                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                         let vout = datastore.data.transaction.inputs[x].vout
-                                        if(sidechains.indexOf(datastore.data.transaction.sidechain) === -1){
+                                        if (sidechains.indexOf(datastore.data.transaction.sidechain) === -1) {
                                             sidechains.push(datastore.data.transaction.sidechain)
                                         }
                                         try {
-                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } })
+                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } }, { upsert: true, writeConcern: { w: 1, j: true } })
                                         } catch (e) {
                                             utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                             client.close()
@@ -809,7 +808,7 @@ module Daemon {
                                     }
                                 }
                                 utils.log('CLEANING SIDECHAINS ' + JSON.stringify(sidechains))
-                                for(let k in sidechains){
+                                for (let k in sidechains) {
                                     let sidechain = sidechains[k]
                                     utils.log('CLEANING ' + sidechain, '', 'log')
                                     try {
@@ -818,14 +817,16 @@ module Daemon {
                                         utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                         client.close()
                                         response(false)
-                                        }
+                                    }
+
                                     try {
-                                        await db.collection('sc_unspent').deleteMany({ block: blockheight, sidechain: sidechain })
+                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: null })
                                     } catch (e) {
                                         utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                         client.close()
                                         response(false)
                                     }
+
                                     try {
                                         await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: blockheight })
                                     } catch (e) {
@@ -833,8 +834,9 @@ module Daemon {
                                         client.close()
                                         response(false)
                                     }
+
                                     try {
-                                        await db.collection('sc_unspent').deleteMany({ block: null, sidechain: sidechain })
+                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: blockheight })
                                     } catch (e) {
                                         utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                         client.close()
@@ -945,11 +947,11 @@ module Daemon {
                                 let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                 if (check[0] === undefined) {
                                     utils.log('STORING GENESIS SXID NOW!')
-                                    await db.collection("sc_transactions").insertOne(datastore.data)
+                                    await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
                                 } else {
                                     utils.log('GENESIS SXID ALREADY STORED.')
                                     if (datastore.block !== null) {
-                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
+                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
                                     }
                                 }
                             }
@@ -959,11 +961,11 @@ module Daemon {
                                 let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                 if (check[0] === undefined) {
                                     utils.log('STORING REISSUE SXID NOW!')
-                                    await db.collection("sc_transactions").insertOne(datastore.data)
+                                    await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
                                 } else {
                                     utils.log('REISSUE SXID ALREADY STORED.')
                                     if (datastore.block !== null) {
-                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } })
+                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
                                     }
                                 }
                             }
@@ -1149,7 +1151,7 @@ module Daemon {
                                                 try {
                                                     let checkTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                                     if (checkTx[0] === undefined) {
-                                                        await db.collection("sc_transactions").insertOne(datastore.data)
+                                                        await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
                                                         let checkinsertedTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                                         if (checkinsertedTx[0] !== undefined) {
                                                             insertTx = true
@@ -1211,7 +1213,7 @@ module Daemon {
                                                         let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                         if (checkUsxo[0] === undefined) {
                                                             utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
-                                                            await db.collection('sc_unspent').insertOne(unspent)
+                                                            await db.collection('sc_unspent').insertOne(unspent, { w: 1, j: true })
                                                             let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                             if (checkInsertedUsxo[0] !== undefined) {
                                                                 inserted = true
@@ -1283,7 +1285,7 @@ module Daemon {
                                                         let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                         if (checkUsxo[0] === undefined) {
                                                             utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
-                                                            await db.collection('sc_unspent').insertOne(unspent)
+                                                            await db.collection('sc_unspent').insertOne(unspent, { w: 1, j: true })
                                                             let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                             if (checkInsertedUsxo[0] !== undefined) {
                                                                 inserted = true
@@ -1323,7 +1325,7 @@ module Daemon {
                         if (check[0] === undefined) {
                             console.log('STORING DATA NOW!')
                             try {
-                                await db.collection("received").insertOne(datastore)
+                                await db.collection("received").insertOne(datastore, { w: 1, j: true })
                                 utils.log('RECEIVED DATA ' + JSON.stringify(datastore))
                             } catch (e) {
                                 utils.log('DB ERROR', '', 'errors')
@@ -1395,7 +1397,7 @@ module Daemon {
                                                     blockhash: block['hash'],
                                                     time: block['time']
                                                 }
-                                            })
+                                            }, { upsert: true, writeConcern: { w: 1, j: true } })
                                         } catch (e) {
                                             utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
                                             utils.log(e)

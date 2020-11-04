@@ -96,7 +96,7 @@ async function checkConnections() {
               if (!fs.existsSync(mongo_path)) {
                 fs.mkdirSync(mongo_path);
               }
-              exec.exec('mongod --dbpath=' + mongo_path, {
+              exec.exec('mongod --journal --dbpath=' + mongo_path, {
                 stdio: 'ignore',
                 detached: true
               }).unref()
@@ -151,7 +151,7 @@ async function checkConnections() {
         if (!fs.existsSync(mongo_path)) {
           fs.mkdirSync(mongo_path);
         }
-        exec.exec('mongod --dbpath=' + mongo_path, {
+        exec.exec('mongod --journal --dbpath=' + mongo_path, {
           stdio: 'ignore',
           detached: true
         }).unref()
