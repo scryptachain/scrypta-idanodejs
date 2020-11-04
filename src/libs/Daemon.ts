@@ -812,7 +812,7 @@ module Daemon {
                                     let sidechain = sidechains[k]
                                     utils.log('CLEANING ' + sidechain, '', 'log')
                                     try {
-                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null })
+                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                         client.close()
@@ -820,7 +820,7 @@ module Daemon {
                                     }
 
                                     try {
-                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: null })
+                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: null }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                         client.close()
@@ -828,7 +828,7 @@ module Daemon {
                                     }
 
                                     try {
-                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: blockheight })
+                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: blockheight }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                         client.close()
@@ -836,7 +836,7 @@ module Daemon {
                                     }
 
                                     try {
-                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: blockheight })
+                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: blockheight }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                         client.close()
@@ -984,6 +984,7 @@ module Daemon {
                                 if (check_sidechain[0] !== undefined) {
                                     if (check[0] === undefined) {
                                         // TRANSACTION NEVER STORED
+                                        utils.log('TRANSACTION NEVER STORED')
                                         let valid = true
                                         var amountinput = 0
                                         var amountoutput = 0
@@ -1116,6 +1117,7 @@ module Daemon {
                                             amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
                                         } else {
                                             valid = false
+                                            utils.log('THERE\'S NO GENESIS, TRANSACTION INVALID')
                                         }
 
                                         // CHECK OVERMINT
@@ -1137,14 +1139,17 @@ module Daemon {
                                         if (valid === true && pubkey !== undefined && pubkey.length > 0 && datastore.data.signature !== undefined && datastore.data.transaction !== undefined) {
                                             let validatesign = await wallet.verifymessage(pubkey, datastore.data.signature, JSON.stringify(datastore.data.transaction))
                                             if (validatesign === false) {
+                                                utils.log('TRANSACTION SIGN IS INVALID')
                                                 valid = false
                                             }
                                         } else {
+                                            utils.log('TRANSACTION IS NOT VALID')
                                             valid = false
                                         }
 
                                         // ALL VALID, INSERTING TRANSACTION IN DB
                                         if (valid === true) {
+                                            utils.log('ALL TRANSACTIONS PASSED, STORING.')
                                             datastore.data.block = datastore.block
                                             let insertTx = false
                                             while (insertTx === false) {
@@ -1174,9 +1179,9 @@ module Daemon {
                                                     while (updated === false) {
                                                         try {
                                                             if (datastore.block !== null) {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { writeConcern: { w: 1, j: true } })
                                                             } else {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { writeConcern: { w: 1, j: true } })
                                                             }
                                                             let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
                                                             if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
@@ -1196,6 +1201,7 @@ module Daemon {
                                             // CREATING UNSPENT FOR EACH VOUT
                                             let vout = 0
                                             for (let x in datastore.data.transaction.outputs) {
+                                                utils.log('EVALUATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
                                                 let amount = datastore.data.transaction.outputs[x]
                                                 let unspent = {
                                                     txid: datastore.data.txid,
@@ -1209,8 +1215,8 @@ module Daemon {
                                                     redeemblock: null,
                                                     time: datastore.data.transaction.time
                                                 }
-                                                let inserted = false
-                                                while (inserted === false) {
+                                                let insertedUsxo = false
+                                                while (insertedUsxo === false) {
                                                     try {
                                                         let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                         if (checkUsxo[0] === undefined) {
@@ -1218,10 +1224,15 @@ module Daemon {
                                                             await db.collection('sc_unspent').insertOne(unspent, { w: 1, j: true })
                                                             let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                             if (checkInsertedUsxo[0] !== undefined) {
-                                                                inserted = true
+                                                                insertedUsxo = true
                                                             }
                                                         }else{
-                                                            inserted = true
+                                                            utils.log('WHY UNSPENT EXISTS YET?')
+                                                            await db.collection('sc_unspent').deleteOne({ sxid: datastore.data.sxid, vout: vout }, { w: 1, j: true })
+                                                            let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                            if (checkInsertedUsxo[0] !== undefined) {
+                                                                insertedUsxo = true
+                                                            }
                                                         }
                                                     } catch (e) {
                                                         utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
@@ -1238,7 +1249,6 @@ module Daemon {
                                     } else {
                                         // BE SURE WE'RE NOT IN MEMPOOL
                                         if (isMempool === false && block !== null) {
-                                            utils.log('PLANUM TRANSACTION EXISTS, BE SURE ALL IS REDEEMED AND OUTPUTS CREATED')
                                             // REEDIMING UNSPENT FOR EACH INPUT
                                             for (let x in datastore.data.transaction.inputs) {
                                                 if (datastore.data.transaction.inputs[x].sxid !== undefined && datastore.data.transaction.inputs[x].vout !== undefined) {
@@ -1248,9 +1258,9 @@ module Daemon {
                                                     while (updated === false) {
                                                         try {
                                                             if (datastore.block !== null) {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { writeConcern: { w: 1, j: true } })
                                                             } else {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { writeConcern: { w: 1, j: true } })
                                                             }
                                                             let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
                                                             if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
@@ -1342,7 +1352,7 @@ module Daemon {
                         } else {
                             utils.log('DATA ALREADY STORED.')
                             if (check[0].block === undefined || check[0].block === null) {
-                                await db.collection("sc_transactions").updateMany({ txid: datastore.txid }, { $set: { block: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                await db.collection("sc_transactions").updateMany({ txid: datastore.txid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
                             }
                         }
                         client.close()
