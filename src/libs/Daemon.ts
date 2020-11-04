@@ -1156,6 +1156,8 @@ module Daemon {
                                                         if (checkinsertedTx[0] !== undefined) {
                                                             insertTx = true
                                                         }
+                                                    }else{
+                                                        insertTx = true
                                                     }
                                                 } catch (e) {
                                                     utils.log('ERROR WHILE INSERTING PLANUM TX', '', 'errors')
@@ -1172,9 +1174,9 @@ module Daemon {
                                                     while (updated === false) {
                                                         try {
                                                             if (datastore.block !== null) {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
                                                             } else {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { upsert: true, writeConcern: { w: 1, j: true } })
                                                             }
                                                             let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
                                                             if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
@@ -1218,6 +1220,8 @@ module Daemon {
                                                             if (checkInsertedUsxo[0] !== undefined) {
                                                                 inserted = true
                                                             }
+                                                        }else{
+                                                            inserted = true
                                                         }
                                                     } catch (e) {
                                                         utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
@@ -1244,9 +1248,9 @@ module Daemon {
                                                     while (updated === false) {
                                                         try {
                                                             if (datastore.block !== null) {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
                                                             } else {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } })
+                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { upsert: true, writeConcern: { w: 1, j: true } })
                                                             }
                                                             let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
                                                             if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
@@ -1290,6 +1294,8 @@ module Daemon {
                                                             if (checkInsertedUsxo[0] !== undefined) {
                                                                 inserted = true
                                                             }
+                                                        }else{
+                                                            inserted = true
                                                         }
                                                     } catch (e) {
                                                         utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
@@ -1336,7 +1342,7 @@ module Daemon {
                         } else {
                             utils.log('DATA ALREADY STORED.')
                             if (check[0].block === undefined || check[0].block === null) {
-                                await db.collection("sc_transactions").updateMany({ txid: datastore.txid }, { $set: { block: datastore.block } })
+                                await db.collection("sc_transactions").updateMany({ txid: datastore.txid }, { $set: { block: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
                             }
                         }
                         client.close()
