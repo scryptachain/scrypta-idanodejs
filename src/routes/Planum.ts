@@ -455,7 +455,7 @@ export async function send(req: express.Request, res: express.Response) {
                     res.send(write)
                     for (let x in usedtx) {
                       global['sxidcache'].push(usedtx[x])
-                      await messages.signandbroadcast('planum-unspent', usedtx[x])
+                      // await messages.signandbroadcast('planum-unspent', usedtx[x])
                     }
                     let vout = 0
                     for (let x in outputs) {
@@ -704,14 +704,21 @@ export async function balance(req: express.Request, res: express.Response) {
         client.close()
         var scwallet = new Sidechain.Wallet;
         let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
+        let unconfirmed = 0
         if (check_sidechain[0] !== undefined) {
           let balance = 0
+          let now = new Date().getTime()
           for (let x in unspent) {
-            balance += parseFloat(unspent[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+            if(unspent[x].time <= now){
+              balance += parseFloat(unspent[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+            }else{
+              unconfirmed += parseFloat(unspent[x].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+            }
           }
 
           res.json({
             balance: parseFloat(balance.toFixed(check_sidechain[0].data.genesis.decimals)),
+            unconfirmed: parseFloat(unconfirmed.toFixed(check_sidechain[0].data.genesis.decimals)),
             symbol: check_sidechain[0].data.genesis.symbol,
             sidechain: check_sidechain[0].address
           })
@@ -876,8 +883,11 @@ export async function listunspent(req: express.Request, res: express.Response) {
         let unspent = await scwallet.listunspent(fields.dapp_address, fields.sidechain_address)
 
         let balance = 0
+        let now = new Date().getTime()
         for (let k in unspent) {
-          balance += parseFloat(unspent[k].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+          if(unspent[k].time <= now){
+            balance += parseFloat(unspent[k].amount.toFixed(check_sidechain[0].data.genesis.decimals))
+          }
         }
 
         if (check_sidechain[0] !== undefined) {

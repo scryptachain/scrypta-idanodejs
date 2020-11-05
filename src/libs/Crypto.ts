@@ -1195,8 +1195,7 @@ module Crypto {
                                         var intx = await wallet.request('getrawtransaction', [mempool['result']['tx'][i]['vin'][0].txid, 1])
                                         // var intx = await wallet.request('decoderawtransaction', [inrawtx['result']])
                                         var addresswrite = intx['result']['vout'][mempool['result']['tx'][i]['vin'][0].vout].scriptPubKey['addresses'][0]
-
-                                        if (addresswrite === receivingaddress) {
+                                        if (addresswrite === receivingaddress || receivingaddress === '') {
                                             addressdata = addresswrite
                                             if (mempool['result']['raw_written'][addressdata] === undefined) {
                                                 mempool['result']['raw_written'][addressdata] = []
