@@ -91,85 +91,98 @@ module Daemon {
                         // ANALYZING MEMPOOL ONLY IF SYNC IS FINISHED
                         var remains = blocks - analyze
                         if (remains === -1) {
-                            console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
-                            var wallet = new Crypto.Wallet
-                            var mempool = await wallet.analyzeMempool()
-                            if (mempool !== false) {
-                                global['retrySync'] = 0
-                                for (var address in mempool['data_written']) {
-                                    var data = mempool['data_written'][address]
-                                    console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
-                                    for (var dix in data) {
-                                        if (data[dix].protocol !== 'chain://') {
-                                            await task.storewritten(data[dix], true)
-                                        } else {
-                                            await task.storewritten(data[dix], true)
-                                            await task.storeplanum(data[dix], true)
+
+                            // CONSOLIDATING PLANUM TRANSACTIONS
+                            utils.log('CONSOLIDATING PLANUM TRANSACTIONS')
+                            let consolidateErrors = false
+                            try {
+                                await task.consolidateplanum()
+                            } catch (e) {
+                                utils.log('ERROR WHILE CONSOLIDATING', '', 'errors')
+                                utils.log(e, '', 'errors')
+                                consolidateErrors = true
+                            }
+                            if(!consolidateErrors){
+                                console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
+                                var wallet = new Crypto.Wallet
+                                var mempool = await wallet.analyzeMempool()
+                                if (mempool !== false) {
+                                    global['retrySync'] = 0
+                                    for (var address in mempool['data_written']) {
+                                        var data = mempool['data_written'][address]
+                                        console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                                        for (var dix in data) {
+                                            if (data[dix].protocol !== 'chain://') {
+                                                await task.storewritten(data[dix], true)
+                                            } else {
+                                                await task.storewritten(data[dix], true)
+                                                await task.storeplanum(data[dix], true)
+                                            }
                                         }
                                     }
-                                }
 
-                                for (var address in mempool['data_received']) {
-                                    var data = mempool['data_received'][address]
-                                    console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
-                                    for (var dix in data) {
-                                        await task.storereceived(data[dix])
+                                    for (var address in mempool['data_received']) {
+                                        var data = mempool['data_received'][address]
+                                        console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
+                                        for (var dix in data) {
+                                            await task.storereceived(data[dix])
+                                        }
                                     }
-                                }
 
-                                for (var txid in mempool['analysis']) {
-                                    for (var address in mempool['analysis'][txid]['balances']) {
-                                        var tx = mempool['analysis'][txid]['balances'][address]
-                                        var movements = mempool['analysis'][txid]['movements']
-                                        console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
-                                        await task.store(address, mempool, txid, tx, movements)
+                                    for (var txid in mempool['analysis']) {
+                                        for (var address in mempool['analysis'][txid]['balances']) {
+                                            var tx = mempool['analysis'][txid]['balances'][address]
+                                            var movements = mempool['analysis'][txid]['movements']
+                                            console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address + ' FROM MEMPOOL')
+                                            await task.store(address, mempool, txid, tx, movements)
+                                        }
                                     }
-                                }
 
-                                for (var i in mempool['outputs']) {
-                                    let unspent = mempool['outputs'][i]
-                                    var found = false
+                                    for (var i in mempool['outputs']) {
+                                        let unspent = mempool['outputs'][i]
+                                        var found = false
+                                        for (var i in mempool['inputs']) {
+                                            let input = mempool['inputs'][i]
+                                            if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
+                                                found = true
+                                            }
+                                        }
+                                        if (found === false) {
+                                            await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
+                                        } else {
+                                            console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                                        }
+                                    }
+
                                     for (var i in mempool['inputs']) {
                                         let input = mempool['inputs'][i]
-                                        if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
-                                            found = true
-                                        }
+                                        await task.redeemunspent(input['txid'], input['vout'], null)
                                     }
-                                    if (found === false) {
-                                        await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], null)
-                                    } else {
-                                        console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
-                                    }
-                                }
 
-                                for (var i in mempool['inputs']) {
-                                    let input = mempool['inputs'][i]
-                                    await task.redeemunspent(input['txid'], input['vout'], null)
-                                }
-
-                                if (mempool['outputs'].length > 0 && pinned.length > 0) {
-                                    for (let k in pinned) {
-                                        let contract = pinned[k]
-                                        let request = {
-                                            function: "ifMempool",
-                                            params: mempool,
-                                            contract: contract.contract,
-                                            version: contract.version
-                                        }
-                                        let contractDetails = await vm.read(contract.contract, true, contract.version)
-                                        if (contractDetails.functions.indexOf('ifMempool') !== -1) {
-                                            console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract.contract)
-                                            try {
-                                                let hex = Buffer.from(JSON.stringify(request)).toString('hex')
-                                                let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                                let contractResponse = await vm.run(contract.contract, signed, true)
-                                                if (contractResponse !== undefined && contractResponse !== false) {
-                                                    utils.log(contractResponse)
+                                    if (mempool['outputs'].length > 0 && pinned.length > 0) {
+                                        for (let k in pinned) {
+                                            let contract = pinned[k]
+                                            let request = {
+                                                function: "ifMempool",
+                                                params: mempool,
+                                                contract: contract.contract,
+                                                version: contract.version
+                                            }
+                                            let contractDetails = await vm.read(contract.contract, true, contract.version)
+                                            if (contractDetails.functions.indexOf('ifMempool') !== -1) {
+                                                console.log('RUNNING IFMEMPOOL TRANSACTION IN CONTRACT ' + contract.contract)
+                                                try {
+                                                    let hex = Buffer.from(JSON.stringify(request)).toString('hex')
+                                                    let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
+                                                    let contractResponse = await vm.run(contract.contract, signed, true)
+                                                    if (contractResponse !== undefined && contractResponse !== false) {
+                                                        utils.log(contractResponse)
+                                                    }
+                                                } catch (e) {
+                                                    console.log(e)
+                                                    utils.log('ERROR ON IFMEMPOOL CONTRACT', '', 'errors')
+                                                    utils.log(e, '', 'errors')
                                                 }
-                                            } catch (e) {
-                                                console.log(e)
-                                                utils.log('ERROR ON IFMEMPOOL CONTRACT', '', 'errors')
-                                                utils.log(e, '', 'errors')
                                             }
                                         }
                                     }
@@ -583,7 +596,7 @@ module Daemon {
                                     blockhash: block['hash'],
                                     time: block['time']
                                 }
-                            }, { upsert: true, writeConcern: { w: 1, j: true } })
+                            }, { writeConcern: { w: 1, j: true } })
                         } else {
                             console.log('TX ALREADY STORED.')
                         }
@@ -620,7 +633,7 @@ module Daemon {
                             )
                         } else if (check[0].block === null && block !== null) {
                             console.log('\x1b[36m%s\x1b[0m', 'UPDATING BLOCK NOW!')
-                            await db.collection("unspent").updateOne({ txid: txid, vout: vout }, { $set: { block: block } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                            await db.collection("unspent").updateOne({ txid: txid, vout: vout }, { $set: { block: block } }, { writeConcern: { w: 1, j: true } })
                         } else {
                             console.log('UNSPENT ALREADY STORED.')
                         }
@@ -746,7 +759,7 @@ module Daemon {
                                             response(false)
                                         }
                                     } else {
-                                        await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                        await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
                                         console.log('FILE STORED YET')
                                     }
                                 }
@@ -799,7 +812,7 @@ module Daemon {
                                             sidechains.push(datastore.data.transaction.sidechain)
                                         }
                                         try {
-                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } }, { writeConcern: { w: 1, j: true } })
                                         } catch (e) {
                                             utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
                                             client.close()
@@ -951,7 +964,7 @@ module Daemon {
                                 } else {
                                     utils.log('GENESIS SXID ALREADY STORED.')
                                     if (datastore.block !== null) {
-                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
                                     }
                                 }
                             }
@@ -965,7 +978,7 @@ module Daemon {
                                 } else {
                                     utils.log('REISSUE SXID ALREADY STORED.')
                                     if (datastore.block !== null) {
-                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
                                     }
                                 }
                             }
@@ -1161,7 +1174,7 @@ module Daemon {
                                                         if (checkinsertedTx[0] !== undefined) {
                                                             insertTx = true
                                                         }
-                                                    }else{
+                                                    } else {
                                                         insertTx = true
                                                     }
                                                 } catch (e) {
@@ -1226,7 +1239,7 @@ module Daemon {
                                                             if (checkInsertedUsxo[0] !== undefined) {
                                                                 insertedUsxo = true
                                                             }
-                                                        }else{
+                                                        } else {
                                                             utils.log('WHY UNSPENT EXISTS YET?')
                                                             await db.collection('sc_unspent').deleteOne({ sxid: datastore.data.sxid, vout: vout }, { w: 1, j: true })
                                                             let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
@@ -1304,7 +1317,7 @@ module Daemon {
                                                             if (checkInsertedUsxo[0] !== undefined) {
                                                                 inserted = true
                                                             }
-                                                        }else{
+                                                        } else {
                                                             inserted = true
                                                         }
                                                     } catch (e) {
@@ -1413,7 +1426,7 @@ module Daemon {
                                                     blockhash: block['hash'],
                                                     time: block['time']
                                                 }
-                                            }, { upsert: true, writeConcern: { w: 1, j: true } })
+                                            }, { writeConcern: { w: 1, j: true } })
                                         } catch (e) {
                                             utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
                                             utils.log(e)
@@ -1436,10 +1449,136 @@ module Daemon {
                                     utils.log('ELAPSED ' + elapsed + 's, EARLY TRANSACTION')
                                 }
                             }
-                            client.close()
-                        } else {
-                            client.close()
                         }
+                        client.close()
+                        response(true)
+                    })
+                } catch (e) {
+                    let utils = new Utilities.Parser
+                    utils.log('ERROR WHILE CONSOLIDATE', '', 'errors')
+                    utils.log(e, '', 'errors')
+                    response(false)
+                }
+            })
+        }
+
+        private consolidateplanum() {
+            return new Promise(async response => {
+                try {
+                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                        var db = client.db(global['db_name'])
+                        const utils = new Utilities.Parser
+                        let checkplanumtxs = await db.collection('sc_transactions').find({ block: null, "transaction": { $exists: true } }).toArray()
+                        if (checkplanumtxs.length > 0) {
+                            utils.log('FOUND ' + checkplanumtxs.length + ' SIDECHAIN TRANSACTIONS TO CONSOLIDATE')
+                            for (let k in checkplanumtxs) {
+                                let tx = checkplanumtxs[k]
+                                var wallet = new Crypto.Wallet
+                                let rawtransaction = await wallet.request('getrawtransaction', [tx.txid, 1])
+                                let txvalid = true
+                                let block
+
+                                if (rawtransaction['result'] !== undefined) {
+                                    let rawtx = rawtransaction['result']
+                                    if (rawtx !== null && rawtx['blockhash'] !== undefined) {
+                                        let getblock = await wallet.request('getblock', [rawtx['blockhash']])
+                                        if (getblock['result'] !== undefined) {
+                                            block = getblock['result']
+                                        } else {
+                                            txvalid = false
+                                        }
+                                    } else {
+                                        txvalid = false
+                                    }
+                                }
+
+                                if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
+                                    utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION ' + tx.address + ':' + tx.txid + '!')
+                                    try {
+                                        await db.collection("sc_transactions").updateOne({
+                                            txid: tx.txid
+                                        }, {
+                                            $set: {
+                                                block: block['height']
+                                            }
+                                        }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                        utils.log(e)
+                                    }
+                                    try {
+                                        await db.collection("sc_unspent").updateMany({
+                                            txid: tx.txid
+                                        }, {
+                                            $set: {
+                                                block: block['height']
+                                            }
+                                        }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                        utils.log(e)
+                                    }
+                                }
+                            }
+                        }else{
+                            utils.log('NOTHING TO CONSOLIDATE FROM PLANUM TRANSACTIONS')
+                        }
+                        let checkplanumunspent = await db.collection('sc_unspent').find({ block: null }).toArray()
+                        if (checkplanumunspent.length > 0) {
+                            utils.log('FOUND ' + checkplanumunspent.length + ' SIDECHAIN UNSPENT TO CONSOLIDATE')
+                            for (let k in checkplanumunspent) {
+                                let unspent = checkplanumunspent[k]
+                                var wallet = new Crypto.Wallet
+                                let rawtransaction = await wallet.request('getrawtransaction', [unspent.txid, 1])
+                                let txvalid = true
+                                let block
+
+                                if (rawtransaction['result'] !== undefined) {
+                                    let rawtx = rawtransaction['result']
+                                    if (rawtx !== null && rawtx['blockhash'] !== undefined) {
+                                        let getblock = await wallet.request('getblock', [rawtx['blockhash']])
+                                        if (getblock['result'] !== undefined) {
+                                            block = getblock['result']
+                                        } else {
+                                            txvalid = false
+                                        }
+                                    } else {
+                                        txvalid = false
+                                    }
+                                }
+
+                                if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
+                                    utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION ' + unspent.address + ':' + unspent.txid + '!')
+                                    try {
+                                        await db.collection("sc_transactions").updateOne({
+                                            txid: unspent.txid
+                                        }, {
+                                            $set: {
+                                                block: block['height']
+                                            }
+                                        }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                        utils.log(e)
+                                    }
+                                    try {
+                                        await db.collection("sc_unspent").updateMany({
+                                            txid: unspent.txid
+                                        }, {
+                                            $set: {
+                                                block: block['height']
+                                            }
+                                        }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                        utils.log(e)
+                                    }
+                                }
+                            }
+                        }else{
+                            utils.log('NOTHING TO CONSOLIDATE FROM PLANUM UNSPENT')
+                        }
+                        client.close()
                         response(true)
                     })
                 } catch (e) {
