@@ -196,8 +196,6 @@ module Daemon {
                             }
                         }
 
-                        client.close()
-
                         if (analyze <= blocks) {
                             global['remainingBlocks'] = remains
                             let errors = false
@@ -274,6 +272,7 @@ module Daemon {
                             global['isSyncing'] = false
                             console.log('SYNC FINISHED')
                         }
+                        client.close()
                     })
                 } catch (e) {
                     utils.log(e, '', 'errors')
@@ -757,104 +756,107 @@ module Daemon {
                 try {
                     datastore.block = block
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                        var db = client.db(global['db_name'])
-                        let check = await db.collection('written').find({ uuid: datastore.uuid, block: datastore.block }).limit(1).toArray()
-                        if (check[0] === undefined) {
-                            console.log('STORING DATA NOW!')
-                            utils.log('WRITTEN DATA ' + JSON.stringify(datastore))
-                            if (JSON.stringify(datastore.data).indexOf('ipfs:') !== -1) {
-                                let parsed = datastore.data.split('***')
-                                if (parsed[0] !== undefined && process.env.PINIPFS === 'true') {
-                                    let parsehash = parsed[0].split(':')
-                                    if (parsehash[1] !== undefined && parsehash[1] !== 'undefined') {
-                                        console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + parsehash[1])
-                                        global['ipfs'].pin.add(parsehash[1], function (err) {
-                                            if (err) {
+                        if (!err && client !== undefined) {
+                            var db = client.db(global['db_name'])
+                            let check = await db.collection('written').find({ uuid: datastore.uuid, block: datastore.block }).limit(1).toArray()
+                            if (check[0] === undefined) {
+                                console.log('STORING DATA NOW!')
+                                utils.log('WRITTEN DATA ' + JSON.stringify(datastore))
+                                if (JSON.stringify(datastore.data).indexOf('ipfs:') !== -1) {
+                                    let parsed = datastore.data.split('***')
+                                    if (parsed[0] !== undefined && process.env.PINIPFS === 'true') {
+                                        let parsehash = parsed[0].split(':')
+                                        if (parsehash[1] !== undefined && parsehash[1] !== 'undefined') {
+                                            console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + parsehash[1])
+                                            global['ipfs'].pin.add(parsehash[1], function (err) {
+                                                if (err) {
+                                                    response(false)
+                                                }
+                                            })
+                                        }
+                                    }
+                                }
+
+                                if (datastore.protocol === 'bvc://' && global['pinipfs'] === true) {
+                                    var task = new Daemon.Sync
+                                    await task.pinipfsfolder(datastore.data)
+                                }
+
+                                if (datastore.protocol === 'documenta://') {
+                                    var wallet = new Crypto.Wallet;
+                                    let valid = true
+                                    let pubkey
+
+                                    if (datastore.data.pubkey !== undefined) {
+                                        pubkey = datastore.data.pubkey
+                                    } else if (datastore.data.pubKey !== undefined) {
+                                        pubkey = datastore.data.pubKey
+                                    }
+
+                                    if (pubkey !== undefined && pubkey.length > 0 && datastore.data.signature !== undefined && datastore.data.message !== undefined) {
+                                        let validatesign = await wallet.verifymessage(pubkey, datastore.data.signature, datastore.data.message)
+                                        if (validatesign === false) {
+                                            valid = false
+                                        }
+                                    } else {
+                                        valid = false
+                                    }
+
+                                    if (valid) {
+                                        var file = JSON.parse(datastore.data.message)
+                                        let checkfile = await db.collection("documenta").findOne({ file: file.file })
+                                        if (checkfile === null) {
+                                            file.endpoint = file.endpoint
+                                            file.address = datastore.data.address
+                                            file.refID = datastore.refID
+                                            file.block = datastore.block
+                                            file.time = new Date().getTime()
+                                            try {
+                                                await db.collection("documenta").insertOne(file, { w: 1, j: true })
+                                            } catch (e) {
+                                                utils.log('DB ERROR WHILE STORING DOCUMENTA', '', 'errors')
+                                                utils.log(e, '', 'errors')
                                                 client.close()
                                                 response(false)
                                             }
-                                        })
+                                        } else {
+                                            await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
+                                            console.log('FILE STORED YET')
+                                        }
                                     }
-                                }
-                            }
 
-                            if (datastore.protocol === 'bvc://' && global['pinipfs'] === true) {
-                                var task = new Daemon.Sync
-                                await task.pinipfsfolder(datastore.data)
-                            }
-
-                            if (datastore.protocol === 'documenta://') {
-                                var wallet = new Crypto.Wallet;
-                                let valid = true
-                                let pubkey
-
-                                if (datastore.data.pubkey !== undefined) {
-                                    pubkey = datastore.data.pubkey
-                                } else if (datastore.data.pubKey !== undefined) {
-                                    pubkey = datastore.data.pubKey
                                 }
 
-                                if (pubkey !== undefined && pubkey.length > 0 && datastore.data.signature !== undefined && datastore.data.message !== undefined) {
-                                    let validatesign = await wallet.verifymessage(pubkey, datastore.data.signature, datastore.data.message)
-                                    if (validatesign === false) {
-                                        valid = false
-                                    }
-                                } else {
-                                    valid = false
-                                }
-
-                                if (valid) {
-                                    var file = JSON.parse(datastore.data.message)
-                                    let checkfile = await db.collection("documenta").findOne({ file: file.file })
-                                    if (checkfile === null) {
-                                        file.endpoint = file.endpoint
-                                        file.address = datastore.data.address
-                                        file.refID = datastore.refID
-                                        file.block = datastore.block
-                                        file.time = new Date().getTime()
+                                if (datastore.uuid !== undefined && datastore.uuid !== '') {
+                                    let insertedWritten = false
+                                    while (insertedWritten === false) {
                                         try {
-                                            await db.collection("documenta").insertOne(file, { w: 1, j: true })
+                                            await db.collection("written").insertOne(datastore, { w: 1, j: true })
+                                            let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
+                                            if (checkWritten[0] !== undefined && checkWritten.uuid === datastore.uuid) {
+                                                insertedWritten = true
+                                            }
                                         } catch (e) {
-                                            utils.log('DB ERROR', '', 'errors')
+                                            utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
                                             utils.log(e, '', 'errors')
                                             client.close()
                                             response(false)
                                         }
-                                    } else {
-                                        await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
-                                        console.log('FILE STORED YET')
                                     }
                                 }
-
-                            }
-
-                            if (datastore.uuid !== undefined && datastore.uuid !== '') {
-                                let insertedWritten = false
-                                while (insertedWritten === false) {
-                                    try {
-                                        await db.collection("written").insertOne(datastore, { w: 1, j: true })
-                                        let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
-                                        if (checkWritten[0] !== undefined && checkWritten.uuid === datastore.uuid) {
-                                            insertedWritten = true
-                                        }
-                                    } catch (e) {
-                                        utils.log('DB ERROR', '', 'errors')
-                                        utils.log(e, '', 'errors')
-                                        client.close()
-                                        response(false)
-                                    }
-                                }
-                            }
-                        } else {
-                            if (datastore.block !== null) {
-                                utils.log('DATA ALREADY STORED AT BLOCK ' + datastore.block + '.')
                             } else {
-                                utils.log('DATA ALREADY STORED FROM MEMPOOL.')
+                                if (datastore.block !== null) {
+                                    utils.log('DATA ALREADY STORED AT BLOCK ' + datastore.block + '.')
+                                } else {
+                                    utils.log('DATA ALREADY STORED FROM MEMPOOL.')
+                                }
                             }
-                        }
 
-                        client.close()
-                        response('STORED')
+                            client.close()
+                            response('STORED')
+                        } else {
+                            response(false)
+                        }
                     })
                 } catch (e) {
                     utils.log(e, '', 'errors')
@@ -1017,394 +1019,395 @@ module Daemon {
                         if (err) {
                             client.close()
                             response(false)
-                        }
-                        var db = client.db(global['db_name'])
-                        datastore.block = block
-                        if (datastore.protocol === 'chain://') {
-                            // SEARCHING FOR GENESIS
-                            if (datastore.data !== undefined) {
-                                datastore.data['txid'] = datastore['txid']
-                            }
-                            if (datastore.data.genesis !== undefined) {
-                                let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
-                                if (check[0] === undefined) {
-                                    utils.log('STORING GENESIS SXID NOW!')
-                                    await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
-                                } else {
-                                    utils.log('GENESIS SXID ALREADY STORED.')
-                                    if (datastore.block !== null) {
-                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
-                                    }
+                        }else{
+                            var db = client.db(global['db_name'])
+                            datastore.block = block
+                            if (datastore.protocol === 'chain://') {
+                                // SEARCHING FOR GENESIS
+                                if (datastore.data !== undefined) {
+                                    datastore.data['txid'] = datastore['txid']
                                 }
-                            }
-
-                            // SEARCHING FOR REISSUE
-                            if (datastore.data.reissue !== undefined) {
-                                let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
-                                if (check[0] === undefined) {
-                                    utils.log('STORING REISSUE SXID NOW!')
-                                    await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
-                                } else {
-                                    utils.log('REISSUE SXID ALREADY STORED.')
-                                    if (datastore.block !== null) {
-                                        await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
-                                    }
-                                }
-                            }
-
-                            //SEARCHING FOR TRANSACTION
-                            if (datastore.data.transaction !== undefined) {
-                                var scwallet = new Sidechain.Wallet;
-                                console.log('PLANUM TRANSACTION FOUND.')
-                                try {
-                                    var check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
-                                    var check_sidechain = await db.collection('written').find({ address: datastore.data.transaction.sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
-                                } catch (e) {
-                                    client.close()
-                                    response(false)
-                                }
-                                if (check_sidechain[0] !== undefined) {
+                                if (datastore.data.genesis !== undefined) {
+                                    let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                     if (check[0] === undefined) {
-                                        // TRANSACTION NEVER STORED
-                                        utils.log('TRANSACTION NEVER STORED')
-                                        let valid = true
-                                        var amountinput = 0
-                                        var amountoutput = 0
-                                        var isGenesis = false
-                                        var isExtended = false
+                                        utils.log('STORING GENESIS SXID NOW!')
+                                        await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
+                                    } else {
+                                        utils.log('GENESIS SXID ALREADY STORED.')
+                                        if (datastore.block !== null) {
+                                            await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
+                                        }
+                                    }
+                                }
 
-                                        // CHECKING IF TRANSACTION IS CONTROLLED BY A SMART CONTRACT
-                                        if (datastore.data.contract !== undefined && datastore.data.contract.address !== undefined) {
-                                            isExtended = true
-                                            if (check_sidechain[0].data.genesis.extendable === true && check_sidechain[0].data.genesis.contract !== '' && check_sidechain[0].data.genesis.contract === datastore.data.contract.address) {
-                                                if (datastore.data.transaction.inputs.length > 0) {
-                                                    let toValidateByContract = datastore.data.transaction.inputs[0]
-                                                    if (toValidateByContract.function !== undefined && toValidateByContract.params !== undefined) {
-                                                        let searchRequest = {
-                                                            function: "index",
-                                                            params: { contract: datastore.data.contract.address },
-                                                            contract: 'LgSAtP3gPURByanZSM32kfEu9C1uyQ6Kfg',
-                                                            version: 'latest'
-                                                        }
-                                                        utils.log('SEARCH WHERE CONTRACT IS STORED')
-                                                        try {
-                                                            let searchhex = Buffer.from(JSON.stringify(searchRequest)).toString('hex')
-                                                            let searchsigned = await wallet.signmessage(process.env.NODE_KEY, searchhex)
-                                                            let maintainers = await vm.run(datastore.data.contract.address, searchsigned, true)
-                                                            if (maintainers !== undefined && maintainers !== false) {
-                                                                if (maintainers.length > 0) {
-                                                                    // RUN CONTRACT AND LET'S SEE IF IS TRANSACTION VALID
-                                                                    let validationRequest = {
-                                                                        function: toValidateByContract.function,
-                                                                        params: toValidateByContract.params,
-                                                                        contract: datastore.data.contract.address,
-                                                                        version: datastore.data.contract.version
-                                                                    }
-                                                                    let validationhex = Buffer.from(JSON.stringify(validationRequest)).toString('hex')
-                                                                    let answered = false
-                                                                    let aix = 0
-                                                                    while (answered === false) {
-                                                                        let idanode = maintainers[Math.floor(Math.random() * maintainers.length)]
-                                                                        utils.log('ASKING ' + idanode.url + ' TO VALIDATE TRANSACTION')
-                                                                        let validationsigned = await wallet.signmessage(process.env.NODE_KEY, validationhex)
-                                                                        let validationresponse = await axios.post(idanode.url + '/contracts/run', validationsigned)
-                                                                        if (validationresponse.data !== undefined) {
-                                                                            answered = true
-                                                                            if (validationresponse.data === false) {
-                                                                                valid = false
-                                                                            } else {
-                                                                                if (validationresponse !== datastore.data.transaction.outputs) {
+                                // SEARCHING FOR REISSUE
+                                if (datastore.data.reissue !== undefined) {
+                                    let check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
+                                    if (check[0] === undefined) {
+                                        utils.log('STORING REISSUE SXID NOW!')
+                                        await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
+                                    } else {
+                                        utils.log('REISSUE SXID ALREADY STORED.')
+                                        if (datastore.block !== null) {
+                                            await db.collection("sc_transactions").updateOne({ sxid: datastore.data.sxid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
+                                        }
+                                    }
+                                }
+
+                                //SEARCHING FOR TRANSACTION
+                                if (datastore.data.transaction !== undefined) {
+                                    var scwallet = new Sidechain.Wallet;
+                                    console.log('PLANUM TRANSACTION FOUND.')
+                                    try {
+                                        var check = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
+                                        var check_sidechain = await db.collection('written').find({ address: datastore.data.transaction.sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+                                    } catch (e) {
+                                        client.close()
+                                        response(false)
+                                    }
+                                    if (check_sidechain[0] !== undefined) {
+                                        if (check[0] === undefined) {
+                                            // TRANSACTION NEVER STORED
+                                            utils.log('TRANSACTION NEVER STORED')
+                                            let valid = true
+                                            var amountinput = 0
+                                            var amountoutput = 0
+                                            var isGenesis = false
+                                            var isExtended = false
+
+                                            // CHECKING IF TRANSACTION IS CONTROLLED BY A SMART CONTRACT
+                                            if (datastore.data.contract !== undefined && datastore.data.contract.address !== undefined) {
+                                                isExtended = true
+                                                if (check_sidechain[0].data.genesis.extendable === true && check_sidechain[0].data.genesis.contract !== '' && check_sidechain[0].data.genesis.contract === datastore.data.contract.address) {
+                                                    if (datastore.data.transaction.inputs.length > 0) {
+                                                        let toValidateByContract = datastore.data.transaction.inputs[0]
+                                                        if (toValidateByContract.function !== undefined && toValidateByContract.params !== undefined) {
+                                                            let searchRequest = {
+                                                                function: "index",
+                                                                params: { contract: datastore.data.contract.address },
+                                                                contract: 'LgSAtP3gPURByanZSM32kfEu9C1uyQ6Kfg',
+                                                                version: 'latest'
+                                                            }
+                                                            utils.log('SEARCH WHERE CONTRACT IS STORED')
+                                                            try {
+                                                                let searchhex = Buffer.from(JSON.stringify(searchRequest)).toString('hex')
+                                                                let searchsigned = await wallet.signmessage(process.env.NODE_KEY, searchhex)
+                                                                let maintainers = await vm.run(datastore.data.contract.address, searchsigned, true)
+                                                                if (maintainers !== undefined && maintainers !== false) {
+                                                                    if (maintainers.length > 0) {
+                                                                        // RUN CONTRACT AND LET'S SEE IF IS TRANSACTION VALID
+                                                                        let validationRequest = {
+                                                                            function: toValidateByContract.function,
+                                                                            params: toValidateByContract.params,
+                                                                            contract: datastore.data.contract.address,
+                                                                            version: datastore.data.contract.version
+                                                                        }
+                                                                        let validationhex = Buffer.from(JSON.stringify(validationRequest)).toString('hex')
+                                                                        let answered = false
+                                                                        let aix = 0
+                                                                        while (answered === false) {
+                                                                            let idanode = maintainers[Math.floor(Math.random() * maintainers.length)]
+                                                                            utils.log('ASKING ' + idanode.url + ' TO VALIDATE TRANSACTION')
+                                                                            let validationsigned = await wallet.signmessage(process.env.NODE_KEY, validationhex)
+                                                                            let validationresponse = await axios.post(idanode.url + '/contracts/run', validationsigned)
+                                                                            if (validationresponse.data !== undefined) {
+                                                                                answered = true
+                                                                                if (validationresponse.data === false) {
                                                                                     valid = false
+                                                                                } else {
+                                                                                    if (validationresponse !== datastore.data.transaction.outputs) {
+                                                                                        valid = false
+                                                                                    }
                                                                                 }
                                                                             }
+                                                                            aix++
+                                                                            if (aix > 9) {
+                                                                                answered = true
+                                                                                valid = false
+                                                                                utils.log('CAN\'T GET RESPONSE FROM MAINTAINERS')
+                                                                            }
                                                                         }
-                                                                        aix++
-                                                                        if (aix > 9) {
-                                                                            answered = true
-                                                                            valid = false
-                                                                            utils.log('CAN\'T GET RESPONSE FROM MAINTAINERS')
-                                                                        }
+                                                                    } else {
+                                                                        valid = false
+                                                                        utils.log('NO ONE MAINTAIN CONTRACT ' + datastore.data.contract.address)
                                                                     }
                                                                 } else {
+                                                                    utils.log('INDEXER CONTRACT NOT WORKING')
                                                                     valid = false
-                                                                    utils.log('NO ONE MAINTAIN CONTRACT ' + datastore.data.contract.address)
                                                                 }
-                                                            } else {
-                                                                utils.log('INDEXER CONTRACT NOT WORKING')
+                                                            } catch (e) {
+                                                                utils.log('ERROR WHILE SEARCHING INDEXED CONTRACT', '', 'errors')
+                                                                utils.log(e, '', 'errors')
                                                                 valid = false
                                                             }
-                                                        } catch (e) {
-                                                            utils.log('ERROR WHILE SEARCHING INDEXED CONTRACT', '', 'errors')
-                                                            utils.log(e, '', 'errors')
+                                                        } else {
+                                                            utils.log('INVALID REQUEST')
                                                             valid = false
                                                         }
                                                     } else {
-                                                        utils.log('INVALID REQUEST')
                                                         valid = false
                                                     }
                                                 } else {
                                                     valid = false
+                                                }
+                                            }
+
+                                            // CHECK TRANSACTION INPUTS
+                                            if (datastore.data.transaction.inputs.length > 0 && !isExtended) {
+                                                for (let x in datastore.data.transaction.inputs) {
+                                                    let sxid = datastore.data.transaction.inputs[x].sxid
+                                                    let vout = datastore.data.transaction.inputs[x].vout
+                                                    let validategenesis = await scwallet.validategenesis(sxid, datastore.data.transaction.sidechain)
+                                                    if (validategenesis === false) {
+                                                        let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.sidechain, datastore.address)
+                                                        if (validateinput === false) {
+                                                            valid = false
+                                                            utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID.')
+                                                        } else if (validateinput === true) {
+                                                            let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
+                                                            if (isDoubleSpended === true) {
+                                                                valid = false
+                                                                utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS A DOUBLE SPEND.')
+                                                            }
+                                                        }
+                                                    }
+                                                    // CHECKING GENESIS
+                                                    if (datastore.data.transaction.inputs[x].vout === 'genesis' || datastore.data.transaction.inputs[x].vout === 'reissue') {
+                                                        isGenesis = true
+                                                    }
+                                                    if (check_sidechain[0].data.genesis !== undefined) {
+                                                        if (valid === true && datastore.data.transaction.inputs[x].amount !== undefined) {
+                                                            let fixed = math.round(datastore.data.transaction.inputs[x].amount, check_sidechain[0].data.genesis.decimals)
+                                                            amountinput = math.sum(amountinput, fixed)
+                                                        }
+                                                    } else {
+                                                        valid = false
+                                                        console.log('SIDECHAIN DOES NOT EXIST.')
+                                                    }
                                                 }
                                             } else {
                                                 valid = false
                                             }
-                                        }
 
-                                        // CHECK TRANSACTION INPUTS
-                                        if (datastore.data.transaction.inputs.length > 0 && !isExtended) {
-                                            for (let x in datastore.data.transaction.inputs) {
-                                                let sxid = datastore.data.transaction.inputs[x].sxid
-                                                let vout = datastore.data.transaction.inputs[x].vout
-                                                let validategenesis = await scwallet.validategenesis(sxid, datastore.data.transaction.sidechain)
-                                                if (validategenesis === false) {
-                                                    let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.sidechain, datastore.address)
-                                                    if (validateinput === false) {
-                                                        valid = false
-                                                        utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID.')
-                                                    } else if (validateinput === true) {
-                                                        let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
-                                                        if (isDoubleSpended === true) {
-                                                            valid = false
-                                                            utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS A DOUBLE SPEND.')
-                                                        }
+                                            // FIXING AMOUNTS VALUES 
+                                            if (check_sidechain[0].data.genesis !== undefined) {
+                                                if (valid === true) {
+                                                    for (let x in datastore.data.transaction.outputs) {
+                                                        let fixed = math.round(datastore.data.transaction.outputs[x], check_sidechain[0].data.genesis.decimals)
+                                                        amountoutput = math.sum(amountoutput, fixed)
                                                     }
                                                 }
-                                                // CHECKING GENESIS
-                                                if (datastore.data.transaction.inputs[x].vout === 'genesis' || datastore.data.transaction.inputs[x].vout === 'reissue') {
-                                                    isGenesis = true
-                                                }
-                                                if (check_sidechain[0].data.genesis !== undefined) {
-                                                    if (valid === true && datastore.data.transaction.inputs[x].amount !== undefined) {
-                                                        let fixed = math.round(datastore.data.transaction.inputs[x].amount, check_sidechain[0].data.genesis.decimals)
-                                                        amountinput = math.sum(amountinput, fixed)
-                                                    }
-                                                } else {
+                                                amountoutput = math.round(amountoutput, check_sidechain[0].data.genesis.decimals)
+                                                amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
+                                            } else {
+                                                valid = false
+                                                utils.log('THERE\'S NO GENESIS, TRANSACTION INVALID')
+                                            }
+
+                                            // CHECK OVERMINT
+                                            if (!isGenesis && !isExtended) {
+                                                if (valid === true && amountoutput > amountinput) {
                                                     valid = false
-                                                    console.log('SIDECHAIN DOES NOT EXIST.')
+                                                    utils.log('AMOUNT IS INVALID IN SIDECHAIN TRANSACTION ' + datastore.data.transaction.sidechain + ' ' + datastore.data.sxid + ' AT BLOCK ' + datastore.block + ' > OUT:' + amountoutput + ' IN: ' + amountinput)
                                                 }
                                             }
-                                        } else {
-                                            valid = false
-                                        }
 
-                                        // FIXING AMOUNTS VALUES 
-                                        if (check_sidechain[0].data.genesis !== undefined) {
+                                            // CHECK SIGNATURE
+                                            var wallet = new Crypto.Wallet;
+                                            let pubkey
+                                            if (datastore.data.pubkey !== undefined) {
+                                                pubkey = datastore.data.pubkey
+                                            } else if (datastore.data.pubKey !== undefined) {
+                                                pubkey = datastore.data.pubKey
+                                            }
+                                            if (valid === true && pubkey !== undefined && pubkey.length > 0 && datastore.data.signature !== undefined && datastore.data.transaction !== undefined) {
+                                                let validatesign = await wallet.verifymessage(pubkey, datastore.data.signature, JSON.stringify(datastore.data.transaction))
+                                                if (validatesign === false) {
+                                                    utils.log('TRANSACTION SIGN IS INVALID')
+                                                    valid = false
+                                                }
+                                            } else {
+                                                utils.log('TRANSACTION IS NOT VALID')
+                                                valid = false
+                                            }
+
+                                            // ALL VALID, INSERTING TRANSACTION IN DB
                                             if (valid === true) {
-                                                for (let x in datastore.data.transaction.outputs) {
-                                                    let fixed = math.round(datastore.data.transaction.outputs[x], check_sidechain[0].data.genesis.decimals)
-                                                    amountoutput = math.sum(amountoutput, fixed)
-                                                }
-                                            }
-                                            amountoutput = math.round(amountoutput, check_sidechain[0].data.genesis.decimals)
-                                            amountinput = math.round(amountinput, check_sidechain[0].data.genesis.decimals)
-                                        } else {
-                                            valid = false
-                                            utils.log('THERE\'S NO GENESIS, TRANSACTION INVALID')
-                                        }
-
-                                        // CHECK OVERMINT
-                                        if (!isGenesis && !isExtended) {
-                                            if (valid === true && amountoutput > amountinput) {
-                                                valid = false
-                                                utils.log('AMOUNT IS INVALID IN SIDECHAIN TRANSACTION ' + datastore.data.transaction.sidechain + ' ' + datastore.data.sxid + ' AT BLOCK ' + datastore.block + ' > OUT:' + amountoutput + ' IN: ' + amountinput)
-                                            }
-                                        }
-
-                                        // CHECK SIGNATURE
-                                        var wallet = new Crypto.Wallet;
-                                        let pubkey
-                                        if (datastore.data.pubkey !== undefined) {
-                                            pubkey = datastore.data.pubkey
-                                        } else if (datastore.data.pubKey !== undefined) {
-                                            pubkey = datastore.data.pubKey
-                                        }
-                                        if (valid === true && pubkey !== undefined && pubkey.length > 0 && datastore.data.signature !== undefined && datastore.data.transaction !== undefined) {
-                                            let validatesign = await wallet.verifymessage(pubkey, datastore.data.signature, JSON.stringify(datastore.data.transaction))
-                                            if (validatesign === false) {
-                                                utils.log('TRANSACTION SIGN IS INVALID')
-                                                valid = false
-                                            }
-                                        } else {
-                                            utils.log('TRANSACTION IS NOT VALID')
-                                            valid = false
-                                        }
-
-                                        // ALL VALID, INSERTING TRANSACTION IN DB
-                                        if (valid === true) {
-                                            utils.log('ALL TRANSACTIONS PASSED, STORING.')
-                                            datastore.data.block = datastore.block
-                                            let insertTx = false
-                                            while (insertTx === false) {
-                                                try {
-                                                    let checkTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
-                                                    if (checkTx[0] === undefined) {
-                                                        await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
-                                                        let checkinsertedTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
-                                                        if (checkinsertedTx[0] !== undefined) {
+                                                utils.log('ALL TRANSACTIONS PASSED, STORING.')
+                                                datastore.data.block = datastore.block
+                                                let insertTx = false
+                                                while (insertTx === false) {
+                                                    try {
+                                                        let checkTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
+                                                        if (checkTx[0] === undefined) {
+                                                            await db.collection("sc_transactions").insertOne(datastore.data, { w: 1, j: true })
+                                                            let checkinsertedTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
+                                                            if (checkinsertedTx[0] !== undefined) {
+                                                                insertTx = true
+                                                            }
+                                                        } else {
                                                             insertTx = true
                                                         }
-                                                    } else {
-                                                        insertTx = true
-                                                    }
-                                                } catch (e) {
-                                                    utils.log('ERROR WHILE INSERTING PLANUM TX', '', 'errors')
-                                                    utils.log(e, '', 'errors')
-                                                }
-                                            }
-
-                                            // REEDIMING UNSPENT FOR EACH INPUT
-                                            for (let x in datastore.data.transaction.inputs) {
-                                                if (datastore.data.transaction.inputs[x].sxid !== undefined && datastore.data.transaction.inputs[x].vout !== undefined) {
-                                                    let sxid = datastore.data.transaction.inputs[x].sxid
-                                                    let vout = datastore.data.transaction.inputs[x].vout
-                                                    let updated = false
-                                                    while (updated === false) {
-                                                        try {
-                                                            if (datastore.block !== null) {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { writeConcern: { w: 1, j: true } })
-                                                            } else {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { writeConcern: { w: 1, j: true } })
-                                                            }
-                                                            let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
-                                                            if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
-                                                                updated = true
-                                                                utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
-                                                            } else {
-                                                                utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
-                                                            }
-                                                        } catch (e) {
-                                                            utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
-                                                            utils.log(e)
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            // CREATING UNSPENT FOR EACH VOUT
-                                            let vout = 0
-                                            for (let x in datastore.data.transaction.outputs) {
-                                                utils.log('EVALUATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
-                                                let amount = datastore.data.transaction.outputs[x]
-                                                let unspent = {
-                                                    txid: datastore.data.txid,
-                                                    sxid: datastore.data.sxid,
-                                                    vout: vout,
-                                                    address: x,
-                                                    amount: amount,
-                                                    sidechain: datastore.data.transaction.sidechain,
-                                                    block: datastore.block,
-                                                    redeemed: null,
-                                                    redeemblock: null,
-                                                    time: datastore.data.transaction.time
-                                                }
-                                                let insertedUsxo = false
-                                                while (insertedUsxo === false) {
-                                                    try {
-                                                        let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                        if (checkUsxo[0] === undefined) {
-                                                            utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
-                                                            await db.collection('sc_unspent').insertOne(unspent, { w: 1, j: true })
-                                                            let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                            if (checkInsertedUsxo[0] !== undefined) {
-                                                                insertedUsxo = true
-                                                            }
-                                                        } else {
-                                                            utils.log('WHY UNSPENT EXISTS YET?')
-                                                            await db.collection('sc_unspent').deleteOne({ sxid: datastore.data.sxid, vout: vout }, { w: 1, j: true })
-                                                            let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                            if (checkInsertedUsxo[0] !== undefined) {
-                                                                insertedUsxo = true
-                                                            }
-                                                        }
                                                     } catch (e) {
-                                                        utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
-                                                        utils.log(e)
+                                                        utils.log('ERROR WHILE INSERTING PLANUM TX', '', 'errors')
+                                                        utils.log(e, '', 'errors')
                                                     }
                                                 }
-                                                vout++
-                                            }
-                                            utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS VALID')
-                                            // TRANSACTION STORED CORRECTLY
-                                        } else {
-                                            utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID')
-                                        }
-                                    } else {
-                                        // BE SURE WE'RE NOT IN MEMPOOL
-                                        if (isMempool === false && block !== null) {
-                                            // REEDIMING UNSPENT FOR EACH INPUT
-                                            for (let x in datastore.data.transaction.inputs) {
-                                                if (datastore.data.transaction.inputs[x].sxid !== undefined && datastore.data.transaction.inputs[x].vout !== undefined) {
-                                                    let sxid = datastore.data.transaction.inputs[x].sxid
-                                                    let vout = datastore.data.transaction.inputs[x].vout
-                                                    let updated = false
-                                                    while (updated === false) {
-                                                        try {
-                                                            if (datastore.block !== null) {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { writeConcern: { w: 1, j: true } })
-                                                            } else {
-                                                                await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { writeConcern: { w: 1, j: true } })
-                                                            }
-                                                            let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
-                                                            if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
-                                                                updated = true
-                                                                utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
-                                                            } else {
+
+                                                // REEDIMING UNSPENT FOR EACH INPUT
+                                                for (let x in datastore.data.transaction.inputs) {
+                                                    if (datastore.data.transaction.inputs[x].sxid !== undefined && datastore.data.transaction.inputs[x].vout !== undefined) {
+                                                        let sxid = datastore.data.transaction.inputs[x].sxid
+                                                        let vout = datastore.data.transaction.inputs[x].vout
+                                                        let updated = false
+                                                        while (updated === false) {
+                                                            try {
+                                                                if (datastore.block !== null) {
+                                                                    await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { writeConcern: { w: 1, j: true } })
+                                                                } else {
+                                                                    await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { writeConcern: { w: 1, j: true } })
+                                                                }
+                                                                let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
+                                                                if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
+                                                                    updated = true
+                                                                    utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
+                                                                } else {
+                                                                    utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                                }
+                                                            } catch (e) {
                                                                 utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                                utils.log(e)
                                                             }
-                                                        } catch (e) {
-                                                            utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
-                                                            utils.log(e)
                                                         }
                                                     }
                                                 }
-                                            }
 
-                                            // CREATING UNSPENT FOR EACH VOUT
-                                            let vout = 0
-                                            for (let x in datastore.data.transaction.outputs) {
-                                                let amount = datastore.data.transaction.outputs[x]
-                                                let unspent = {
-                                                    txid: datastore.data.txid,
-                                                    sxid: datastore.data.sxid,
-                                                    vout: vout,
-                                                    address: x,
-                                                    amount: amount,
-                                                    sidechain: datastore.data.transaction.sidechain,
-                                                    block: datastore.block,
-                                                    redeemed: null,
-                                                    redeemblock: null,
-                                                    time: datastore.data.transaction.time
+                                                // CREATING UNSPENT FOR EACH VOUT
+                                                let vout = 0
+                                                for (let x in datastore.data.transaction.outputs) {
+                                                    utils.log('EVALUATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
+                                                    let amount = datastore.data.transaction.outputs[x]
+                                                    let unspent = {
+                                                        txid: datastore.data.txid,
+                                                        sxid: datastore.data.sxid,
+                                                        vout: vout,
+                                                        address: x,
+                                                        amount: amount,
+                                                        sidechain: datastore.data.transaction.sidechain,
+                                                        block: datastore.block,
+                                                        redeemed: null,
+                                                        redeemblock: null,
+                                                        time: datastore.data.transaction.time
+                                                    }
+                                                    let insertedUsxo = false
+                                                    while (insertedUsxo === false) {
+                                                        try {
+                                                            let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                            if (checkUsxo[0] === undefined) {
+                                                                utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
+                                                                await db.collection('sc_unspent').insertOne(unspent, { w: 1, j: true })
+                                                                let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                                if (checkInsertedUsxo[0] !== undefined) {
+                                                                    insertedUsxo = true
+                                                                }
+                                                            } else {
+                                                                utils.log('WHY UNSPENT EXISTS YET?')
+                                                                await db.collection('sc_unspent').deleteOne({ sxid: datastore.data.sxid, vout: vout }, { w: 1, j: true })
+                                                                let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                                if (checkInsertedUsxo[0] !== undefined) {
+                                                                    insertedUsxo = true
+                                                                }
+                                                            }
+                                                        } catch (e) {
+                                                            utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
+                                                            utils.log(e)
+                                                        }
+                                                    }
+                                                    vout++
                                                 }
-                                                let inserted = false
-                                                while (inserted === false) {
-                                                    try {
-                                                        let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                        if (checkUsxo[0] === undefined) {
-                                                            utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
-                                                            await db.collection('sc_unspent').insertOne(unspent, { w: 1, j: true })
-                                                            let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
-                                                            if (checkInsertedUsxo[0] !== undefined) {
+                                                utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS VALID')
+                                                // TRANSACTION STORED CORRECTLY
+                                            } else {
+                                                utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID')
+                                            }
+                                        } else {
+                                            // BE SURE WE'RE NOT IN MEMPOOL
+                                            if (isMempool === false && block !== null) {
+                                                // REEDIMING UNSPENT FOR EACH INPUT
+                                                for (let x in datastore.data.transaction.inputs) {
+                                                    if (datastore.data.transaction.inputs[x].sxid !== undefined && datastore.data.transaction.inputs[x].vout !== undefined) {
+                                                        let sxid = datastore.data.transaction.inputs[x].sxid
+                                                        let vout = datastore.data.transaction.inputs[x].vout
+                                                        let updated = false
+                                                        while (updated === false) {
+                                                            try {
+                                                                if (datastore.block !== null) {
+                                                                    await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid, redeemblock: datastore.block } }, { writeConcern: { w: 1, j: true } })
+                                                                } else {
+                                                                    await db.collection('sc_unspent').updateMany({ sxid: sxid, vout: vout }, { $set: { redeemed: datastore.data.sxid } }, { writeConcern: { w: 1, j: true } })
+                                                                }
+                                                                let checkUnspentRedeemed = await db.collection('sc_unspent').find({ sxid: sxid, vout: vout }).limit(1).toArray()
+                                                                if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
+                                                                    updated = true
+                                                                    utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
+                                                                } else {
+                                                                    utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                                }
+                                                            } catch (e) {
+                                                                utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                                utils.log(e)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // CREATING UNSPENT FOR EACH VOUT
+                                                let vout = 0
+                                                for (let x in datastore.data.transaction.outputs) {
+                                                    let amount = datastore.data.transaction.outputs[x]
+                                                    let unspent = {
+                                                        txid: datastore.data.txid,
+                                                        sxid: datastore.data.sxid,
+                                                        vout: vout,
+                                                        address: x,
+                                                        amount: amount,
+                                                        sidechain: datastore.data.transaction.sidechain,
+                                                        block: datastore.block,
+                                                        redeemed: null,
+                                                        redeemblock: null,
+                                                        time: datastore.data.transaction.time
+                                                    }
+                                                    let inserted = false
+                                                    while (inserted === false) {
+                                                        try {
+                                                            let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                            if (checkUsxo[0] === undefined) {
+                                                                utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
+                                                                await db.collection('sc_unspent').insertOne(unspent, { w: 1, j: true })
+                                                                let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
+                                                                if (checkInsertedUsxo[0] !== undefined) {
+                                                                    inserted = true
+                                                                }
+                                                            } else {
                                                                 inserted = true
                                                             }
-                                                        } else {
-                                                            inserted = true
+                                                        } catch (e) {
+                                                            utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
+                                                            utils.log(e)
                                                         }
-                                                    } catch (e) {
-                                                        utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
-                                                        utils.log(e)
                                                     }
+                                                    vout++
                                                 }
-                                                vout++
                                             }
                                         }
+                                    } else {
+                                        console.log('SIDECHAIN DOESN\'T EXIST!')
                                     }
-                                } else {
-                                    console.log('SIDECHAIN DOESN\'T EXIST!')
                                 }
                             }
+                            client.close()
+                            response('STORED')
                         }
-                        client.close()
-                        response('STORED')
                     })
                 } catch (e) {
                     utils.log(e, '', 'errors')
@@ -1432,7 +1435,7 @@ module Daemon {
                                     }
                                     utils.log('RECEIVED DATA ' + JSON.stringify(datastore))
                                 } catch (e) {
-                                    utils.log('DB ERROR', '', 'errors')
+                                    utils.log('DB ERROR WHILE STORING RECEIVED', '', 'errors')
                                     utils.log(e, '', 'errors')
                                     client.close()
                                     response(false)
