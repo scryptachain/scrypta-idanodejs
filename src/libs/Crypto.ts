@@ -691,7 +691,7 @@ module Crypto {
                             block['result']['totvin'] = 0
                             block['result']['totvout'] = 0
                             block['result']['fees'] = 0
-                            block['result']['analysis'] = {}
+                            block['result']['analysis'] = []
                             block['result']['inputs'] = []
                             block['result']['outputs'] = []
                             block['result']['planum'] = []
@@ -709,10 +709,13 @@ module Crypto {
 
                                     var txtotvin = 0
                                     var txtotvout = 0
-                                    block['result']['analysis'][txid] = {}
-                                    block['result']['analysis'][txid]['vin'] = 0
-                                    block['result']['analysis'][txid]['vout'] = 0
-                                    block['result']['analysis'][txid]['balances'] = {}
+                                    block['result']['analysis'][i] = {}
+                                    block['result']['analysis'][i]['txid'] = txid
+                                    block['result']['analysis'][i]['vin'] = 0
+                                    block['result']['analysis'][i]['vout'] = 0
+                                    block['result']['analysis'][i]['balances'] = {}
+                                    block['result']['analysis'][i]['inputs'] = []
+                                    block['result']['analysis'][i]['outputs'] = []
 
                                     //FETCHING ALL VIN
                                     for (var vinx = 0; vinx < block['result']['tx'][i]['vin'].length; vinx++) {
@@ -725,21 +728,22 @@ module Crypto {
                                                 vout: txvin['result']['vout'][vout]['n']
                                             }
                                             block['result']['inputs'].push(input)
+                                            block['result']['analysis'][i]['inputs'].push(input)
                                             block['result']['tx'][i]['vin'][vinx]['value'] = txvin['result']['vout'][vout]['value']
                                             block['result']['totvin'] += txvin['result']['vout'][vout]['value']
                                             block['result']['tx'][i]['vin'][vinx]['addresses'] = txvin['result']['vout'][vout]['scriptPubKey']['addresses']
                                             for (var key in txvin['result']['vout'][vout]['scriptPubKey']['addresses']) {
                                                 var address = txvin['result']['vout'][vout]['scriptPubKey']['addresses'][key]
-                                                if (block['result']['analysis'][txid]['balances'][address] === undefined) {
-                                                    block['result']['analysis'][txid]['balances'][address] = {}
-                                                    block['result']['analysis'][txid]['balances'][address]['value'] = 0
-                                                    block['result']['analysis'][txid]['balances'][address]['type'] = 'TX'
-                                                    block['result']['analysis'][txid]['balances'][address]['vin'] = 0
-                                                    block['result']['analysis'][txid]['balances'][address]['vout'] = 0
+                                                if (block['result']['analysis'][i]['balances'][address] === undefined) {
+                                                    block['result']['analysis'][i]['balances'][address] = {}
+                                                    block['result']['analysis'][i]['balances'][address]['value'] = 0
+                                                    block['result']['analysis'][i]['balances'][address]['type'] = 'TX'
+                                                    block['result']['analysis'][i]['balances'][address]['vin'] = 0
+                                                    block['result']['analysis'][i]['balances'][address]['vout'] = 0
                                                 }
-                                                block['result']['analysis'][txid]['balances'][address]['value'] -= txvin['result']['vout'][vout]['value']
-                                                block['result']['analysis'][txid]['vin'] += txvin['result']['vout'][vout]['value']
-                                                block['result']['analysis'][txid]['balances'][address]['vin'] += txvin['result']['vout'][vout]['value']
+                                                block['result']['analysis'][i]['balances'][address]['value'] -= txvin['result']['vout'][vout]['value']
+                                                block['result']['analysis'][i]['vin'] += txvin['result']['vout'][vout]['value']
+                                                block['result']['analysis'][i]['balances'][address]['vin'] += txvin['result']['vout'][vout]['value']
                                                 txtotvin += txvin['result']['vout'][vout]['value']
                                             }
                                         }
@@ -753,29 +757,30 @@ module Crypto {
                                             //CHECKING VALUES OUT
                                             if (block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses']) {
                                                 block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['addresses'].forEach(function (address, index) {
-                                                    if (block['result']['analysis'][txid]['balances'][address] === undefined) {
-                                                        block['result']['analysis'][txid]['balances'][address] = {}
-                                                        block['result']['analysis'][txid]['balances'][address]['value'] = 0
-                                                        block['result']['analysis'][txid]['balances'][address]['type'] = 'TX'
-                                                        block['result']['analysis'][txid]['balances'][address]['vin'] = 0
-                                                        block['result']['analysis'][txid]['balances'][address]['vout'] = 0
+                                                    if (block['result']['analysis'][i]['balances'][address] === undefined) {
+                                                        block['result']['analysis'][i]['balances'][address] = {}
+                                                        block['result']['analysis'][i]['balances'][address]['value'] = 0
+                                                        block['result']['analysis'][i]['balances'][address]['type'] = 'TX'
+                                                        block['result']['analysis'][i]['balances'][address]['vin'] = 0
+                                                        block['result']['analysis'][i]['balances'][address]['vout'] = 0
                                                     }
-                                                    block['result']['analysis'][txid]['balances'][address]['value'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                                    block['result']['analysis'][txid]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
-                                                    block['result']['analysis'][txid]['balances'][address]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                                    block['result']['analysis'][i]['balances'][address]['value'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                                    block['result']['analysis'][i]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
+                                                    block['result']['analysis'][i]['balances'][address]['vout'] += block['result']['tx'][i]['vout'][voutx]['value']
                                                     txtotvout += block['result']['tx'][i]['vout'][voutx]['value']
                                                     if (receivingaddress === '') {
                                                         receivingaddress = address
                                                     }
 
-                                                    let outputs = {
+                                                    let output = {
                                                         txid: txid,
                                                         vout: voutx,
                                                         address: address,
                                                         scriptPubKey: block['result']['tx'][i]['vout'][voutx]['scriptPubKey']['hex'],
                                                         amount: block['result']['tx'][i]['vout'][voutx]['value']
                                                     }
-                                                    block['result']['outputs'].push(outputs)
+                                                    block['result']['outputs'].push(output)
+                                                    block['result']['analysis'][i]['outputs'].push(output)
                                                 })
                                             }
                                             //CHECKING OP_RETURN

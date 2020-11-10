@@ -102,7 +102,7 @@ module Daemon {
                                 utils.log(e, '', 'errors')
                                 consolidateErrors = true
                             }
-                            if(!consolidateErrors){
+                            if (!consolidateErrors) {
                                 console.log('\x1b[31m%s\x1b[0m', 'ANALYZING MEMPOOL')
                                 var wallet = new Crypto.Wallet
                                 var mempool = await wallet.analyzeMempool()
@@ -154,9 +154,15 @@ module Daemon {
                                         }
                                     }
 
+                                    let redeemed = []
                                     for (var i in mempool['inputs']) {
                                         let input = mempool['inputs'][i]
-                                        await task.redeemunspent(input['txid'], input['vout'], null)
+                                        if (redeemed.indexOf(input['txid'] + ':' + input['vout']) === -1) {
+                                            let redeemunspent = await task.redeemunspent(input['txid'], input['vout'], null)
+                                            if (redeemunspent !== false) {
+                                                redeemed.push(input['txid'] + ':' + input['vout'])
+                                            }
+                                        }
                                     }
 
                                     if (mempool['outputs'].length > 0 && pinned.length > 0) {
@@ -292,6 +298,7 @@ module Daemon {
                     }
                     // ANALYZING BLOCK
                     if (analyze > 0 && global['isAnalyzing'] === false) {
+                        let start = new Date().getTime()
                         global['isAnalyzing'] = true
                         console.log('\x1b[32m%s\x1b[0m', 'ANALYZING BLOCK ' + analyze)
 
@@ -316,11 +323,50 @@ module Daemon {
                             }
 
                             if (analyzed !== false) {
-                                for (var txid in block['analysis']) {
-                                    for (var address in block['analysis'][txid]['balances']) {
-                                        var tx = block['analysis'][txid]['balances'][address]
-                                        var movements = block['analysis'][txid]['movements']
-                                        var task = new Daemon.Sync
+                                let redeemed = []
+                                var task = new Daemon.Sync
+                                for (let ji in block['analysis']) {
+
+                                    // STORING OUTPUTS
+                                    for (var i in block['analysis'][ji]['outputs']) {
+                                        let unspent = block['analysis'][ji]['outputs'][i]
+                                        var found = false
+                                        for (var i in block['analysis'][ji]['inputs']) {
+                                            let input = block['analysis'][ji]['inputs'][i]
+                                            if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
+                                                found = true
+                                            }
+                                        }
+                                        if (found === false) {
+                                            let storedunspent = await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
+                                            if (storedunspent === false) {
+                                                utils.log('ERROR ON STORE UNSPENT')
+                                                response(false)
+                                            }
+                                        } else {
+                                            console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
+                                        }
+                                    }
+
+                                    // REDEEMING INPUTS
+                                    for (var i in block['analysis'][ji]['inputs']) {
+                                        let input = block['analysis'][ji]['inputs'][i]
+                                        if (redeemed.indexOf(input['txid'] + ':' + input['vout']) === -1) {
+                                            let redeemedunspent = await task.redeemunspent(input['txid'], input['vout'], analyze)
+                                            if (redeemedunspent === false) {
+                                                utils.log('ERROR ON REDEEM UNSPENT')
+                                                response(false)
+                                            } else {
+                                                redeemed.push(input['txid'] + ':' + input['vout'])
+                                            }
+                                        }
+                                    }
+
+                                    // STORING TRANSACTIONS
+                                    for (var address in block['analysis'][ji]['balances']) {
+                                        var tx = block['analysis'][ji]['balances'][address]
+                                        let txid = block['analysis'][ji]['txid']
+                                        var movements = block['analysis'][ji]['movements']
                                         console.log('STORING ' + tx.type + ' OF ' + tx.value + ' ' + process.env.COIN + ' FOR ADDRESS ' + address)
                                         let storedtx = await task.store(address, block, txid, tx, movements)
                                         if (storedtx === false) {
@@ -328,35 +374,7 @@ module Daemon {
                                             response(false)
                                         }
                                     }
-                                }
 
-                                for (var i in block['outputs']) {
-                                    let unspent = block['outputs'][i]
-                                    var found = false
-                                    for (var i in block['inputs']) {
-                                        let input = block['inputs'][i]
-                                        if (input['txid'] === unspent['txid'] && input['vout'] === unspent['vout']) {
-                                            found = true
-                                        }
-                                    }
-                                    if (found === false) {
-                                        let storedunspent = await task.storeunspent(unspent['address'], unspent['vout'], unspent['txid'], unspent['amount'], unspent['scriptPubKey'], analyze)
-                                        if (storedunspent === false) {
-                                            utils.log('ERROR ON STORE UNSPENT')
-                                            response(false)
-                                        }
-                                    } else {
-                                        console.log('\x1b[35m%s\x1b[0m', 'IGNORING OUTPUTS BECAUSE IT\'S USED IN THE SAME BLOCK.')
-                                    }
-                                }
-
-                                for (var i in block['inputs']) {
-                                    let input = block['inputs'][i]
-                                    let redeemedunspent = await task.redeemunspent(input['txid'], input['vout'], analyze)
-                                    if (redeemedunspent === false) {
-                                        utils.log('ERROR ON REDEEM UNSPENT')
-                                        response(false)
-                                    }
                                 }
 
                                 // console.log('CLEANING UTXO CACHE')
@@ -532,6 +550,9 @@ module Daemon {
                                 var remains = blocks - analyze
                                 console.log('\x1b[33m%s\x1b[0m', remains + ' BLOCKS UNTIL END.')
                                 global['isAnalyzing'] = false
+                                let end = new Date().getTime()
+                                let elapsed = (end - start) / 1000
+                                utils.log('ELAPSED ' + elapsed + 's TO SYNC BLOCK ' + block['height'], '', 'log')
                                 response(block['height'])
                             } else {
                                 global['isAnalyzing'] = false
@@ -573,30 +594,44 @@ module Daemon {
                         let check = await db.collection('transactions').find({ address: address, txid: txid }).limit(1).toArray();
                         if (check[0] === undefined) {
                             // console.log('STORING TX NOW!')
-                            await db.collection("transactions").insertOne(
-                                {
-                                    address: address,
-                                    txid: txid,
-                                    type: tx.type,
-                                    from: movements.from,
-                                    to: movements.to,
-                                    value: tx.value,
-                                    blockhash: block['hash'],
-                                    blockheight: block['height'],
-                                    time: block['time'],
-                                    inserted: new Date().getTime()
-                                }, { w: 1, j: true }
-                            )
-                        } else if (check[0].blockheight === null && block['height'] !== undefined) {
-                            await db.collection("transactions").updateOne({
-                                address: address, txid: txid
-                            }, {
-                                $set: {
-                                    blockheight: block['height'],
-                                    blockhash: block['hash'],
-                                    time: block['time']
+                            let stored = false
+                            while (!stored) {
+                                await db.collection("transactions").insertOne(
+                                    {
+                                        address: address,
+                                        txid: txid,
+                                        type: tx.type,
+                                        from: movements.from,
+                                        to: movements.to,
+                                        value: tx.value,
+                                        blockhash: block['hash'],
+                                        blockheight: block['height'],
+                                        time: block['time'],
+                                        inserted: new Date().getTime()
+                                    }, { w: 1, j: true }
+                                )
+                                let checkStored = await db.collection('transactions').find({ address: address, txid: txid }).limit(1).toArray()
+                                if (checkStored[0] !== undefined) {
+                                    stored = true
                                 }
-                            }, { writeConcern: { w: 1, j: true } })
+                            }
+                        } else if (check[0].blockheight === null && block['height'] !== undefined) {
+                            let updated = false
+                            while (!updated) {
+                                await db.collection("transactions").updateOne({
+                                    address: address, txid: txid
+                                }, {
+                                    $set: {
+                                        blockheight: block['height'],
+                                        blockhash: block['hash'],
+                                        time: block['time']
+                                    }
+                                }, { writeConcern: { w: 1, j: true } })
+                                let checkUpdated = await db.collection('transactions').find({ address: address, txid: txid }).limit(1).toArray()
+                                if (checkUpdated[0] !== undefined && checkUpdated[0].blockheight === block['height'] && checkUpdated[0].blockhash === block['hash'] && checkUpdated[0].time === block['time']) {
+                                    updated = true
+                                }
+                            }
                         } else {
                             console.log('TX ALREADY STORED.')
                         }
@@ -618,22 +653,36 @@ module Daemon {
                         var db = client.db(global['db_name'])
                         let check = await db.collection("unspent").find({ txid: txid, vout: vout }).limit(1).toArray()
                         if (check[0] === undefined) {
-                            console.log('\x1b[36m%s\x1b[0m', 'STORING UNSPENT NOW!')
-                            await db.collection("unspent").insertOne(
-                                {
-                                    address: address,
-                                    txid: txid,
-                                    scriptPubKey: scriptPubKey,
-                                    amount: amount,
-                                    vout: vout,
-                                    block: block,
-                                    redeemed: null,
-                                    redeemblock: null
-                                }, { w: 1, j: true }
-                            )
+                            let insertUnspent = false
+                            while (!insertUnspent) {
+                                console.log('\x1b[36m%s\x1b[0m', 'STORING UNSPENT NOW!')
+                                await db.collection("unspent").insertOne(
+                                    {
+                                        address: address,
+                                        txid: txid,
+                                        scriptPubKey: scriptPubKey,
+                                        amount: amount,
+                                        vout: vout,
+                                        block: block,
+                                        redeemed: null,
+                                        redeemblock: null
+                                    }, { w: 1, j: true }
+                                )
+                                let checkInsertUnspent = await db.collection("unspent").find({ txid: txid, vout: vout }).limit(1).toArray()
+                                if (checkInsertUnspent[0] !== undefined) {
+                                    insertUnspent = true
+                                }
+                            }
                         } else if (check[0].block === null && block !== null) {
-                            console.log('\x1b[36m%s\x1b[0m', 'UPDATING BLOCK NOW!')
-                            await db.collection("unspent").updateOne({ txid: txid, vout: vout }, { $set: { block: block } }, { writeConcern: { w: 1, j: true } })
+                            let updateUnspent = false
+                            while (!updateUnspent) {
+                                console.log('\x1b[36m%s\x1b[0m', 'UPDATING BLOCK NOW!')
+                                await db.collection("unspent").updateOne({ txid: txid, vout: vout }, { $set: { block: block } }, { writeConcern: { w: 1, j: true } })
+                                let checkUpdateUnspent = await db.collection("unspent").find({ txid: txid, vout: vout }).limit(1).toArray()
+                                if (checkUpdateUnspent[0] !== undefined) {
+                                    updateUnspent = true
+                                }
+                            }
                         } else {
                             console.log('UNSPENT ALREADY STORED.')
                         }
@@ -651,12 +700,26 @@ module Daemon {
             return new Promise(async response => {
                 let utils = new Utilities.Parser
                 try {
-                    console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT NOW!')
+                    console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT ' + txid + ':' + vout + ' NOW!')
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                        var db = client.db(global['db_name'])
-                        await db.collection('unspent').updateOne({ txid: txid, vout: vout }, { $set: { redeemblock: block, redeemed: txid } }, { w: 1, j: true })
-                        client.close()
-                        response(true)
+                        if (!err) {
+                            let redeemed = false
+                            while (redeemed === false) {
+                                var db = client.db(global['db_name'])
+                                try {
+                                    let updated = await db.collection('unspent').updateOne({ txid: txid, vout: vout }, { $set: { redeemblock: block, redeemed: txid } }, { w: 1, j: true })
+                                    if (updated.result !== undefined && updated.result.ok !== undefined && updated.result.ok === 1) {
+                                        redeemed = true
+                                    }
+                                } catch (e) {
+                                    console.log(e)
+                                }
+                            }
+                            client.close()
+                            response(true)
+                        } else {
+                            response(false)
+                        }
                     })
                 } catch (e) {
                     utils.log(e, '', 'errors')
@@ -707,7 +770,6 @@ module Daemon {
                                         console.log('\x1b[42m%s\x1b[0m', 'PINNING IPFS HASH ' + parsehash[1])
                                         global['ipfs'].pin.add(parsehash[1], function (err) {
                                             if (err) {
-                                                throw err
                                                 client.close()
                                                 response(false)
                                             }
@@ -767,13 +829,20 @@ module Daemon {
                             }
 
                             if (datastore.uuid !== undefined && datastore.uuid !== '') {
-                                try {
-                                    await db.collection("written").insertOne(datastore, { w: 1, j: true })
-                                } catch (e) {
-                                    utils.log('DB ERROR', '', 'errors')
-                                    utils.log(e, '', 'errors')
-                                    client.close()
-                                    response(false)
+                                let insertedWritten = false
+                                while (insertedWritten === false) {
+                                    try {
+                                        await db.collection("written").insertOne(datastore, { w: 1, j: true })
+                                        let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
+                                        if (checkWritten[0] !== undefined && checkWritten.uuid === datastore.uuid) {
+                                            insertedWritten = true
+                                        }
+                                    } catch (e) {
+                                        utils.log('DB ERROR', '', 'errors')
+                                        utils.log(e, '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
                                 }
                             }
                         } else {
@@ -1353,19 +1422,26 @@ module Daemon {
                         let check = await db.collection('received').find({ txid: datastore.txid, address: datastore.address }).limit(1).toArray()
                         if (check[0] === undefined) {
                             console.log('STORING DATA NOW!')
-                            try {
-                                await db.collection("received").insertOne(datastore, { w: 1, j: true })
-                                utils.log('RECEIVED DATA ' + JSON.stringify(datastore))
-                            } catch (e) {
-                                utils.log('DB ERROR', '', 'errors')
-                                utils.log(e, '', 'errors')
-                                client.close()
-                                response(false)
+                            let inserted = false
+                            while (!inserted) {
+                                try {
+                                    await db.collection("received").insertOne(datastore, { w: 1, j: true })
+                                    let checkInserted = await db.collection('received').find({ txid: datastore.txid, address: datastore.address }).limit(1).toArray()
+                                    if (checkInserted[0] !== undefined) {
+                                        inserted = true
+                                    }
+                                    utils.log('RECEIVED DATA ' + JSON.stringify(datastore))
+                                } catch (e) {
+                                    utils.log('DB ERROR', '', 'errors')
+                                    utils.log(e, '', 'errors')
+                                    client.close()
+                                    response(false)
+                                }
                             }
                         } else {
                             utils.log('DATA ALREADY STORED.')
                             if (check[0].block === undefined || check[0].block === null) {
-                                await db.collection("sc_transactions").updateMany({ txid: datastore.txid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
+                                await db.collection("received").updateMany({ txid: datastore.txid }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
                             }
                         }
                         client.close()
@@ -1520,7 +1596,7 @@ module Daemon {
                                     }
                                 }
                             }
-                        }else{
+                        } else {
                             utils.log('NOTHING TO CONSOLIDATE FROM PLANUM TRANSACTIONS')
                         }
                         let checkplanumunspent = await db.collection('sc_unspent').find({ block: null }).toArray()
@@ -1575,7 +1651,7 @@ module Daemon {
                                     }
                                 }
                             }
-                        }else{
+                        } else {
                             utils.log('NOTHING TO CONSOLIDATE FROM PLANUM UNSPENT')
                         }
                         client.close()
