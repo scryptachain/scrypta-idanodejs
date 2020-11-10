@@ -804,45 +804,59 @@ module Daemon {
 
                                     if (valid) {
                                         var file = JSON.parse(datastore.data.message)
-                                        let checkfile = await db.collection("documenta").findOne({ file: file.file })
-                                        if (checkfile === null) {
-                                            file.endpoint = file.endpoint
-                                            file.address = datastore.data.address
-                                            file.refID = datastore.refID
-                                            file.block = datastore.block
-                                            file.time = new Date().getTime()
-                                            try {
-                                                await db.collection("documenta").insertOne(file, { w: 1, j: true })
-                                            } catch (e) {
-                                                utils.log('DB ERROR WHILE STORING DOCUMENTA', '', 'errors')
-                                                utils.log(e, '', 'errors')
-                                                client.close()
+                                        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                                            if (!err && client !== undefined) {
+                                                var db = client.db(global['db_name'])
+                                                let checkfile = await db.collection("documenta").findOne({ file: file.file })
+                                                if (checkfile === null) {
+                                                    file.endpoint = file.endpoint
+                                                    file.address = datastore.data.address
+                                                    file.refID = datastore.refID
+                                                    file.block = datastore.block
+                                                    file.time = new Date().getTime()
+                                                    try {
+                                                        await db.collection("documenta").insertOne(file, { w: 1, j: true })
+                                                    } catch (e) {
+                                                        utils.log('DB ERROR WHILE STORING DOCUMENTA', '', 'errors')
+                                                        utils.log(e, '', 'errors')
+                                                        client.close()
+                                                        response(false)
+                                                    }
+                                                } else {
+                                                    await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
+                                                    console.log('FILE STORED YET')
+                                                }
+                                            }else{
                                                 response(false)
                                             }
-                                        } else {
-                                            await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
-                                            console.log('FILE STORED YET')
-                                        }
+                                        })
                                     }
 
                                 }
 
                                 if (datastore.uuid !== undefined && datastore.uuid !== '') {
                                     let insertedWritten = false
-                                    while (insertedWritten === false) {
-                                        try {
-                                            await db.collection("written").insertOne(datastore, { w: 1, j: true })
-                                            let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
-                                            if (checkWritten[0] !== undefined && checkWritten.uuid === datastore.uuid) {
-                                                insertedWritten = true
+                                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                                        if (!err && client !== undefined) {
+                                            var db = client.db(global['db_name'])
+                                            while (insertedWritten === false) {
+                                                try {
+                                                    await db.collection("written").insertOne(datastore, { w: 1, j: true })
+                                                    let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
+                                                    if (checkWritten[0] !== undefined && checkWritten.uuid === datastore.uuid) {
+                                                        insertedWritten = true
+                                                    }
+                                                } catch (e) {
+                                                    utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
+                                                    utils.log(e, '', 'errors')
+                                                    client.close()
+                                                    response(false)
+                                                }
                                             }
-                                        } catch (e) {
-                                            utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
-                                            utils.log(e, '', 'errors')
-                                            client.close()
+                                        }else{
                                             response(false)
                                         }
-                                    }
+                                    })
                                 }
                             } else {
                                 if (datastore.block !== null) {

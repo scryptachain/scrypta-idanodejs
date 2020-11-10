@@ -25,15 +25,15 @@ global['isCheckingSpace'] = false
 global['remainingBlocks'] = 0
 global['restartSync'] = 0
 
-if(process.env.TESTNET !== undefined){
-  if(process.env.TESTNET === 'true'){
+if (process.env.TESTNET !== undefined) {
+  if (process.env.TESTNET === 'true') {
     // TESTNET BLOCKCHAIN PARAMS
     global['lyraInfo'] = {
       private: 0xae,
       public: 0x7f,
       scripthash: 0x13
     }
-  }else{
+  } else {
     // MAINNET BLOCKCHAIN PARAMS
     global['lyraInfo'] = {
       private: 0xae,
@@ -41,7 +41,7 @@ if(process.env.TESTNET !== undefined){
       scripthash: 0x0d
     }
   }
-}else{
+} else {
   // MAINNET BLOCKCHAIN PARAMS
   global['lyraInfo'] = {
     private: 0xae,
@@ -55,13 +55,13 @@ class App {
   public db
   public Wallet
 
-  constructor () {
+  constructor() {
     const app = this
     app.express = express()
     app.initIPFS()
     p2p.initP2P()
-    app.express.use(bodyParser.urlencoded({extended: true, limit: global['limit'] + 'mb'}))
-    app.express.use(bodyParser.json({limit: global['limit'] + 'mb'}))
+    app.express.use(bodyParser.urlencoded({ extended: true, limit: global['limit'] + 'mb' }))
+    app.express.use(bodyParser.json({ limit: global['limit'] + 'mb' }))
     app.express.use(express.static('public'))
 
     var corsOptions = {
@@ -74,17 +74,17 @@ class App {
     app.express.options('*', cors())
 
     //ADDRESSES
-    app.express.post('/init',wallet.init)
-    app.express.post('/send',wallet.send)
+    app.express.post('/init', wallet.init)
+    app.express.post('/send', wallet.send)
     app.express.post('/sendrawtransaction', wallet.sendrawtransaction)
     app.express.post('/decoderawtransaction', wallet.decoderawtransaction)
 
     //WALLET
-    app.express.get('/wallet/getinfo',wallet.getinfo)
-    app.express.get('/wallet/getnewaddress/:internal',wallet.getnewaddress)
-    app.express.get('/wallet/getnewaddress',wallet.getnewaddress)
-    app.express.get('/wallet/masternodelist',wallet.getmasternodelist)
-    app.express.get('/wallet/integritycheck',wallet.integritycheck)
+    app.express.get('/wallet/getinfo', wallet.getinfo)
+    app.express.get('/wallet/getnewaddress/:internal', wallet.getnewaddress)
+    app.express.get('/wallet/getnewaddress', wallet.getnewaddress)
+    app.express.get('/wallet/masternodelist', wallet.getmasternodelist)
+    app.express.get('/wallet/integritycheck', wallet.integritycheck)
 
     //PROGRESSIVE DATA MANAGEMENT
     app.express.post('/write', pdm.write)
@@ -124,7 +124,7 @@ class App {
     app.express.post('/sidechain/validate', sidechains.validatetransaction)
     app.express.get('/sidechain/check/:sidechain', sidechains.checksidechain)
     app.express.get('/sidechain/check/:sidechain/:consensus', sidechains.checksidechain)
-    
+
     //IPFS
     app.express.get('/ipfs/info', ipfs.info)
     app.express.post('/ipfs/add', ipfs.add)
@@ -142,23 +142,27 @@ class App {
     app.express.post('/documenta/add', documenta.add)
 
     //EXPLORER 
-    app.express.get('/block/last',explorer.getlastblock)
-    app.express.get('/block/:block',explorer.getblock)
-    app.express.get('/analyze/mempool',explorer.analyzemempool)
-    app.express.get('/analyze/:block',explorer.analyzeblock)
+    app.express.get('/block/last', explorer.getlastblock)
+    app.express.get('/block/:block', explorer.getblock)
+    app.express.get('/analyze/mempool', explorer.analyzemempool)
+    app.express.get('/analyze/:block', explorer.analyzeblock)
     app.express.get('/transactions/:address', explorer.transactions)
     app.express.get('/balance/:address', explorer.balance)
     app.express.get('/validate/:address', explorer.validate)
     app.express.get('/stats/:address', explorer.stats)
     app.express.get('/unspent/:address', explorer.unspent)
-    app.express.get('/networkstats',explorer.networkstats)
+    app.express.get('/networkstats', explorer.networkstats)
 
     //P2P-NETWORK
     app.express.post('/broadcast', p2p.broadcast)
   }
 
   async initIPFS() {
-    global['ipfs'] = await IPFS.create({ repo: 'ipfs_data' })
+    try {
+      global['ipfs'] = await IPFS.create({ repo: 'ipfs_data' })
+    } catch (e) {
+      console.log('CAN\'T RUN IPFS DAEMON')
+    }
   }
 }
 
