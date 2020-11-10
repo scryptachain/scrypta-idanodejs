@@ -839,19 +839,23 @@ module Daemon {
                                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                                         if (!err && client !== undefined) {
                                             var db = client.db(global['db_name'])
-                                            while (insertedWritten === false) {
-                                                try {
-                                                    await db.collection("written").insertOne(datastore, { w: 1, j: true })
-                                                    let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
-                                                    if (checkWritten[0] !== undefined && checkWritten.uuid === datastore.uuid) {
-                                                        insertedWritten = true
+                                            if(db){
+                                                while (insertedWritten === false) {
+                                                    try {
+                                                        await db.collection("written").insertOne(datastore, { w: 1, j: true })
+                                                        let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
+                                                        if (checkWritten[0] !== undefined && checkWritten[0].uuid === datastore.uuid) {
+                                                            insertedWritten = true
+                                                        }
+                                                    } catch (e) {
+                                                        utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
+                                                        utils.log(e, '', 'errors')
+                                                        client.close()
+                                                        response(false)
                                                     }
-                                                } catch (e) {
-                                                    utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
-                                                    utils.log(e, '', 'errors')
-                                                    client.close()
-                                                    response(false)
                                                 }
+                                            }else{
+                                                response(false)
                                             }
                                         }else{
                                             response(false)
