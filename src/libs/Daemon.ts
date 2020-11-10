@@ -844,7 +844,7 @@ module Daemon {
                                                     try {
                                                         await db.collection("written").insertOne(datastore, { w: 1, j: true })
                                                         let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
-                                                        if (checkWritten[0] !== undefined && checkWritten[0].uuid === datastore.uuid) {
+                                                        if (checkWritten[0] !== undefined) {
                                                             insertedWritten = true
                                                         }
                                                     } catch (e) {

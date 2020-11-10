@@ -8,6 +8,7 @@ import * as sidechains from "./routes/Planum"
 import * as documenta from "./routes/Documenta"
 import * as p2p from "./routes/P2PEngine"
 import * as contracts from "./routes/Contracts"
+let { isFreePort } = require('node-port-check')
 
 var bodyParser = require('body-parser')
 var cors = require('cors')
@@ -159,7 +160,10 @@ class App {
 
   async initIPFS() {
     try {
-      global['ipfs'] = await IPFS.create({ repo: 'ipfs_data' })
+      let ipfsportcheck = await isFreePort(4002)
+      if(ipfsportcheck[2] !== undefined && ipfsportcheck[2] === true){
+        global['ipfs'] = await IPFS.create({ repo: 'ipfs_data' })
+      }
     } catch (e) {
       console.log('CAN\'T RUN IPFS DAEMON')
     }
