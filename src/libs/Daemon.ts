@@ -412,8 +412,10 @@ module Daemon {
                                             }
                                         }
                                         let storedplanum = false
-                                        if (sidechains.indexOf(block['planum'][dix]['data']['transaction']['sidechain']) === -1) {
-                                            sidechains.push(block['planum'][dix]['data']['transaction']['sidechain'])
+                                        if(block['planum'][dix]['data'] !== undefined && block['planum'][dix]['data']['transaction'] !== undefined && block['planum'][dix]['data']['sidechain'] !== undefined){
+                                            if (sidechains.indexOf(block['planum'][dix]['data']['transaction']['sidechain']) === -1) {
+                                                sidechains.push(block['planum'][dix]['data']['transaction']['sidechain'])
+                                            }
                                         }
                                         while (storedplanum === false) {
                                             try {
@@ -894,7 +896,7 @@ module Daemon {
                                 let sidechains = []
                                 for (let y in transactions) {
                                     let datastore = transactions[y]
-                                    if (datastore.data.transaction !== undefined) {
+                                    if (datastore.data !== undefined && datastore.data.transaction !== undefined) {
                                         for (let x in datastore.data.transaction.inputs) {
                                             let sxid = datastore.data.transaction.inputs[x].sxid
                                             let vout = datastore.data.transaction.inputs[x].vout
