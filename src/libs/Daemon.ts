@@ -826,7 +826,7 @@ module Daemon {
                                                     await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
                                                     console.log('FILE STORED YET')
                                                 }
-                                            }else{
+                                            } else {
                                                 response(false)
                                             }
                                         })
@@ -839,7 +839,7 @@ module Daemon {
                                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                                         if (!err && client !== undefined) {
                                             var db = client.db(global['db_name'])
-                                            if(db){
+                                            if (db) {
                                                 while (insertedWritten === false) {
                                                     try {
                                                         await db.collection("written").insertOne(datastore, { w: 1, j: true })
@@ -854,10 +854,10 @@ module Daemon {
                                                         response(false)
                                                     }
                                                 }
-                                            }else{
+                                            } else {
                                                 response(false)
                                             }
-                                        }else{
+                                        } else {
                                             response(false)
                                         }
                                     })
@@ -894,18 +894,21 @@ module Daemon {
                                 let sidechains = []
                                 for (let y in transactions) {
                                     let datastore = transactions[y]
-                                    for (let x in datastore.data.transaction.inputs) {
-                                        let sxid = datastore.data.transaction.inputs[x].sxid
-                                        let vout = datastore.data.transaction.inputs[x].vout
-                                        if (sidechains.indexOf(datastore.data.transaction.sidechain) === -1) {
-                                            sidechains.push(datastore.data.transaction.sidechain)
-                                        }
-                                        try {
-                                            await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } }, { writeConcern: { w: 1, j: true } })
-                                        } catch (e) {
-                                            utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
-                                            client.close()
-                                            response(false)
+                                    if (datastore.data.transaction !== undefined) {
+                                        for (let x in datastore.data.transaction.inputs) {
+                                            let sxid = datastore.data.transaction.inputs[x].sxid
+                                            let vout = datastore.data.transaction.inputs[x].vout
+                                            if (sidechains.indexOf(datastore.data.transaction.sidechain) === -1) {
+                                                sidechains.push(datastore.data.transaction.sidechain)
+                                            }
+                                            try {
+                                                await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } }, { writeConcern: { w: 1, j: true } })
+                                            } catch (e) {
+                                                console.log(e)
+                                                utils.log('CLEAN ERROR ON BLOCK WHILE UPDATING INPUTS', '', 'errors')
+                                                client.close()
+                                                response(false)
+                                            }
                                         }
                                     }
                                 }
@@ -916,7 +919,8 @@ module Daemon {
                                     try {
                                         await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
-                                        utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING MEMPOOL TRANSACTIONS', '', 'errors')
                                         client.close()
                                         response(false)
                                     }
@@ -924,7 +928,8 @@ module Daemon {
                                     try {
                                         await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: null }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
-                                        utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING MEMPOOL UNSPENT', '', 'errors')
                                         client.close()
                                         response(false)
                                     }
@@ -932,7 +937,8 @@ module Daemon {
                                     try {
                                         await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: blockheight }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
-                                        utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING CONFIRMED TRANSACTIONS', '', 'errors')
                                         client.close()
                                         response(false)
                                     }
@@ -940,7 +946,8 @@ module Daemon {
                                     try {
                                         await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: blockheight }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
-                                        utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING CONFIRMED UNSPENTS', '', 'errors')
                                         client.close()
                                         response(false)
                                     }
@@ -949,7 +956,8 @@ module Daemon {
                                 client.close()
                                 response(true)
                             } catch (e) {
-                                utils.log('CLEAN ERROR ON BLOCK', '', 'errors')
+                                console.log(e)
+                                utils.log('CLEANING ERROR GENERAL', '', 'errors')
                                 client.close()
                                 response(false)
                             }
@@ -1037,7 +1045,7 @@ module Daemon {
                         if (err) {
                             client.close()
                             response(false)
-                        }else{
+                        } else {
                             var db = client.db(global['db_name'])
                             datastore.block = block
                             if (datastore.protocol === 'chain://') {
