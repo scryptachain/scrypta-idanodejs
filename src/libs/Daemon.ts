@@ -412,7 +412,7 @@ module Daemon {
                                             }
                                         }
                                         let storedplanum = false
-                                        if(block['planum'][dix]['data'] !== undefined && block['planum'][dix]['data']['transaction'] !== undefined && block['planum'][dix]['data']['sidechain'] !== undefined){
+                                        if (block['planum'][dix]['data'] !== undefined && block['planum'][dix]['data']['transaction'] !== undefined && block['planum'][dix]['data']['sidechain'] !== undefined) {
                                             if (sidechains.indexOf(block['planum'][dix]['data']['transaction']['sidechain']) === -1) {
                                                 sidechains.push(block['planum'][dix]['data']['transaction']['sidechain'])
                                             }
@@ -596,6 +596,7 @@ module Daemon {
                         if (check[0] === undefined) {
                             // console.log('STORING TX NOW!')
                             let stored = false
+                            let retries = 0
                             while (!stored) {
                                 await db.collection("transactions").insertOne(
                                     {
@@ -615,22 +616,41 @@ module Daemon {
                                 if (checkStored[0] !== undefined) {
                                     stored = true
                                 }
+
+                                retries++
+                                if (retries > 10) {
+                                    stored = true
+                                    client.close()
+                                    response(false)
+                                }
                             }
                         } else if (check[0].blockheight === null && block['height'] !== undefined) {
                             let updated = false
+                            let retries = 0
                             while (!updated) {
-                                await db.collection("transactions").updateOne({
-                                    address: address, txid: txid
-                                }, {
-                                    $set: {
-                                        blockheight: block['height'],
-                                        blockhash: block['hash'],
-                                        time: block['time']
+                                try {
+                                    await db.collection("transactions").updateOne({
+                                        address: address, txid: txid
+                                    }, {
+                                        $set: {
+                                            blockheight: block['height'],
+                                            blockhash: block['hash'],
+                                            time: block['time']
+                                        }
+                                    }, { writeConcern: { w: 1, j: true } })
+                                    let checkUpdated = await db.collection('transactions').find({ address: address, txid: txid }).limit(1).toArray()
+                                    if (checkUpdated[0] !== undefined && checkUpdated[0].blockheight === block['height'] && checkUpdated[0].blockhash === block['hash'] && checkUpdated[0].time === block['time']) {
+                                        updated = true
                                     }
-                                }, { writeConcern: { w: 1, j: true } })
-                                let checkUpdated = await db.collection('transactions').find({ address: address, txid: txid }).limit(1).toArray()
-                                if (checkUpdated[0] !== undefined && checkUpdated[0].blockheight === block['height'] && checkUpdated[0].blockhash === block['hash'] && checkUpdated[0].time === block['time']) {
-                                    updated = true
+
+                                    retries++
+                                    if (retries > 10) {
+                                        updated = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                } catch (e) {
+                                    utils.log('ERROR WHILE UPDATING TRANSACTION')
                                 }
                             }
                         } else {
@@ -655,33 +675,57 @@ module Daemon {
                         let check = await db.collection("unspent").find({ txid: txid, vout: vout }).limit(1).toArray()
                         if (check[0] === undefined) {
                             let insertUnspent = false
+                            let retries = 0
                             while (!insertUnspent) {
-                                console.log('\x1b[36m%s\x1b[0m', 'STORING UNSPENT NOW!')
-                                await db.collection("unspent").insertOne(
-                                    {
-                                        address: address,
-                                        txid: txid,
-                                        scriptPubKey: scriptPubKey,
-                                        amount: amount,
-                                        vout: vout,
-                                        block: block,
-                                        redeemed: null,
-                                        redeemblock: null
-                                    }, { w: 1, j: true }
-                                )
-                                let checkInsertUnspent = await db.collection("unspent").find({ txid: txid, vout: vout }).limit(1).toArray()
-                                if (checkInsertUnspent[0] !== undefined) {
-                                    insertUnspent = true
+                                try {
+                                    console.log('\x1b[36m%s\x1b[0m', 'STORING UNSPENT NOW!')
+                                    await db.collection("unspent").insertOne(
+                                        {
+                                            address: address,
+                                            txid: txid,
+                                            scriptPubKey: scriptPubKey,
+                                            amount: amount,
+                                            vout: vout,
+                                            block: block,
+                                            redeemed: null,
+                                            redeemblock: null
+                                        }, { w: 1, j: true }
+                                    )
+                                    let checkInsertUnspent = await db.collection("unspent").find({ txid: txid, vout: vout }).limit(1).toArray()
+                                    if (checkInsertUnspent[0] !== undefined) {
+                                        insertUnspent = true
+                                    }
+
+                                    retries++
+                                    if (retries > 10) {
+                                        insertUnspent = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                } catch (e) {
+                                    utils.log('ERROR WHILE STORING UNSPENT!')
                                 }
                             }
                         } else if (check[0].block === null && block !== null) {
                             let updateUnspent = false
+                            let retries = 0
                             while (!updateUnspent) {
-                                console.log('\x1b[36m%s\x1b[0m', 'UPDATING BLOCK NOW!')
-                                await db.collection("unspent").updateOne({ txid: txid, vout: vout }, { $set: { block: block } }, { writeConcern: { w: 1, j: true } })
-                                let checkUpdateUnspent = await db.collection("unspent").find({ txid: txid, vout: vout }).limit(1).toArray()
-                                if (checkUpdateUnspent[0] !== undefined) {
-                                    updateUnspent = true
+                                try {
+                                    console.log('\x1b[36m%s\x1b[0m', 'UPDATING BLOCK NOW!')
+                                    await db.collection("unspent").updateOne({ txid: txid, vout: vout }, { $set: { block: block } }, { writeConcern: { w: 1, j: true } })
+                                    let checkUpdateUnspent = await db.collection("unspent").find({ txid: txid, vout: vout }).limit(1).toArray()
+                                    if (checkUpdateUnspent[0] !== undefined) {
+                                        updateUnspent = true
+                                    }
+
+                                    retries ++
+                                    if(retries > 10){
+                                        updateUnspent = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                } catch (e) {
+                                    utils.log('ERROR WHILE UPDATING BLOCK IN UNSPENT')
                                 }
                             }
                         } else {
@@ -705,12 +749,20 @@ module Daemon {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         if (!err) {
                             let redeemed = false
+                            let retries = 0
                             while (redeemed === false) {
                                 var db = client.db(global['db_name'])
                                 try {
                                     let updated = await db.collection('unspent').updateOne({ txid: txid, vout: vout }, { $set: { redeemblock: block, redeemed: txid } }, { w: 1, j: true })
                                     if (updated.result !== undefined && updated.result.ok !== undefined && updated.result.ok === 1) {
                                         redeemed = true
+                                    }
+
+                                    retries ++
+                                    if(retries > 10){
+                                        redeemed = true
+                                        client.close()
+                                        response(false)
                                     }
                                 } catch (e) {
                                     console.log(e)
@@ -842,12 +894,19 @@ module Daemon {
                                         if (!err && client !== undefined) {
                                             var db = client.db(global['db_name'])
                                             if (db) {
+                                                let retries = 0
                                                 while (insertedWritten === false) {
                                                     try {
                                                         await db.collection("written").insertOne(datastore, { w: 1, j: true })
                                                         let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
                                                         if (checkWritten[0] !== undefined) {
                                                             insertedWritten = true
+                                                        }
+                                                        retries++
+                                                        if (retries > 10) {
+                                                            insertedWritten = true
+                                                            client.close()
+                                                            response(false)
                                                         }
                                                     } catch (e) {
                                                         utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
@@ -1264,6 +1323,7 @@ module Daemon {
                                                 utils.log('ALL TRANSACTIONS PASSED, STORING.')
                                                 datastore.data.block = datastore.block
                                                 let insertTx = false
+                                                let retries = 0
                                                 while (insertTx === false) {
                                                     try {
                                                         let checkTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
@@ -1272,6 +1332,12 @@ module Daemon {
                                                             let checkinsertedTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()
                                                             if (checkinsertedTx[0] !== undefined) {
                                                                 insertTx = true
+                                                            }
+                                                            retries++
+                                                            if (retries > 10) {
+                                                                insertTx = true
+                                                                client.close()
+                                                                response(false)
                                                             }
                                                         } else {
                                                             insertTx = true
@@ -1288,6 +1354,7 @@ module Daemon {
                                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                                         let vout = datastore.data.transaction.inputs[x].vout
                                                         let updated = false
+                                                        let retries = 0
                                                         while (updated === false) {
                                                             try {
                                                                 if (datastore.block !== null) {
@@ -1299,10 +1366,19 @@ module Daemon {
                                                                 if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
                                                                     updated = true
                                                                     utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
-                                                                } else {
-                                                                    utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                                } else if (checkUnspentRedeemed[0] === undefined) {
+                                                                    updated = true
+                                                                    utils.log('UNSPENT DOESN\'T EXISTS!', '', 'errors')
+                                                                }
+
+                                                                retries++
+                                                                if (retries > 10) {
+                                                                    updated = true
+                                                                    client.close()
+                                                                    response(false)
                                                                 }
                                                             } catch (e) {
+                                                                console.log(e)
                                                                 utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
                                                                 utils.log(e)
                                                             }
@@ -1328,6 +1404,7 @@ module Daemon {
                                                         time: datastore.data.transaction.time
                                                     }
                                                     let insertedUsxo = false
+                                                    let retries = 0
                                                     while (insertedUsxo === false) {
                                                         try {
                                                             let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
@@ -1345,6 +1422,13 @@ module Daemon {
                                                                 if (checkInsertedUsxo[0] !== undefined) {
                                                                     insertedUsxo = true
                                                                 }
+                                                            }
+
+                                                            retries++
+                                                            if (retries > 10) {
+                                                                insertedUsxo = true
+                                                                client.close()
+                                                                response(false)
                                                             }
                                                         } catch (e) {
                                                             utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
@@ -1367,6 +1451,7 @@ module Daemon {
                                                         let sxid = datastore.data.transaction.inputs[x].sxid
                                                         let vout = datastore.data.transaction.inputs[x].vout
                                                         let updated = false
+                                                        let retries = 0
                                                         while (updated === false) {
                                                             try {
                                                                 if (datastore.block !== null) {
@@ -1378,10 +1463,19 @@ module Daemon {
                                                                 if (checkUnspentRedeemed[0] !== undefined && checkUnspentRedeemed[0].redeemed === datastore.data.sxid) {
                                                                     updated = true
                                                                     utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
-                                                                } else {
-                                                                    utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
+                                                                } else if (checkUnspentRedeemed[0] === undefined) {
+                                                                    updated = true
+                                                                    utils.log('UNSPENT DOESN\'T EXISTS!', '', 'errors')
+                                                                }
+
+                                                                retries++
+                                                                if (retries > 10) {
+                                                                    updated = true
+                                                                    client.close()
+                                                                    response(false)
                                                                 }
                                                             } catch (e) {
+                                                                console.log(e)
                                                                 utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
                                                                 utils.log(e)
                                                             }
@@ -1406,6 +1500,7 @@ module Daemon {
                                                         time: datastore.data.transaction.time
                                                     }
                                                     let inserted = false
+                                                    let retries = 0
                                                     while (inserted === false) {
                                                         try {
                                                             let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
@@ -1418,6 +1513,13 @@ module Daemon {
                                                                 }
                                                             } else {
                                                                 inserted = true
+                                                            }
+
+                                                            retries++
+                                                            if (retries > 10) {
+                                                                inserted = true
+                                                                client.close()
+                                                                response(false)
                                                             }
                                                         } catch (e) {
                                                             utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
@@ -1454,12 +1556,20 @@ module Daemon {
                         if (check[0] === undefined) {
                             console.log('STORING DATA NOW!')
                             let inserted = false
+                            let retries = 0
                             while (!inserted) {
                                 try {
                                     await db.collection("received").insertOne(datastore, { w: 1, j: true })
                                     let checkInserted = await db.collection('received').find({ txid: datastore.txid, address: datastore.address }).limit(1).toArray()
                                     if (checkInserted[0] !== undefined) {
                                         inserted = true
+                                    }
+
+                                    retries++
+                                    if (retries > 10) {
+                                        inserted = true
+                                        client.close()
+                                        response(false)
                                     }
                                     utils.log('RECEIVED DATA ' + JSON.stringify(datastore))
                                 } catch (e) {
