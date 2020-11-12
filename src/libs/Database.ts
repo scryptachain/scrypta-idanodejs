@@ -60,12 +60,7 @@ module Database {
                             name: "documenta",
                             indexes: ["address", "file", "time"],
                             compound: []
-                        },
-                        {
-                            name: "contracts",
-                            indexes: ["address", "eachBlock", "ifMempool"],
-                            compound: []
-                        },
+                        }
                     ]
                     //CHECKING COLLECTIONS
                     for (let tdk in collections) {

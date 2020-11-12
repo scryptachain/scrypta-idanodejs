@@ -216,34 +216,47 @@ module Daemon {
                                 try {
                                     let synced: any = false
                                     while (synced === false) {
+                                        console.log('STARTING ANALYZING BLOCK')
                                         try {
                                             synced = await task.analyze()
                                         } catch (e) {
                                             utils.log('ERROR WHILE ANALYZING BLOCK', '', 'errors')
                                             utils.log(e)
                                         }
+                                        console.log('SYNCING FINISHED')
                                         if (synced !== false && parseInt(synced) > 0) {
                                             global['retrySync'] = 0
                                             utils.log('SUCCESSFULLY SYNCED BLOCK ' + synced, '\x1b[46m%s\x1b[0m')
                                             mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                                                var db = client.db(global['db_name'])
-                                                let saved = false
-                                                while (saved === false) {
-                                                    try {
-                                                        await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() }, { w: 1, j: true })
-                                                        let savecheck = await db.collection('blocks').find({ block: synced }).toArray()
-                                                        if (savecheck[0] !== undefined && savecheck[0].block === synced) {
-                                                            saved = true
+                                                utils.log('SAVING BLOCK ' + synced)
+                                                if (!err) {
+                                                    var db = client.db(global['db_name'])
+                                                    let saved = false
+                                                    while (saved === false) {
+                                                        utils.log('TRYING SAVE BLOCK ' + synced)
+                                                        try {
+                                                            await db.collection('blocks').insertOne({ block: synced, time: new Date().getTime() }, { w: 1, j: true })
+                                                            let savecheck = await db.collection('blocks').find({ block: synced }).toArray()
+                                                            if (savecheck[0] !== undefined && savecheck[0].block === synced) {
+                                                                saved = true
+                                                                utils.log('BLOCK SAVED SUCCESSFULLY')
+                                                            }
+                                                        } catch (e) {
+                                                            utils.log('ERROR WHILE SAVING BLOCK CHECK', '', 'errors')
                                                         }
-                                                    } catch (e) {
-                                                        utils.log('ERROR WHILE SAVING BLOCK CHECK', '', 'errors')
                                                     }
+                                                    global['isSyncing'] = false
+                                                    client.close()
+                                                    setTimeout(function () {
+                                                        task.process()
+                                                    }, 10)
+                                                } else {
+                                                    console.log(err)
+                                                    global['isSyncing'] = false
+                                                    setTimeout(function () {
+                                                        task.process()
+                                                    }, 10)
                                                 }
-                                                global['isSyncing'] = false
-                                                client.close()
-                                                setTimeout(function () {
-                                                    task.process()
-                                                }, 10)
                                             })
                                         } else if (synced === 'RESTART') {
                                             global['isSyncing'] = false
@@ -598,30 +611,41 @@ module Daemon {
                             let stored = false
                             let retries = 0
                             while (!stored) {
-                                await db.collection("transactions").insertOne(
-                                    {
-                                        address: address,
-                                        txid: txid,
-                                        type: tx.type,
-                                        from: movements.from,
-                                        to: movements.to,
-                                        value: tx.value,
-                                        blockhash: block['hash'],
-                                        blockheight: block['height'],
-                                        time: block['time'],
-                                        inserted: new Date().getTime()
-                                    }, { w: 1, j: true }
-                                )
-                                let checkStored = await db.collection('transactions').find({ address: address, txid: txid }).limit(1).toArray()
-                                if (checkStored[0] !== undefined) {
-                                    stored = true
-                                }
+                                try {
+                                    await db.collection("transactions").insertOne(
+                                        {
+                                            address: address,
+                                            txid: txid,
+                                            type: tx.type,
+                                            from: movements.from,
+                                            to: movements.to,
+                                            value: tx.value,
+                                            blockhash: block['hash'],
+                                            blockheight: block['height'],
+                                            time: block['time'],
+                                            inserted: new Date().getTime()
+                                        }, { w: 1, j: true }
+                                    )
+                                    let checkStored = await db.collection('transactions').find({ address: address, txid: txid }).limit(1).toArray()
+                                    if (checkStored[0] !== undefined) {
+                                        stored = true
+                                    }
 
-                                retries++
-                                if (retries > 10) {
-                                    stored = true
-                                    client.close()
-                                    response(false)
+                                    retries++
+                                    if (retries > 10) {
+                                        stored = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                } catch (e) {
+                                    console.log(e)
+                                    utils.log('ERROR WHILE STORING TRANSACTION')
+                                    retries++
+                                    if (retries > 10) {
+                                        stored = true
+                                        client.close()
+                                        response(false)
+                                    }
                                 }
                             }
                         } else if (check[0].blockheight === null && block['height'] !== undefined) {
@@ -718,8 +742,8 @@ module Daemon {
                                         updateUnspent = true
                                     }
 
-                                    retries ++
-                                    if(retries > 10){
+                                    retries++
+                                    if (retries > 10) {
                                         updateUnspent = true
                                         client.close()
                                         response(false)
@@ -758,8 +782,8 @@ module Daemon {
                                         redeemed = true
                                     }
 
-                                    retries ++
-                                    if(retries > 10){
+                                    retries++
+                                    if (retries > 10) {
                                         redeemed = true
                                         client.close()
                                         response(false)
@@ -912,6 +936,12 @@ module Daemon {
                                                         utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
                                                         utils.log(e, '', 'errors')
                                                         client.close()
+                                                        retries++
+                                                        if (retries > 10) {
+                                                            insertedWritten = true
+                                                            client.close()
+                                                            response(false)
+                                                        }
                                                         response(false)
                                                     }
                                                 }
@@ -1343,6 +1373,12 @@ module Daemon {
                                                             insertTx = true
                                                         }
                                                     } catch (e) {
+                                                        retries++
+                                                        if (retries > 10) {
+                                                            insertTx = true
+                                                            client.close()
+                                                            response(false)
+                                                        }
                                                         utils.log('ERROR WHILE INSERTING PLANUM TX', '', 'errors')
                                                         utils.log(e, '', 'errors')
                                                     }
@@ -1378,6 +1414,12 @@ module Daemon {
                                                                     response(false)
                                                                 }
                                                             } catch (e) {
+                                                                retries++
+                                                                if (retries > 10) {
+                                                                    updated = true
+                                                                    client.close()
+                                                                    response(false)
+                                                                }
                                                                 console.log(e)
                                                                 utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
                                                                 utils.log(e)
@@ -1431,6 +1473,12 @@ module Daemon {
                                                                 response(false)
                                                             }
                                                         } catch (e) {
+                                                            retries++
+                                                            if (retries > 10) {
+                                                                insertedUsxo = true
+                                                                client.close()
+                                                                response(false)
+                                                            }
                                                             utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
                                                             utils.log(e)
                                                         }
@@ -1475,6 +1523,12 @@ module Daemon {
                                                                     response(false)
                                                                 }
                                                             } catch (e) {
+                                                                retries++
+                                                                if (retries > 10) {
+                                                                    updated = true
+                                                                    client.close()
+                                                                    response(false)
+                                                                }
                                                                 console.log(e)
                                                                 utils.log('ERROR WHILE REDEEMING UNSPENT', '', 'errors')
                                                                 utils.log(e)
@@ -1522,6 +1576,12 @@ module Daemon {
                                                                 response(false)
                                                             }
                                                         } catch (e) {
+                                                            retries++
+                                                            if (retries > 10) {
+                                                                inserted = true
+                                                                client.close()
+                                                                response(false)
+                                                            }
                                                             utils.log('ERROR WHILE INSERTING UNSPENT, RETRY.', '', 'errors')
                                                             utils.log(e)
                                                         }
@@ -1573,6 +1633,12 @@ module Daemon {
                                     }
                                     utils.log('RECEIVED DATA ' + JSON.stringify(datastore))
                                 } catch (e) {
+                                    retries++
+                                    if (retries > 10) {
+                                        inserted = true
+                                        client.close()
+                                        response(false)
+                                    }
                                     utils.log('DB ERROR WHILE STORING RECEIVED', '', 'errors')
                                     utils.log(e, '', 'errors')
                                     client.close()

@@ -19,11 +19,11 @@
   "license": "MIT",
   "dependencies": {
     "@scrypta/core": "^2.7.8",
-    "@scrypta/vm": "^1.2.3",
+    "@scrypta/vm": "^1.2.4",
     "@types/mathjs": "^6.0.7",
     "@types/node": "14.14.7",
     "archiver": "^5.0.2",
-    "aws-sdk": "^2.788.0",
+    "aws-sdk": "^2.790.0",
     "axios": "^0.21.0",
     "better-console": "^1.0.1",
     "body-parser": "^1.19.0",
@@ -60,7 +60,7 @@
     "uuid": "^8.3.1"
   },
   "devDependencies": {
-    "@types/mocha": "8.0.3",
+    "@types/mocha": "8.0.4",
     "@types/node": "14.14.7",
     "eslint": "^7.13.0",
     "eslint-config-airbnb-base": "14.2.1",
