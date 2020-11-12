@@ -62,6 +62,12 @@ module Daemon {
                 try {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         var db = client.db(global['db_name'])
+                        /*await db.collection('blocks').deleteMany({block: {$gt: 476500}})
+                        await db.collection('transactions').deleteMany({block: {$gt: 476500}})
+                        await db.collection('sc_unspent').deleteMany({block: {$gt: 476500}})
+                        await db.collection('sc_transactions').deleteMany({block: {$gt: 476500}})
+                        await db.collection('sc_unspent').updateMany({block: {$gt: 476500}},  { $set:{redemeed: null, redeemblock: null}})
+                        console.log(aaaa)*/
                         global['retrySync'] = 0
                         global['isSyncing'] = true
                         var task = new Daemon.Sync
@@ -425,7 +431,7 @@ module Daemon {
                                             }
                                         }
                                         let storedplanum = false
-                                        if (block['planum'][dix]['data'] !== undefined && block['planum'][dix]['data']['transaction'] !== undefined && block['planum'][dix]['data']['sidechain'] !== undefined) {
+                                        if (block['planum'][dix]['data'] !== undefined && block['planum'][dix]['data']['transaction'] !== undefined && block['planum'][dix]['data']['transaction']['sidechain'] !== undefined) {
                                             if (sidechains.indexOf(block['planum'][dix]['data']['transaction']['sidechain']) === -1) {
                                                 sidechains.push(block['planum'][dix]['data']['transaction']['sidechain'])
                                             }
@@ -473,17 +479,9 @@ module Daemon {
                                                     utils.log('ERROR CLEANING PLANUM', '', 'errors')
                                                 }
                                             }
-                                            mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                                                var db = client.db(global['db_name'])
-                                                global['restartSync'] = global['restartSync'] + 1
-                                                let lasts = await db.collection('blocks').find().sort({ block: -1 }).limit(global['restartSync']).toArray()
-                                                for (let k in lasts) {
-                                                    let last = lasts[k]
-                                                    await db.collection('blocks').deleteOne({ block: last[0].block })
-                                                }
-                                                utils.log('ERROR WHILE STORING SIDECHAINS TRANSACTIONS, NOW IS INVALID, RETRY SYNC BLOCK.', '', 'errors')
-                                                response('RESTART')
-                                            })
+                                            await task.deleteLastBlock()
+                                            utils.log('ERROR WHILE STORING SIDECHAINS TRANSACTIONS, NOW IS INVALID, RETRY SYNC BLOCK.', '', 'errors')
+                                            response('RESTART')
                                         } else {
                                             global['restartSync'] = 0
                                             utils.log('SIDECHAIN ' + sidechain + ' SUCCESSFULLY VALIDATED AFTER CHANGE', '\x1b[32m%s\x1b[0m')
@@ -597,6 +595,21 @@ module Daemon {
                 }
             })
 
+        }
+
+        private async deleteLastBlock() {
+            return new Promise(async response => {
+                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                    var db = client.db(global['db_name'])
+                    global['restartSync'] = global['restartSync'] + 1
+                    let lasts = await db.collection('blocks').find().sort({ block: -1 }).limit(global['restartSync']).toArray()
+                    for (let k in lasts) {
+                        let last = lasts[k]
+                        await db.collection('blocks').deleteOne({ block: last.block })
+                    }
+                    response(true)
+                })
+            })
         }
 
         private async store(address, block, txid, tx, movements) {
@@ -1108,9 +1121,13 @@ module Daemon {
                                 }
                                 cap = math.round(cap, decimals)
                                 issued = math.round(issued, decimals)
-                                utils.log('SIDECHAIN ' + sidechain + ' ISSUED ' + issued + ' NOW CAP IS ' + cap)
-                                if (cap !== issued) {
-                                    response({ checked: true, validated: false })
+                                if (cap > 0) {
+                                    utils.log('SIDECHAIN ' + sidechain + ' ISSUED ' + issued + ' NOW CAP IS ' + cap)
+                                    if (cap !== issued) {
+                                        response({ checked: true, validated: false })
+                                    } else {
+                                        response({ checked: true, validated: true })
+                                    }
                                 } else {
                                     response({ checked: true, validated: true })
                                 }
