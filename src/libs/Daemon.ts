@@ -1121,13 +1121,9 @@ module Daemon {
                                 }
                                 cap = math.round(cap, decimals)
                                 issued = math.round(issued, decimals)
-                                if (cap > 0) {
-                                    utils.log('SIDECHAIN ' + sidechain + ' ISSUED ' + issued + ' NOW CAP IS ' + cap)
-                                    if (cap !== issued) {
-                                        response({ checked: true, validated: false })
-                                    } else {
-                                        response({ checked: true, validated: true })
-                                    }
+                                utils.log('SIDECHAIN ' + sidechain + ' ISSUED ' + issued + ' NOW CAP IS ' + cap)
+                                if (cap !== issued) {
+                                    response({ checked: true, validated: false })
                                 } else {
                                     response({ checked: true, validated: true })
                                 }
