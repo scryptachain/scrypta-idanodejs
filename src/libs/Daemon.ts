@@ -458,7 +458,6 @@ module Daemon {
                                         while (checked === false) {
                                             try {
                                                 let resultvalidation = await task.checkplanum(sidechain)
-                                                utils.log('VALIDATION RESULT IS ' + JSON.stringify(resultvalidation))
                                                 if (resultvalidation.validated === false && resultvalidation.checked === true) {
                                                     checked = true
                                                 } else if (resultvalidation.validated === true && resultvalidation.checked === true) {
@@ -1086,7 +1085,7 @@ module Daemon {
                             let sxids = []
                             let cap = 0
                             let issued = 0
-                            let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+                            let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true }, "data.genesis.version": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
                             if (check_sidechain[0] !== undefined) {
                                 let issue = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
                                 let unspents = await db.collection('sc_unspent').find({ sidechain: sidechain, redeemed: null }).sort({ block: 1 }).toArray()
@@ -1128,9 +1127,11 @@ module Daemon {
                                     response({ checked: true, validated: true })
                                 }
                             } else {
-                                response({ checked: true, validated: false })
+                                // SIDECHAIN DOESN'T EXISTS, TRANSACTIONS ARE INVALID
+                                response({ checked: true, validated: true })
                             }
                         } else {
+                            // DB ERROR, RETRY
                             response({ checked: false, validated: false })
                         }
                     })
@@ -1500,8 +1501,10 @@ module Daemon {
                                                 }
                                                 utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS VALID')
                                                 // TRANSACTION STORED CORRECTLY
+                                                response(true)
                                             } else {
                                                 utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID')
+                                                response(false)
                                             }
                                         } else {
                                             // BE SURE WE'RE NOT IN MEMPOOL
