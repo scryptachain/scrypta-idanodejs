@@ -1504,7 +1504,7 @@ module Daemon {
                                                 response(true)
                                             } else {
                                                 utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID')
-                                                response(false)
+                                                response('INVALID')
                                             }
                                         } else {
                                             // BE SURE WE'RE NOT IN MEMPOOL
