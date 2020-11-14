@@ -783,7 +783,7 @@ module Daemon {
             return new Promise(async response => {
                 let utils = new Utilities.Parser
                 try {
-                    console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT ' + txid + ':' + vout + ' NOW!')
+                    console.log('\x1b[31m%s\x1b[0m', 'REDEEMING UNSPENT ' + txid + ':' + vout)
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         if (!err) {
                             let redeemed = false
@@ -1416,7 +1416,7 @@ module Daemon {
 
                                             // CHECK OVERMINT
                                             if (!isGenesis && !isExtended) {
-                                                if (valid === true && amountoutput > amountinput) {
+                                                if (valid === true && amountoutput !== amountinput) {
                                                     valid = false
                                                     utils.log('AMOUNT IS INVALID IN SIDECHAIN TRANSACTION ' + datastore.data.transaction.sidechain + ' ' + datastore.data.sxid + ' AT BLOCK ' + datastore.block + ' > OUT:' + amountoutput + ' IN: ' + amountinput)
                                                 }
@@ -1578,11 +1578,11 @@ module Daemon {
                                                     }
                                                     vout++
                                                 }
-                                                utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS VALID')
+                                                utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS VALID', '\x1b[32m%s\x1b[0m')
                                                 // TRANSACTION STORED CORRECTLY
                                                 response(true)
                                             } else {
-                                                utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID')
+                                                utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID', '\x1b[31m%s\x1b[0m')
                                                 response('INVALID')
                                             }
                                         } else {
