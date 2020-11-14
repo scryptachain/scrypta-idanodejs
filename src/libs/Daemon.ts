@@ -1369,7 +1369,7 @@ module Daemon {
                                                     let vout = datastore.data.transaction.inputs[x].vout
                                                     let validategenesis = await scwallet.validategenesis(sxid, datastore.data.transaction.sidechain)
                                                     if (validategenesis === false) {
-                                                        let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.sidechain, datastore.address)
+                                                        let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.sidechain, datastore.address, datastore.data.sxid)
                                                         if (validateinput === false) {
                                                             valid = false
                                                             utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID.')
