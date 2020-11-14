@@ -17,7 +17,7 @@ const axios = require('axios')
 const console = require('better-console')
 var server
 global['state'] = 'OFF'
-global['db_url'] = 'mongodb://localhost:27017'
+global['db_url'] = 'mongodb://localhost:27017/?retryWrites=true&w=1'
 global['db_options'] = { useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
 global['isAnalyzing'] = false

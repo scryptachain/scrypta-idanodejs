@@ -212,7 +212,7 @@ module Daemon {
                                 } catch (e) {
                                     utils.log('ERROR WHILE CONSOLIDATING', '', 'errors')
                                     utils.log(e, '', 'errors')
-                                    await scrypta.sleep('2000')
+                                    await scrypta.sleep(2000)
                                     global['isSyncing'] = false
                                     errors = true
                                 }
@@ -268,13 +268,13 @@ module Daemon {
                                             global['isSyncing'] = false
                                             synced = true
                                             utils.log('SIDECHAIN NOT WORKING, RESTARTING PROCESS.', '\x1b[41m%s\x1b[0m', 'errors')
-                                            await scrypta.sleep('2000')
+                                            await scrypta.sleep(99999)
                                             setTimeout(function () {
                                                 task.process()
                                             }, 10)
                                         } else {
                                             utils.log('BLOCK NOT SYNCED, RETRY.', '\x1b[41m%s\x1b[0m', 'errors')
-                                            await scrypta.sleep('2000')
+                                            await scrypta.sleep(2000)
                                             global['isSyncing'] = false
                                         }
                                     }
@@ -407,7 +407,7 @@ module Daemon {
                                     let cleaned = false
                                     while (cleaned === false) {
                                         try {
-                                            cleaned = await task.cleanplanum(block['planum'], block['height'])
+                                            cleaned = await task.cleanplanummempool(block['planum'])
                                         } catch (e) {
                                             utils.log('ERROR CLEANING PLANUM', '', 'errors')
                                         }
@@ -431,16 +431,18 @@ module Daemon {
                                             }
                                         }
                                         let storedplanum = false
-                                        if (block['planum'][dix]['data'] !== undefined && block['planum'][dix]['data']['transaction'] !== undefined && block['planum'][dix]['data']['transaction']['sidechain'] !== undefined) {
-                                            if (sidechains.indexOf(block['planum'][dix]['data']['transaction']['sidechain']) === -1) {
-                                                sidechains.push(block['planum'][dix]['data']['transaction']['sidechain'])
-                                            }
-                                        }
                                         while (storedplanum === false) {
                                             try {
                                                 storedplanum = await task.storeplanum(block['planum'][dix], false, block['height'])
+                                                utils.log('STORE PLANUM RESPONSE IS ' + storedplanum)
                                                 if (storedplanum === false) {
                                                     utils.log('ERROR STORING PLANUM', '', 'errors')
+                                                }else if(storedplanum === true){
+                                                    if (block['planum'][dix]['data'] !== undefined && block['planum'][dix]['data']['transaction'] !== undefined && block['planum'][dix]['data']['transaction']['sidechain'] !== undefined) {
+                                                        if (sidechains.indexOf(block['planum'][dix]['data']['transaction']['sidechain']) === -1) {
+                                                            sidechains.push(block['planum'][dix]['data']['transaction']['sidechain'])
+                                                        }
+                                                    }
                                                 }
                                             } catch (e) {
                                                 storedplanum = false
@@ -986,6 +988,67 @@ module Daemon {
             })
         }
 
+        private async cleanplanummempool(transactions): Promise<boolean> {
+            return new Promise(async response => {
+                const utils = new Utilities.Parser
+                try {
+                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                        if (!err) {
+                            var db = client.db(global['db_name'])
+                            try {
+                                let sidechains = []
+                                for (let y in transactions) {
+                                    let datastore = transactions[y]
+                                    if (datastore.data !== undefined && datastore.data.transaction !== undefined) {
+                                        for (let x in datastore.data.transaction.inputs) {
+                                            if (sidechains.indexOf(datastore.data.transaction.sidechain) === -1) {
+                                                sidechains.push(datastore.data.transaction.sidechain)
+                                            }
+                                        }
+                                    }
+                                }
+                                utils.log('CLEANING SIDECHAINS ' + JSON.stringify(sidechains))
+                                for (let k in sidechains) {
+                                    let sidechain = sidechains[k]
+                                    utils.log('CLEANING ' + sidechain, '', 'log')
+                                    try {
+                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING MEMPOOL TRANSACTIONS', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
+
+                                    try {
+                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: null }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING MEMPOOL UNSPENT', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
+                                }
+                                utils.log('CLEAN SUCCESS ON BLOCK', '', 'log')
+                                client.close()
+                                response(true)
+                            } catch (e) {
+                                console.log(e)
+                                utils.log('CLEANING ERROR GENERAL', '', 'errors')
+                                client.close()
+                                response(false)
+                            }
+                        } else {
+                            client.close()
+                            response(false)
+                        }
+                    })
+                } catch (e) {
+                    response(false)
+                }
+            })
+        }
+
         private async cleanplanum(transactions, blockheight): Promise<boolean> {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
@@ -1048,6 +1111,24 @@ module Daemon {
 
                                     try {
                                         await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: blockheight }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING CONFIRMED UNSPENTS', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
+
+                                    try {
+                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: { $gt: blockheight } }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING CONFIRMED TRANSACTIONS', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
+
+                                    try {
+                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: { $gt: blockheight } }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         console.log(e)
                                         utils.log('CLEAN ERROR ON BLOCK WHILE DELETING CONFIRMED UNSPENTS', '', 'errors')
@@ -1364,7 +1445,7 @@ module Daemon {
 
                                             // ALL VALID, INSERTING TRANSACTION IN DB
                                             if (valid === true) {
-                                                utils.log('ALL TRANSACTIONS PASSED, STORING.')
+                                                utils.log('ALL TRANSACTION\'S CHECKS PASSED, STORING.')
                                                 datastore.data.block = datastore.block
                                                 let insertTx = false
                                                 let retries = 0
@@ -1575,7 +1656,7 @@ module Daemon {
                                                         try {
                                                             let checkUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                             if (checkUsxo[0] === undefined) {
-                                                                utils.log('CREATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
+                                                                utils.log('UPDATING UNSPENT ' + datastore.data.sxid + ':' + vout + ' FOR ADDRESS ' + x)
                                                                 await db.collection('sc_unspent').insertOne(unspent, { w: 1, j: true })
                                                                 let checkInsertedUsxo = await db.collection('sc_unspent').find({ sxid: datastore.data.sxid, vout: vout }).limit(1).toArray()
                                                                 if (checkInsertedUsxo[0] !== undefined) {
@@ -1604,6 +1685,7 @@ module Daemon {
                                                     }
                                                     vout++
                                                 }
+                                                response(true)
                                             }
                                         }
                                     } else {
