@@ -1000,10 +1000,8 @@ module Daemon {
                                 for (let y in transactions) {
                                     let datastore = transactions[y]
                                     if (datastore.data !== undefined && datastore.data.transaction !== undefined) {
-                                        for (let x in datastore.data.transaction.inputs) {
-                                            if (sidechains.indexOf(datastore.data.transaction.sidechain) === -1) {
-                                                sidechains.push(datastore.data.transaction.sidechain)
-                                            }
+                                        if (sidechains.indexOf(datastore.data.transaction.sidechain) === -1) {
+                                            sidechains.push(datastore.data.transaction.sidechain)
                                         }
                                     }
                                 }
@@ -1012,6 +1010,21 @@ module Daemon {
                                     let sidechain = sidechains[k]
                                     utils.log('CLEANING ' + sidechain, '', 'log')
                                     try {
+                                        let unconfirmed_transactions = await db.collection('sc_transactions').find({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null })
+                                        for(let ut in unconfirmed_transactions){
+                                            for (let x in unconfirmed_transactions[ut].transaction.inputs) {
+                                                let sxid = unconfirmed_transactions[ut].transaction.inputs[x].sxid
+                                                let vout = unconfirmed_transactions[ut].transaction.inputs[x].vout
+                                                try {
+                                                    await db.collection('sc_unspent').updateOne({ sxid: sxid, vout: vout }, { $set: { redeemed: null, redeemblock: null } }, { writeConcern: { w: 1, j: true } })
+                                                } catch (e) {
+                                                    console.log(e)
+                                                    utils.log('CLEAN ERROR ON BLOCK WHILE UPDATING INPUTS', '', 'errors')
+                                                    client.close()
+                                                    response(false)
+                                                }
+                                            }
+                                        }
                                         await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         console.log(e)
