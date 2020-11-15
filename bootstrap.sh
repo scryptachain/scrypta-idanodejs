@@ -1,5 +1,7 @@
 #!/bin/bash
 
+pm2 stop npm
+rm idanode_bootstrap.gz
 wget https://sfo2.digitaloceanspaces.com/scrypta/idanode_bootstrap.gz
 killall mongod
 rm -rf mongodb_data
@@ -13,3 +15,5 @@ sudo mongorestore --db idanodejs --drop idanodejs
 rm -rf idanodejs
 rm idanode_bootstrap.gz
 killall mongod
+./lyrad &
+pm2 start npm
