@@ -268,7 +268,7 @@ module Daemon {
                                             global['isSyncing'] = false
                                             synced = true
                                             utils.log('SIDECHAIN NOT WORKING, RESTARTING PROCESS.', '\x1b[41m%s\x1b[0m', 'errors')
-                                            await scrypta.sleep(99999)
+                                            await scrypta.sleep(2000)
                                             setTimeout(function () {
                                                 task.process()
                                             }, 10)
@@ -608,6 +608,7 @@ module Daemon {
                         let last = lasts[k]
                         await db.collection('blocks').deleteOne({ block: last.block })
                     }
+                    client.close()
                     response(true)
                 })
             })
@@ -809,6 +810,7 @@ module Daemon {
                             client.close()
                             response(true)
                         } else {
+                            client.close()
                             response(false)
                         }
                     })
@@ -918,6 +920,7 @@ module Daemon {
                                                     await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
                                                     console.log('FILE STORED YET')
                                                 }
+                                                client.close()
                                             } else {
                                                 response(false)
                                             }
@@ -959,6 +962,7 @@ module Daemon {
                                                         response(false)
                                                     }
                                                 }
+                                                client.close()
                                             } else {
                                                 response(false)
                                             }
@@ -1200,6 +1204,7 @@ module Daemon {
                                 cap = math.round(cap, decimals)
                                 issued = math.round(issued, decimals)
                                 utils.log('SIDECHAIN ' + sidechain + ' ISSUED ' + issued + ' NOW CAP IS ' + cap)
+                                client.close()
                                 if (cap !== issued) {
                                     response({ checked: true, validated: false })
                                 } else {
@@ -1207,10 +1212,12 @@ module Daemon {
                                 }
                             } else {
                                 // SIDECHAIN DOESN'T EXISTS, TRANSACTIONS ARE INVALID
+                                client.close()
                                 response({ checked: true, validated: true })
                             }
                         } else {
                             // DB ERROR, RETRY
+                            client.close()
                             response({ checked: false, validated: false })
                         }
                     })
@@ -1683,6 +1690,7 @@ module Daemon {
                                                     }
                                                     vout++
                                                 }
+                                                client.close()
                                                 response(true)
                                             }
                                         }
