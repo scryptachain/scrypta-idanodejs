@@ -263,6 +263,7 @@ export async function checksidechain(req: express.Request, res: express.Response
                 }
                 cap = math.round(cap, decimals)
                 issued = math.round(issued, decimals)
+                sxids.sort()
                 let sidechain_hash = CryptoJS.SHA256(JSON.stringify(sxids)).toString(CryptoJS.enc.Hex)
                 let response = {
                   user_count: users.length,
@@ -271,7 +272,8 @@ export async function checksidechain(req: express.Request, res: express.Response
                   verified: verified,
                   sidechain: check_sidechain[0].data.genesis,
                   status: sidechain_hash,
-                  users: users
+                  users: users,
+                  unspents: sxids
                 }
                 check_sidechain[0].data.genesis.address = sidechain
                 if (verified === true && req.params.consensus !== undefined) {
