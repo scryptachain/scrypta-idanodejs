@@ -1049,16 +1049,43 @@ module Daemon {
                                                 await db.collection("sc_permissions").insertOne({ sidechain: sidechain, users: [], validators: [] }, { w: 1, j: true })
                                                 checkPermissions = await db.collection('sc_permissions').find({ sidechain: sidechain }).limit(1).toArray()
                                             }
-                                            // TODO: UPDATE USERS / VALIDATORS ARRAY AND PUSH IT INTO DATABASE
-                                            /*await db.collection("sc_permissions").insertOne(datastore, { w: 1, j: true })
-                                            let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
-                                            if (checkWritten[0] !== undefined) {
+                                            // CHECK IF ACCOUNT IS ALLOWED TO CHANGE STATUS
+                                            if (datastore.address === check_sidechain[0].data.genesis.owner || checkPermissions[0].validators.indexOf(datastore.address) !== -1) {
+                                                let toUpdate = checkPermissions[0]
+                                                let field = ''
+                                                if (role === 'user') {
+                                                    field = 'users'
+                                                } else if (role === 'validator') {
+                                                    field = 'validators'
+                                                }
+                                                if (field !== '') {
+                                                    if(toUpdate[field].indexOf(user) === -1){
+                                                        toUpdate[field].push(user)
+                                                        await db.collection("sc_permissions").updateOne({ sidechain: sidechain }, { $set: { users: toUpdate.users, validators: toUpdate.validators } }, { writeConcern: { w: 1, j: true } })
+                                                        let checkUpdated = await db.collection('sc_permissions').find({ sidechain: sidechain }).limit(1).toArray()
+                                                        if (checkUpdated[0] !== undefined && checkUpdated[0].usres === toUpdate.users && checkUpdated[0].validators === toUpdate.validators) {
+                                                            inserted = true
+                                                            response(true)
+                                                        }
+                                                        retries++
+                                                        if (retries > 10) {
+                                                            inserted = true
+                                                            client.close()
+                                                            response(false)
+                                                        }
+                                                    }else{
+                                                        client.close(
+                                                            response(true)
+                                                        )
+                                                    }
+                                                } else {
+                                                    // ROLE NOT RECONIZED
+                                                    inserted = true
+                                                    response(false)
+                                                }
+                                            } else {
+                                                // ACCOUNT IS NOT ALLOWED TO CHANGE PERMISSIONS
                                                 inserted = true
-                                            }*/
-                                            retries++
-                                            if (retries > 10) {
-                                                inserted = true
-                                                client.close()
                                                 response(false)
                                             }
                                         } else {
@@ -1108,7 +1135,7 @@ module Daemon {
                             let retries = 0
                             while (inserted === false) {
                                 try {
-                                    // TODO: STORE ALLOW DATA
+                                    // TODO: STORE DENY DATA
                                 } catch (e) {
                                     utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
                                     utils.log(e, '', 'errors')
