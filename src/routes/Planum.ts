@@ -1509,20 +1509,156 @@ export async function shares(req: express.Request, res: express.Response) {
 export function allowuser(req: express.Request, res: express.Response) {
   var form = new formidable.IncomingForm();
   form.parse(req, async function (err, fields, files) {
-    if (fields.from !== undefined && fields.sidechain_address !== undefined) {
+    if (fields.from !== undefined && fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.address !== undefined && fields.level !== undefined) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        client.close()
         if (check_sidechain[0] !== undefined) {
-          let wallet = new Crypto.Wallet
-          let verify = await wallet.verifymessage(fields.pubkey, fields.signature, fields.message)
-          if (check_sidechain[0].data.genesis.owner === fields.address && verify !== false) {
-            // TODO: WRITE TRANSACTION IN BLOCKCHAIN
-            client.close()
-          }else{
+          if (check_sidechain[0].data.genesis.permissioned === true) {
+            let wallet = new Crypto.Wallet
+            let verify = await wallet.verifymessage(fields.pubkey, fields.signature, fields.message)
+            if (check_sidechain[0].data.genesis.owner === fields.address && verify !== false) {
+              wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
+                if (info['result']['isvalid'] === true) {
+
+                  var private_key = fields.private_key
+                  var dapp_address = fields.dapp_address
+
+                  var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+                  var collection = '!*!'
+                  var refID = '!*!'
+                  var protocol = '!*!scallow://'
+                  var fees = 0.001
+                  var metadata = fields.level + ':' + fields.address + '@' + fields.sidechain_address
+
+                  var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
+                  console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
+                  var max_opreturn = 80
+                  if (process.env.MAX_OPRETURN !== undefined) {
+                    max_opreturn = parseInt(process.env.MAX_OPRETURN)
+                  }
+                  console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
+                  try {
+                    var write = await wallet.write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol, fees)
+                    if (write !== false) {
+                      res.json(write)
+                    } else {
+                      res.json({ success: false })
+                    }
+                  } catch (e) {
+                    res.json(e)
+                  }
+                } else {
+                  res.json({
+                    data: 'Address isn\'t valid.',
+                    status: 402,
+                    result: info['result']
+                  })
+                }
+              })
+
+            } else {
+              res.send({
+                data: {
+                  error: "Owner's signature validation failed."
+                },
+                status: 422
+              })
+            }
+          } else {
             res.send({
               data: {
-                error: "Owner's signature validation failed."
+                error: "Sidechain is permissionless."
+              },
+              status: 422
+            })
+          }
+        } else {
+          client.close()
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all the fields first."
+        },
+        status: 422
+      })
+    }
+  })
+}
+
+export function denyuser(req: express.Request, res: express.Response) {
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.from !== undefined && fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.address !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        client.close()
+        if (check_sidechain[0] !== undefined) {
+          if (check_sidechain[0].data.genesis.permissioned === true) {
+            let wallet = new Crypto.Wallet
+            let verify = await wallet.verifymessage(fields.pubkey, fields.signature, fields.message)
+            if (check_sidechain[0].data.genesis.owner === fields.address && verify !== false) {
+              wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
+                if (info['result']['isvalid'] === true) {
+
+                  var private_key = fields.private_key
+                  var dapp_address = fields.dapp_address
+
+                  var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+                  var collection = '!*!'
+                  var refID = '!*!'
+                  var protocol = '!*!scdeny://'
+                  var fees = 0.001
+                  var metadata = fields.address
+
+                  var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
+                  console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
+                  var max_opreturn = 80
+                  if (process.env.MAX_OPRETURN !== undefined) {
+                    max_opreturn = parseInt(process.env.MAX_OPRETURN)
+                  }
+                  console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
+                  try {
+                    var write = await wallet.write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol, fees)
+                    if (write !== false) {
+                      res.json(write)
+                    } else {
+                      res.json({ success: false })
+                    }
+                  } catch (e) {
+                    res.json(e)
+                  }
+                } else {
+                  res.json({
+                    data: 'Address isn\'t valid.',
+                    status: 402,
+                    result: info['result']
+                  })
+                }
+              })
+
+            } else {
+              res.send({
+                data: {
+                  error: "Owner's signature validation failed."
+                },
+                status: 422
+              })
+            }
+          } else {
+            res.send({
+              data: {
+                error: "Sidechain is permissionless."
               },
               status: 422
             })

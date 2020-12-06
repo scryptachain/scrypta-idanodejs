@@ -43,7 +43,7 @@ module Daemon {
                     blocks = info['result'].blocks
                     let utils = new Utilities.Parser
                     utils.log('FOUND ' + blocks + ' BLOCKS IN THE BLOCKCHAIN')
-                    var task = new Daemon.Sync
+                    let task = new Daemon.Sync
                     task.process()
                 })
             } else {
@@ -64,7 +64,7 @@ module Daemon {
                         var db = client.db(global['db_name'])
                         global['retrySync'] = 0
                         global['isSyncing'] = true
-                        var task = new Daemon.Sync
+                        let task = new Daemon.Sync
                         const sync = await db.collection('blocks').find().sort({ block: -1 }).limit(2).toArray()
                         var last
                         if (sync[0] === undefined) {
@@ -291,7 +291,7 @@ module Daemon {
                     utils.log(e, '', 'errors')
                     global['isSyncing'] = false
                     setTimeout(function () {
-                        var task = new Daemon.Sync
+                        let task = new Daemon.Sync
                         task.process()
                     }, 1000)
                 }
@@ -336,7 +336,7 @@ module Daemon {
 
                             if (analyzed !== false) {
                                 let redeemed = []
-                                var task = new Daemon.Sync
+                                let task = new Daemon.Sync
                                 for (let ji in block['analysis']) {
 
                                     // STORING OUTPUTS
@@ -396,7 +396,7 @@ module Daemon {
                                 global['usxocache'] = []
                                 global['sxidcache'] = []
 
-                                // CLEAN PLANUN MEMPOOL
+                                // STORE PLANUM DATA
                                 if (block['planum'].length > 0) {
                                     let cleaned = false
                                     while (cleaned === false) {
@@ -408,10 +408,9 @@ module Daemon {
                                     }
 
                                     let sidechains = []
-                                    //STORE PLANUM DATA
                                     for (var dix in block['planum']) {
                                         utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
-                                        var task = new Daemon.Sync
+                                        let task = new Daemon.Sync
                                         let storedwritten = false
                                         while (storedwritten === false) {
                                             try {
@@ -431,7 +430,7 @@ module Daemon {
                                                 utils.log('STORE PLANUM RESPONSE IS ' + storedplanum)
                                                 if (storedplanum === false) {
                                                     utils.log('ERROR STORING PLANUM', '', 'errors')
-                                                }else if(storedplanum === true){
+                                                } else if (storedplanum === true) {
                                                     if (block['planum'][dix]['data'] !== undefined && block['planum'][dix]['data']['transaction'] !== undefined && block['planum'][dix]['data']['transaction']['sidechain'] !== undefined) {
                                                         if (sidechains.indexOf(block['planum'][dix]['data']['transaction']['sidechain']) === -1) {
                                                             sidechains.push(block['planum'][dix]['data']['transaction']['sidechain'])
@@ -484,13 +483,13 @@ module Daemon {
                                     }
                                 }
 
-                                // STORE GENERAL DATA
+                                // STORE OTHER DATA
                                 for (var address in block['data_written']) {
                                     var data = block['data_written'][address]
                                     console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
                                     for (var dix in data) {
                                         if (data[dix].protocol !== 'chain://') {
-                                            var task = new Daemon.Sync
+                                            let task = new Daemon.Sync
                                             let storedwritten = false
                                             while (storedwritten === false) {
                                                 storedwritten = await task.storewritten(data[dix], false, block['height'])
@@ -507,7 +506,7 @@ module Daemon {
                                     var data = block['data_received'][address]
                                     console.log('\x1b[32m%s\x1b[0m', 'FOUND RECEIVED DATA FOR ' + address + '.')
                                     for (var dix in data) {
-                                        var task = new Daemon.Sync
+                                        let task = new Daemon.Sync
                                         let storedreceived = false
                                         while (storedreceived === false) {
                                             storedreceived = await task.storereceived(data[dix])
@@ -565,6 +564,7 @@ module Daemon {
                                 global['isAnalyzing'] = false
                                 utils.log('ERROR, ANALYZING BLOCK FAILED', '', 'errors')
                                 setTimeout(function () {
+                                    let task = new Daemon.Sync
                                     task.process()
                                 }, 500)
                                 response(false)
@@ -573,6 +573,7 @@ module Daemon {
                             global['isAnalyzing'] = false
                             utils.log('ERROR, CAN\'T GET BLOCK DETAILS', '', 'errors')
                             setTimeout(function () {
+                                let task = new Daemon.Sync
                                 task.process()
                             }, 500)
                             response(false)
@@ -838,6 +839,7 @@ module Daemon {
             })
         }
 
+        // STORE WRITTEN - COLLECT FUNCTION
         private async storewritten(datastore, isMempool = false, block = null): Promise<any> {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
@@ -850,6 +852,8 @@ module Daemon {
                             if (check[0] === undefined) {
                                 console.log('STORING DATA NOW!')
                                 utils.log('WRITTEN DATA ' + JSON.stringify(datastore))
+
+                                // IPFS SPECIFIC
                                 if (JSON.stringify(datastore.data).indexOf('ipfs:') !== -1) {
                                     let parsed = datastore.data.split('***')
                                     if (parsed[0] !== undefined && process.env.PINIPFS === 'true') {
@@ -865,109 +869,35 @@ module Daemon {
                                     }
                                 }
 
+                                // BVC SPECIFIC
                                 if (datastore.protocol === 'bvc://' && global['pinipfs'] === true) {
-                                    var task = new Daemon.Sync
+                                    let task = new Daemon.Sync
                                     await task.pinipfsfolder(datastore.data)
                                 }
 
+                                // PLANUM PERMISSIONED ALLOW USER SPECIFIC
+                                if (datastore.protocol === 'scallow://') {
+                                    let task = new Daemon.Sync
+                                    await task.storeallowdata(datastore)
+                                }
+
+                                // PLANUM PERMISSIONED DENY USER SPECIFIC
+                                if (datastore.protocol === 'scdeny://') {
+                                    let task = new Daemon.Sync
+                                    await task.storedenydata(datastore)
+                                }
+
+                                // DOCUMENTA SPECIFIC
                                 if (datastore.protocol === 'documenta://') {
-                                    var wallet = new Crypto.Wallet;
-                                    let valid = true
-                                    let pubkey
-
-                                    if (datastore.data.pubkey !== undefined) {
-                                        pubkey = datastore.data.pubkey
-                                    } else if (datastore.data.pubKey !== undefined) {
-                                        pubkey = datastore.data.pubKey
-                                    }
-
-                                    if (pubkey !== undefined && pubkey.length > 0 && datastore.data.signature !== undefined && datastore.data.message !== undefined) {
-                                        let validatesign = await wallet.verifymessage(pubkey, datastore.data.signature, datastore.data.message)
-                                        if (validatesign === false) {
-                                            valid = false
-                                        }
-                                    } else {
-                                        valid = false
-                                    }
-
-                                    if (valid) {
-                                        var file = JSON.parse(datastore.data.message)
-                                        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                                            if (!err && client !== undefined) {
-                                                var db = client.db(global['db_name'])
-                                                let checkfile = await db.collection("documenta").findOne({ file: file.file })
-                                                if (checkfile === null) {
-                                                    file.endpoint = file.endpoint
-                                                    file.address = datastore.data.address
-                                                    file.refID = datastore.refID
-                                                    file.block = datastore.block
-                                                    file.time = new Date().getTime()
-                                                    try {
-                                                        await db.collection("documenta").insertOne(file, { w: 1, j: true })
-                                                    } catch (e) {
-                                                        utils.log('DB ERROR WHILE STORING DOCUMENTA', '', 'errors')
-                                                        utils.log(e, '', 'errors')
-                                                        client.close()
-                                                        response(false)
-                                                    }
-                                                } else {
-                                                    await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
-                                                    console.log('FILE STORED YET')
-                                                }
-                                                client.close()
-                                            } else {
-                                                response(false)
-                                            }
-                                        })
-                                    }
-
+                                    let task = new Daemon.Sync
+                                    await task.storedocumentadata(datastore)
                                 }
 
-                                if (datastore.procotl === 'scallow://') {
-                                    // TODO: WRITE ALLOW IN LOCAL DATABASE
-                                }
-
+                                // STORE GENERIC DATA
                                 if (datastore.uuid !== undefined && datastore.uuid !== '') {
-                                    let insertedWritten = false
-                                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                                        if (!err && client !== undefined) {
-                                            var db = client.db(global['db_name'])
-                                            if (db) {
-                                                let retries = 0
-                                                while (insertedWritten === false) {
-                                                    try {
-                                                        await db.collection("written").insertOne(datastore, { w: 1, j: true })
-                                                        let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
-                                                        if (checkWritten[0] !== undefined) {
-                                                            insertedWritten = true
-                                                        }
-                                                        retries++
-                                                        if (retries > 10) {
-                                                            insertedWritten = true
-                                                            client.close()
-                                                            response(false)
-                                                        }
-                                                    } catch (e) {
-                                                        utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
-                                                        utils.log(e, '', 'errors')
-                                                        client.close()
-                                                        retries++
-                                                        if (retries > 10) {
-                                                            insertedWritten = true
-                                                            client.close()
-                                                            response(false)
-                                                        }
-                                                        response(false)
-                                                    }
-                                                }
-                                                client.close()
-                                            } else {
-                                                response(false)
-                                            }
-                                        } else {
-                                            response(false)
-                                        }
-                                    })
+                                    let task = new Daemon.Sync
+                                    console.log('STORING GENERIC DATA')
+                                    await task.storewrittendata(datastore)
                                 }
                             } else {
                                 if (datastore.block !== null) {
@@ -987,6 +917,219 @@ module Daemon {
                     utils.log(e, '', 'errors')
                     response(false)
                 }
+            })
+        }
+
+        // GENERIC DATA
+        private async storewrittendata(datastore): Promise<any> {
+            return new Promise(response => {
+                const utils = new Utilities.Parser
+                let insertedWritten = false
+                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                    if (!err && client !== undefined) {
+                        var db = client.db(global['db_name'])
+                        if (db) {
+                            let retries = 0
+                            while (insertedWritten === false) {
+                                try {
+                                    await db.collection("written").insertOne(datastore, { w: 1, j: true })
+                                    let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
+                                    if (checkWritten[0] !== undefined) {
+                                        insertedWritten = true
+                                    }
+                                    retries++
+                                    if (retries > 10) {
+                                        insertedWritten = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                } catch (e) {
+                                    utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
+                                    utils.log(e, '', 'errors')
+                                    client.close()
+                                    retries++
+                                    if (retries > 10) {
+                                        insertedWritten = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                    response(false)
+                                }
+                            }
+                            client.close()
+                            response(true)
+                        } else {
+                            response(false)
+                        }
+                    } else {
+                        response(false)
+                    }
+                })
+            })
+        }
+
+        // DOCUMENTA DATA
+        private async storedocumentadata(datastore): Promise<any> {
+            return new Promise(async response => {
+                const utils = new Utilities.Parser
+                var wallet = new Crypto.Wallet;
+                let valid = true
+                let pubkey
+
+                if (datastore.data.pubkey !== undefined) {
+                    pubkey = datastore.data.pubkey
+                } else if (datastore.data.pubKey !== undefined) {
+                    pubkey = datastore.data.pubKey
+                }
+
+                if (pubkey !== undefined && pubkey.length > 0 && datastore.data.signature !== undefined && datastore.data.message !== undefined) {
+                    let validatesign = await wallet.verifymessage(pubkey, datastore.data.signature, datastore.data.message)
+                    if (validatesign === false) {
+                        valid = false
+                    }
+                } else {
+                    valid = false
+                }
+
+                if (valid) {
+                    var file = JSON.parse(datastore.data.message)
+                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                        if (!err && client !== undefined) {
+                            var db = client.db(global['db_name'])
+                            let checkfile = await db.collection("documenta").findOne({ file: file.file })
+                            if (checkfile === null) {
+                                file.endpoint = file.endpoint
+                                file.address = datastore.data.address
+                                file.refID = datastore.refID
+                                file.block = datastore.block
+                                file.time = new Date().getTime()
+                                try {
+                                    await db.collection("documenta").insertOne(file, { w: 1, j: true })
+                                } catch (e) {
+                                    utils.log('DB ERROR WHILE STORING DOCUMENTA', '', 'errors')
+                                    utils.log(e, '', 'errors')
+                                    client.close()
+                                    response(false)
+                                }
+                            } else {
+                                await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
+                                console.log('FILE STORED YET')
+                            }
+                            client.close()
+                        } else {
+                            response(false)
+                        }
+                    })
+                }
+            })
+        }
+
+        // PLANUM DATA
+        private async storeallowdata(datastore): Promise<any> {
+            return new Promise(response => {
+                const utils = new Utilities.Parser
+                let inserted = false
+                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                    if (!err && client !== undefined) {
+                        var db = client.db(global['db_name'])
+                        if (db) {
+                            let retries = 0
+                            while (inserted === false) {
+                                try {
+                                    let parse = datastore.data.split('@')
+                                    let sidechain = parse[1]
+                                    let parseUser = parse[0].split(':')
+                                    let role = parseUser[0]
+                                    let user = parseUser[1]
+                                    if (user !== undefined && role !== undefined && sidechain !== undefined) {
+                                        let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true }, "data.genesis.version": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+                                        if (check_sidechain[0].data.genesis.permissioned === true) {
+                                            let checkPermissions = await db.collection('sc_permissions').find({ sidechain: sidechain }).limit(1).toArray()
+                                            if (checkPermissions[0] === undefined) {
+                                                await db.collection("sc_permissions").insertOne({ sidechain: sidechain, users: [], validators: [] }, { w: 1, j: true })
+                                                checkPermissions = await db.collection('sc_permissions').find({ sidechain: sidechain }).limit(1).toArray()
+                                            }
+                                            // TODO: UPDATE USERS / VALIDATORS ARRAY AND PUSH IT INTO DATABASE
+                                            /*await db.collection("sc_permissions").insertOne(datastore, { w: 1, j: true })
+                                            let checkWritten = await db.collection('written').find({ uuid: datastore.uuid }).limit(1).toArray()
+                                            if (checkWritten[0] !== undefined) {
+                                                inserted = true
+                                            }*/
+                                            retries++
+                                            if (retries > 10) {
+                                                inserted = true
+                                                client.close()
+                                                response(false)
+                                            }
+                                        } else {
+                                            // SIDECHAIN IS NOT PERMISSIONED
+                                            inserted = true
+                                            client.close()
+                                            response(false)
+                                        }
+                                    } else {
+                                        // ALLOW DATA MALFORMED
+                                        inserted = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                } catch (e) {
+                                    utils.log('DB ERROR WHILE STORING ALLOW DATA', '', 'errors')
+                                    utils.log(e, '', 'errors')
+                                    client.close()
+                                    retries++
+                                    if (retries > 10) {
+                                        inserted = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                    response(false)
+                                }
+                            }
+                            client.close()
+                        } else {
+                            response(false)
+                        }
+                    } else {
+                        response(false)
+                    }
+                })
+            })
+        }
+
+        private async storedenydata(datastore): Promise<any> {
+            return new Promise(response => {
+                const utils = new Utilities.Parser
+                let inserted = false
+                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                    if (!err && client !== undefined) {
+                        var db = client.db(global['db_name'])
+                        if (db) {
+                            let retries = 0
+                            while (inserted === false) {
+                                try {
+                                    // TODO: STORE ALLOW DATA
+                                } catch (e) {
+                                    utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
+                                    utils.log(e, '', 'errors')
+                                    client.close()
+                                    retries++
+                                    if (retries > 10) {
+                                        inserted = true
+                                        client.close()
+                                        response(false)
+                                    }
+                                    response(false)
+                                }
+                            }
+                            client.close()
+                        } else {
+                            response(false)
+                        }
+                    } else {
+                        response(false)
+                    }
+                })
             })
         }
 
@@ -1291,7 +1434,7 @@ module Daemon {
                                             var isExtended = false
 
                                             // CHECK IF SIDECHAIN IS PERMISSIONED, IF YES CHECK IF USERS ARE ALLOWED TO OPERATE
-                                            if(check_sidechain[0].data.genesis.extendable === true){
+                                            if (check_sidechain[0].data.genesis.permissioned === true) {
                                                 let sidechain_users = await scwallet.returnsidechainusers(datastore.data.transaction.sidechain)
                                                 // TODO: VERIFY INPUTS AND OUTPUTS
                                             }
@@ -1714,6 +1857,7 @@ module Daemon {
             })
         }
 
+        // RECEIVED DATA
         private async storereceived(datastore): Promise<any> {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
@@ -1769,6 +1913,7 @@ module Daemon {
             })
         }
 
+        // CONSOLIDATE DATA
         private consolidatestored() {
             return new Promise(async response => {
                 try {
