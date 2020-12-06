@@ -55,7 +55,6 @@ export async function write(req: express.Request, res: express.Response) {
                             fees = parseFloat(request['body']['fees'])
                         }
                         var metadata
-                        //TODO: ADD FOLDER, NOT ONLY SINGLE FILES
                         if(request['files']['file'] !== undefined){
                             metadata = 'ipfs:'
                             var path = request['files']['file'].path

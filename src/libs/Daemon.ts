@@ -62,12 +62,6 @@ module Daemon {
                 try {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         var db = client.db(global['db_name'])
-                        /*await db.collection('blocks').deleteMany({block: {$gt: 476500}})
-                        await db.collection('transactions').deleteMany({block: {$gt: 476500}})
-                        await db.collection('sc_unspent').deleteMany({block: {$gt: 476500}})
-                        await db.collection('sc_transactions').deleteMany({block: {$gt: 476500}})
-                        await db.collection('sc_unspent').updateMany({block: {$gt: 476500}},  { $set:{redemeed: null, redeemblock: null}})
-                        console.log(aaaa)*/
                         global['retrySync'] = 0
                         global['isSyncing'] = true
                         var task = new Daemon.Sync
@@ -929,6 +923,10 @@ module Daemon {
 
                                 }
 
+                                if (datastore.procotl === 'scallow://') {
+                                    // TODO: WRITE ALLOW IN LOCAL DATABASE
+                                }
+
                                 if (datastore.uuid !== undefined && datastore.uuid !== '') {
                                     let insertedWritten = false
                                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
@@ -1291,6 +1289,12 @@ module Daemon {
                                             var amountoutput = 0
                                             var isGenesis = false
                                             var isExtended = false
+
+                                            // CHECK IF SIDECHAIN IS PERMISSIONED, IF YES CHECK IF USERS ARE ALLOWED TO OPERATE
+                                            if(check_sidechain[0].data.genesis.extendable === true){
+                                                let sidechain_users = await scwallet.returnsidechainusers(datastore.data.transaction.sidechain)
+                                                // TODO: VERIFY INPUTS AND OUTPUTS
+                                            }
 
                                             // CHECKING IF TRANSACTION IS CONTROLLED BY A SMART CONTRACT
                                             if (datastore.data.contract !== undefined && datastore.data.contract.address !== undefined) {

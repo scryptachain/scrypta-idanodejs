@@ -71,6 +71,11 @@ export async function issue(req: express.Request, res: express.Response) {
           dna = fields.dna
         }
 
+        var permissioned = true
+        if (fields.permissioned !== undefined && (fields.permissioned === 'true' || fields.reissuable === true)) {
+          permissioned = false
+        }
+
         let genesis = {
           "name": fields.name,
           "supply": supply,
@@ -82,6 +87,7 @@ export async function issue(req: express.Request, res: express.Response) {
           "burnable": burnable,
           "extendable": extendable,
           "contract": contract,
+          "permissioned": permissioned,
           "version": fields.version,
           "dna": dna,
           "time": new Date().getTime()
@@ -317,16 +323,20 @@ export async function checksidechain(req: express.Request, res: express.Response
                 client.close()
                 res.send(response)
               } else {
+                client.close()
                 res.send('Sidechain not found.')
               }
             } else {
+              client.close()
               res.send('Node not synced.')
             }
           } else {
+            client.close()
             res.send(false)
           }
         })
       } else {
+        client.close()
         res.send(false)
       }
     })
@@ -500,6 +510,7 @@ export async function send(req: express.Request, res: express.Response) {
               })
             }
           } else {
+            client.close()
             res.send({
               data: {
                 error: "Receiving address is invalid."
@@ -508,6 +519,7 @@ export async function send(req: express.Request, res: express.Response) {
             })
           }
         } else {
+          client.close()
           res.send({
             data: {
               error: "Sidechain not found."
@@ -1396,6 +1408,7 @@ export function listchains(req: express.Request, res: express.Response) {
         })
 
       } else {
+        client.close()
         res.send({
           data: {
             error: "Sidechains not found."
@@ -1491,4 +1504,46 @@ export async function shares(req: express.Request, res: express.Response) {
       status: 422
     })
   }
+}
+
+export function allowuser(req: express.Request, res: express.Response) {
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.from !== undefined && fields.sidechain_address !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        if (check_sidechain[0] !== undefined) {
+          let wallet = new Crypto.Wallet
+          let verify = await wallet.verifymessage(fields.pubkey, fields.signature, fields.message)
+          if (check_sidechain[0].data.genesis.owner === fields.address && verify !== false) {
+            // TODO: WRITE TRANSACTION IN BLOCKCHAIN
+            client.close()
+          }else{
+            res.send({
+              data: {
+                error: "Owner's signature validation failed."
+              },
+              status: 422
+            })
+          }
+        } else {
+          client.close()
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all the fields first."
+        },
+        status: 422
+      })
+    }
+  })
 }

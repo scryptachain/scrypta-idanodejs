@@ -18,7 +18,6 @@
 	// x instanceof BigInteger
 	ec.FieldElementFp = function (q, x) {
 		this.x = x;
-		// TODO if(x.compareTo(q) >= 0) error
 		this.q = q;
 	};
 
@@ -118,7 +117,6 @@
 	* Ported to JavaScript by bitaddress.org
 	*/
 	ec.FieldElementFp.fastLucasSequence = function (p, P, Q, k) {
-		// TODO Research and apply "common-multiplicand multiplication here"
 
 		var n = k.bitLength();
 		var s = k.getLowestSetBit();
@@ -260,7 +258,6 @@
 		if (this.isInfinity()) return this;
 		if (this.y.toBigInteger().signum() == 0) return this.curve.getInfinity();
 
-		// TODO: optimized handling of constants
 		var THREE = new BigInteger("3");
 		var x1 = this.x.toBigInteger();
 		var y1 = this.y.toBigInteger();
@@ -287,7 +284,6 @@
 	};
 
 	// Simple NAF (Non-Adjacent Form) multiplication algorithm
-	// TODO: modularize the multiplication algorithm
 	ec.PointFp.prototype.multiply = function (k) {
 		if (this.isInfinity()) return this;
 		if (k.signum() == 0) return this.curve.getInfinity();
@@ -499,7 +495,6 @@
 
 		// Check nQ = 0 (Q is a scalar multiple of G)
 		if (this.multiply(n).isInfinity()) {
-			// TODO: This check doesn't work - fix.
 			throw new Error("Point is not a scalar multiple of G.");
 		}
 
