@@ -1521,42 +1521,54 @@ export function allowuser(req: express.Request, res: express.Response) {
             let pubkey = await wallet.getPublicKey(fields.private_key)
             let address = await wallet.getAddressFromPubKey(pubkey)
             if (check_sidechain[0].data.genesis.owner === address || (checkPermissions !== null && checkPermissions.validators !== undefined && checkPermissions.validators.indexOf(address) !== -1)) {
-              wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
-                if (info['result']['isvalid'] === true) {
-                  var private_key = fields.private_key
-                  var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
-                  var collection = '!*!'
-                  var refID = '!*!'
-                  var protocol = '!*!scallow://'
-                  var fees = 0.001
-                  var metadata = fields.level + ':' + fields.dapp_address + '@' + fields.sidechain_address
+              let canUpdate = true
+              if (fields.level === 'validators' && address !== check_sidechain[0].data.genesis.owner) {
+                canUpdate = false
+              }
+              if (canUpdate) {
+                wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
+                  if (info['result']['isvalid'] === true) {
+                    var private_key = fields.private_key
+                    var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+                    var collection = '!*!'
+                    var refID = '!*!'
+                    var protocol = '!*!scallow://'
+                    var fees = 0.001
+                    var metadata = fields.level + ':' + fields.dapp_address + '@' + fields.sidechain_address
 
-                  var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
-                  console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
-                  var max_opreturn = 80
-                  if (process.env.MAX_OPRETURN !== undefined) {
-                    max_opreturn = parseInt(process.env.MAX_OPRETURN)
-                  }
-                  console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
-                  try {
-                    var write = await wallet.write(private_key, address, dataToWrite, uuid, collection, refID, protocol, fees)
-                    if (write !== false) {
-                      res.json(write)
-                    } else {
-                      res.json({ success: false })
+                    var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
+                    console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
+                    var max_opreturn = 80
+                    if (process.env.MAX_OPRETURN !== undefined) {
+                      max_opreturn = parseInt(process.env.MAX_OPRETURN)
                     }
-                  } catch (e) {
-                    res.json(e)
+                    console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
+                    try {
+                      var write = await wallet.write(private_key, address, dataToWrite, uuid, collection, refID, protocol, fees)
+                      if (write !== false) {
+                        res.json(write)
+                      } else {
+                        res.json({ success: false })
+                      }
+                    } catch (e) {
+                      res.json(e)
+                    }
+                  } else {
+                    res.json({
+                      data: 'Address isn\'t valid.',
+                      status: 402,
+                      result: info['result']
+                    })
                   }
-                } else {
-                  res.json({
-                    data: 'Address isn\'t valid.',
-                    status: 402,
-                    result: info['result']
-                  })
-                }
-              })
-
+                })
+              } else {
+                res.send({
+                  data: {
+                    error: "You can't manage sidechain's validators."
+                  },
+                  status: 422
+                })
+              }
             } else {
               res.send({
                 data: {

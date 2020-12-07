@@ -1053,12 +1053,16 @@ module Daemon {
                                             if (datastore.address === check_sidechain[0].data.genesis.owner || checkPermissions[0].validators.indexOf(datastore.address) !== -1) {
                                                 let toUpdate = checkPermissions[0]
                                                 let field = ''
+                                                let canUpdate = true
                                                 if (role === 'user') {
                                                     field = 'users'
                                                 } else if (role === 'validator') {
                                                     field = 'validators'
+                                                    if(datastore.address !== check_sidechain[0].data.genesis.owner){
+                                                        canUpdate = false
+                                                    }
                                                 }
-                                                if (field !== '') {
+                                                if (field !== '' && canUpdate === true) {
                                                     if(toUpdate[field].indexOf(user) === -1){
                                                         toUpdate[field].push(user)
                                                         await db.collection("sc_permissions").updateOne({ sidechain: sidechain }, { $set: { users: toUpdate.users, validators: toUpdate.validators } }, { writeConcern: { w: 1, j: true } })
@@ -1532,8 +1536,7 @@ module Daemon {
                                             var isExtended = false
 
                                             // CHECK IF SIDECHAIN IS PERMISSIONED, IF YES CHECK IF USERS ARE ALLOWED TO OPERATE
-                                            if (check_sidechain[0].data.genesis.permissioned === true) {
-                                                let sidechain_users = await scwallet.returnsidechainusers(datastore.data.transaction.sidechain)
+                                            if (check_sidechain[0].data.genesis.permissioned !== undefined && check_sidechain[0].data.genesis.permissioned === true) {
                                                 // VERIFYING INPUTS
                                                 for(let k in datastore.data.transaction.inputs){
                                                     let input = datastore.data.transaction.inputs[k]
@@ -1542,7 +1545,7 @@ module Daemon {
                                                         valid = false
                                                     }
                                                 }
-
+                                                // VERIFYING OUTPUTS
                                                 for(let address in datastore.data.transaction.outputs){
                                                     let validated = await scwallet.validateoutputaddress(address, datastore.data.transaction.sidechain)
                                                     if(validated === false){
