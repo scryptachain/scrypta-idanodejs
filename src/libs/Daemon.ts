@@ -1162,9 +1162,9 @@ module Daemon {
                                                     if(toUpdate[field].indexOf(user) !== -1){
                                                         let old = toUpdate[field]
                                                         toUpdate[field] = []
-                                                        for(let k in toUpdate[field]){
-                                                            if(toUpdate[k] !== user){
-                                                                toUpdate[field].push(toUpdate[k])
+                                                        for(let k in old){
+                                                            if(old[k] !== user){
+                                                                toUpdate[field].push(old[k])
                                                             }
                                                         }
                                                         await db.collection("sc_permissions").updateOne({ sidechain: sidechain }, { $set: { users: toUpdate.users, validators: toUpdate.validators } }, { writeConcern: { w: 1, j: true } })

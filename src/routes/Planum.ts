@@ -71,9 +71,9 @@ export async function issue(req: express.Request, res: express.Response) {
           dna = fields.dna
         }
 
-        var permissioned = true
+        var permissioned = false
         if (fields.permissioned !== undefined && (fields.permissioned === 'true' || fields.reissuable === true)) {
-          permissioned = false
+          permissioned = true
         }
 
         let genesis = {
@@ -1509,29 +1509,27 @@ export async function shares(req: express.Request, res: express.Response) {
 export function allowuser(req: express.Request, res: express.Response) {
   var form = new formidable.IncomingForm();
   form.parse(req, async function (err, fields, files) {
-    if (fields.from !== undefined && fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.address !== undefined && fields.level !== undefined) {
+    if (fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.level !== undefined) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
-        client.close()
         if (check_sidechain[0] !== undefined) {
           if (check_sidechain[0].data.genesis.permissioned === true) {
             let wallet = new Crypto.Wallet
-            let checkPermissions = await db.collection('sc_permissions').find({ sidechain: fields.sidechain_address }).limit(1).toArray()
-            let verify = await wallet.verifymessage(fields.pubkey, fields.signature, fields.message)
-            if (verify !== false && (check_sidechain[0].data.genesis.owner === verify['address'] || checkPermissions[0].validators.indexOf(verify['address']) !== -1) ) {
+            let checkPermissions = await db.collection('sc_permissions').findOne({ sidechain: fields.sidechain_address })
+            client.close()
+            let pubkey = await wallet.getPublicKey(fields.private_key)
+            let address = await wallet.getAddressFromPubKey(pubkey)
+            if (check_sidechain[0].data.genesis.owner === address || checkPermissions[0].validators.indexOf(address) !== -1) {
               wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
                 if (info['result']['isvalid'] === true) {
-
                   var private_key = fields.private_key
-                  var dapp_address = fields.dapp_address
-
                   var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
                   var collection = '!*!'
                   var refID = '!*!'
                   var protocol = '!*!scallow://'
                   var fees = 0.001
-                  var metadata = fields.level + ':' + fields.address + '@' + fields.sidechain_address
+                  var metadata = fields.level + ':' + fields.dapp_address + '@' + fields.sidechain_address
 
                   var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
                   console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
@@ -1541,7 +1539,7 @@ export function allowuser(req: express.Request, res: express.Response) {
                   }
                   console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
                   try {
-                    var write = await wallet.write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol, fees)
+                    var write = await wallet.write(private_key, address, dataToWrite, uuid, collection, refID, protocol, fees)
                     if (write !== false) {
                       res.json(write)
                     } else {
@@ -1599,29 +1597,28 @@ export function allowuser(req: express.Request, res: express.Response) {
 export function denyuser(req: express.Request, res: express.Response) {
   var form = new formidable.IncomingForm();
   form.parse(req, async function (err, fields, files) {
-    if (fields.from !== undefined && fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.address !== undefined && fields.level !== undefined) {
+    if (fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.level !== undefined) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
-        client.close()
         if (check_sidechain[0] !== undefined) {
           if (check_sidechain[0].data.genesis.permissioned === true) {
             let wallet = new Crypto.Wallet
-            let checkPermissions = await db.collection('sc_permissions').find({ sidechain: fields.sidechain_address }).limit(1).toArray()
-            let verify = await wallet.verifymessage(fields.pubkey, fields.signature, fields.message)
-            if (verify !== false && (check_sidechain[0].data.genesis.owner === verify['address'] || checkPermissions[0].validators.indexOf(verify['address']) !== -1) ) {
+            let checkPermissions = await db.collection('sc_permissions').findOne({ sidechain: fields.sidechain_address })
+            client.close()
+            let pubkey = await wallet.getPublicKey(fields.private_key)
+            let address = await wallet.getAddressFromPubKey(pubkey)
+            if (check_sidechain[0].data.genesis.owner === address || checkPermissions[0].validators.indexOf(address) !== -1) {
               wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
                 if (info['result']['isvalid'] === true) {
 
                   var private_key = fields.private_key
-                  var dapp_address = fields.dapp_address
-
                   var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
                   var collection = '!*!'
                   var refID = '!*!'
                   var protocol = '!*!scdeny://'
                   var fees = 0.001
-                  var metadata = fields.level + ':' + fields.address + '@' + fields.sidechain_address
+                  var metadata = fields.level + ':' + fields.dapp_address + '@' + fields.sidechain_address
 
                   var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
                   console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
@@ -1631,7 +1628,7 @@ export function denyuser(req: express.Request, res: express.Response) {
                   }
                   console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
                   try {
-                    var write = await wallet.write(private_key, dapp_address, dataToWrite, uuid, collection, refID, protocol, fees)
+                    var write = await wallet.write(private_key, address, dataToWrite, uuid, collection, refID, protocol, fees)
                     if (write !== false) {
                       res.json(write)
                     } else {
