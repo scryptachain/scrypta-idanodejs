@@ -1074,9 +1074,10 @@ module Daemon {
                                                             response(false)
                                                         }
                                                     }else{
-                                                        client.close(
-                                                            response(true)
-                                                        )
+                                                        // NOTHING TO DO
+                                                        inserted = true
+                                                        client.close()
+                                                        response(true)
                                                     }
                                                 } else {
                                                     // ROLE NOT RECONIZED
@@ -1135,9 +1136,79 @@ module Daemon {
                             let retries = 0
                             while (inserted === false) {
                                 try {
-                                    // TODO: STORE DENY DATA
+                                    let parse = datastore.data.split('@')
+                                    let sidechain = parse[1]
+                                    let parseUser = parse[0].split(':')
+                                    let role = parseUser[0]
+                                    let user = parseUser[1]
+                                    if (user !== undefined && role !== undefined && sidechain !== undefined) {
+                                        let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true }, "data.genesis.version": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+                                        if (check_sidechain[0].data.genesis.permissioned === true) {
+                                            let checkPermissions = await db.collection('sc_permissions').find({ sidechain: sidechain }).limit(1).toArray()
+                                            if (checkPermissions[0] === undefined) {
+                                                await db.collection("sc_permissions").insertOne({ sidechain: sidechain, users: [], validators: [] }, { w: 1, j: true })
+                                                checkPermissions = await db.collection('sc_permissions').find({ sidechain: sidechain }).limit(1).toArray()
+                                            }
+                                            // CHECK IF ACCOUNT IS ALLOWED TO CHANGE STATUS
+                                            if (datastore.address === check_sidechain[0].data.genesis.owner || checkPermissions[0].validators.indexOf(datastore.address) !== -1) {
+                                                let toUpdate = checkPermissions[0]
+                                                let field = ''
+                                                if (role === 'user') {
+                                                    field = 'users'
+                                                } else if (role === 'validator') {
+                                                    field = 'validators'
+                                                }
+                                                if (field !== '') {
+                                                    if(toUpdate[field].indexOf(user) !== -1){
+                                                        let old = toUpdate[field]
+                                                        toUpdate[field] = []
+                                                        for(let k in toUpdate[field]){
+                                                            if(toUpdate[k] !== user){
+                                                                toUpdate[field].push(toUpdate[k])
+                                                            }
+                                                        }
+                                                        await db.collection("sc_permissions").updateOne({ sidechain: sidechain }, { $set: { users: toUpdate.users, validators: toUpdate.validators } }, { writeConcern: { w: 1, j: true } })
+                                                        let checkUpdated = await db.collection('sc_permissions').find({ sidechain: sidechain }).limit(1).toArray()
+                                                        if (checkUpdated[0] !== undefined && checkUpdated[0].usres === toUpdate.users && checkUpdated[0].validators === toUpdate.validators) {
+                                                            inserted = true
+                                                            response(true)
+                                                        }
+                                                        retries++
+                                                        if (retries > 10) {
+                                                            inserted = true
+                                                            client.close()
+                                                            response(false)
+                                                        }
+                                                    }else{
+                                                        // NOTHING TO DO
+                                                        inserted = true
+                                                        client.close()
+                                                        response(true)
+                                                    }
+                                                } else {
+                                                    // ROLE NOT RECONIZED
+                                                    inserted = true
+                                                    response(false)
+                                                }
+                                            } else {
+                                                // ACCOUNT IS NOT ALLOWED TO CHANGE PERMISSIONS
+                                                inserted = true
+                                                response(false)
+                                            }
+                                        } else {
+                                            // SIDECHAIN IS NOT PERMISSIONED
+                                            inserted = true
+                                            client.close()
+                                            response(false)
+                                        }
+                                    } else {
+                                        // ALLOW DATA MALFORMED
+                                        inserted = true
+                                        client.close()
+                                        response(false)
+                                    }
                                 } catch (e) {
-                                    utils.log('DB ERROR WHILE STORING WRITTEN', '', 'errors')
+                                    utils.log('DB ERROR WHILE STORING ALLOW DATA', '', 'errors')
                                     utils.log(e, '', 'errors')
                                     client.close()
                                     retries++
@@ -1463,7 +1534,21 @@ module Daemon {
                                             // CHECK IF SIDECHAIN IS PERMISSIONED, IF YES CHECK IF USERS ARE ALLOWED TO OPERATE
                                             if (check_sidechain[0].data.genesis.permissioned === true) {
                                                 let sidechain_users = await scwallet.returnsidechainusers(datastore.data.transaction.sidechain)
-                                                // TODO: VERIFY INPUTS AND OUTPUTS
+                                                // VERIFYING INPUTS
+                                                for(let k in datastore.data.transaction.inputs){
+                                                    let input = datastore.data.transaction.inputs[k]
+                                                    let validated = await scwallet.validatepermissionedinput(input)
+                                                    if(validated === false){
+                                                        valid = false
+                                                    }
+                                                }
+
+                                                for(let address in datastore.data.transaction.outputs){
+                                                    let validated = await scwallet.validateoutputaddress(address, datastore.data.transaction.sidechain)
+                                                    if(validated === false){
+                                                        valid = false
+                                                    }
+                                                }
                                             }
 
                                             // CHECKING IF TRANSACTION IS CONTROLLED BY A SMART CONTRACT

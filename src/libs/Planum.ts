@@ -202,7 +202,7 @@ module SideChain {
                 const db = client.db(global['db_name'])
                 let check_sidechain = await db.collection('written').find({ address: sidechain, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
                 if(check_sidechain[0] !== undefined){
-                    let sidechain_datas = await db.collection('sc_permissions').findOne({ "sidechain_address": sidechain })
+                    let sidechain_datas = await db.collection('sc_permissions').findOne({ sidechain: sidechain })
                     sidechain_datas.users.push(check_sidechain[0].data.genesis.address)
                     sidechain_datas.validators.push(check_sidechain[0].data.genesis.owner)
                     client.close()
@@ -211,6 +211,37 @@ module SideChain {
                     response(false)
                 }
             })
+        })
+    }
+
+    public async validatepermissionedinput(input){
+        return new Promise <any> (async response => {
+            mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                const db = client.db(global['db_name'])
+                let check_input = await db.collection('sc_transactions').findOne({ sxid: input.sxid, vout: input.vout }).toArray()
+                if(check_input !== undefined){
+                    client.close()
+                    let permissions = await this.returnsidechainusers(check_input.sidechain)
+                    if(permissions.users.indexOf(check_input.address) !== -1 || permissions.validators.indexOf(check_input.address) !== -1){
+                        response(true)
+                    }else{
+                        response(false)
+                    }
+                }else{
+                    response(false)
+                }
+            })
+        })
+    }
+
+    public async validateoutputaddress(address, sidechain){
+        return new Promise <any> (async response => {
+            let permissions = await this.returnsidechainusers(sidechain)
+            if(permissions.users.indexOf(address) !== -1 || permissions.validators.indexOf(address) !== -1){
+                response(true)
+            }else{
+                response(false)
+            }
         })
     }
   }

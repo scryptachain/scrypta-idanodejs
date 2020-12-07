@@ -1621,7 +1621,7 @@ export function denyuser(req: express.Request, res: express.Response) {
                   var refID = '!*!'
                   var protocol = '!*!scdeny://'
                   var fees = 0.001
-                  var metadata = fields.address + '@' + fields.sidechain_address
+                  var metadata = fields.level + ':' + fields.address + '@' + fields.sidechain_address
 
                   var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
                   console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
