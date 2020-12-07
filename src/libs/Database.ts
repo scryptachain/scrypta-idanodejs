@@ -47,6 +47,11 @@ module Database {
                             compound: [["address", "sxid"]]
                         },
                         {
+                            name: "sc_permissions",
+                            indexes: ["sidechain", "users", "validators"],
+                            compound: []
+                        },
+                        {
                             name: "initialized",
                             indexes: ["address", "txid"],
                             compound: []

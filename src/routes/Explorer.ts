@@ -3,13 +3,13 @@ import * as Crypto from '../libs/Crypto'
 const mongo = require('mongodb').MongoClient
 
 export function info(req: express.Request, res: express.Response) {
-    res.json({status: "ONLINE"})
+    res.json({ status: "ONLINE" })
 };
 
 export function getblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     var block = req.params.block
-    wallet.request('getblockhash', [parseInt(block)]).then(function(blockhash){
+    wallet.request('getblockhash', [parseInt(block)]).then(function (blockhash) {
         wallet.analyzeBlock(blockhash['result']).then(response => {
             res.json({
                 data: response,
@@ -22,7 +22,7 @@ export function getblock(req: express.Request, res: express.Response) {
 export function analyzeblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     var block = req.params.block
-    wallet.request('getblockhash', [parseInt(block)]).then(function(blockhash){
+    wallet.request('getblockhash', [parseInt(block)]).then(function (blockhash) {
         wallet.analyzeBlock(blockhash['result']).then(analyzed => {
             res.json({
                 data: analyzed,
@@ -47,12 +47,12 @@ export function getlastblock(req: express.Request, res: express.Response) {
     wallet.request('getinfo').then(info => {
         var block = info['result'].blocks
 
-        wallet.request('getblockhash', [block]).then(function(blockhash){
+        wallet.request('getblockhash', [block]).then(function (blockhash) {
             wallet.analyzeBlock(blockhash['result']).then(response => {
-              res.json({
-                data: response,
-                status: 200
-              })
+                res.json({
+                    data: response,
+                    status: 200
+                })
             })
         })
     })
@@ -60,16 +60,16 @@ export function getlastblock(req: express.Request, res: express.Response) {
 
 export async function transactions(req: express.Request, res: express.Response) {
     var address = req.params.address
-    mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
-        let transactions = await db.collection('transactions').find({address: address}).sort({blockheight: -1}).toArray()
+        let transactions = await db.collection('transactions').find({ address: address }).sort({ blockheight: -1 }).toArray()
         let response = []
         let unconfirmed = []
-        for(let x in transactions){
+        for (let x in transactions) {
             let tx = transactions[x]
-            if(tx['blockheight'] !== null){
+            if (tx['blockheight'] !== null) {
                 response.push(tx)
-            }else{
+            } else {
                 unconfirmed.push(tx)
             }
         }
@@ -85,31 +85,46 @@ export async function transactions(req: express.Request, res: express.Response) 
 export async function unspent(req: express.Request, res: express.Response) {
     var address = req.params.address
     var balance = 0
-    var wallet = new Crypto.Wallet
-    let unspent = []
-    for(let i in global['utxocache']){
-        unspent.push(global['utxocache'][i])
-        balance +=  global['utxocache'][i].amount
-    }
-    let blockchainunspent = await wallet.listunpent(address)
-    for(let i in blockchainunspent){
-        unspent.push(blockchainunspent[i])
-        balance += blockchainunspent[i].amount
-    }
-    res.json({
-        balance: balance,
-        unspent: unspent,
-        status: 200
+    var wallet = new Crypto.Wallet;
+    wallet.request('masternode', ['list']).then(async function (list) {
+        let masternodes = list['result']
+        let masternodetxs = []
+        for (let k in masternodes) {
+            let mn = masternodes[k]
+            masternodetxs.push(mn['txhash'] + ':' + mn['outidx'])
+        }
+        var wallet = new Crypto.Wallet
+        let unspent = []
+        for (let i in global['utxocache']) {
+            unspent.push(global['utxocache'][i])
+            balance += global['utxocache'][i].amount
+        }
+        let locked = []
+        let blockchainunspent = await wallet.listunpent(address)
+        for (let i in blockchainunspent) {
+            balance += blockchainunspent[i].amount
+            if (masternodetxs.indexOf(blockchainunspent[i].txid + ':' + blockchainunspent[i].vout) !== -1) {
+                locked.push(blockchainunspent[i])
+            }else{
+                unspent.push(blockchainunspent[i])
+            }
+        }
+        res.json({
+            balance: balance,
+            unspent: unspent,
+            locked: locked,
+            status: 200
+        })
     })
 };
 
 export async function balance(req: express.Request, res: express.Response) {
     var address = req.params.address
     var balance = 0
-    mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
-        let transactions = await db.collection('transactions').find({address: address}).sort({blockheight: -1}).toArray()
-        for(var index in transactions){
+        let transactions = await db.collection('transactions').find({ address: address }).sort({ blockheight: -1 }).toArray()
+        for (var index in transactions) {
             var tx = transactions[index]
             balance += parseFloat(tx.value.toFixed(8))
         }
@@ -124,7 +139,7 @@ export async function balance(req: express.Request, res: express.Response) {
 export async function validate(req: express.Request, res: express.Response) {
     var address = req.params.address
     var wallet = new Crypto.Wallet;
-    wallet.request('validateaddress', [address]).then(function(validation){
+    wallet.request('validateaddress', [address]).then(function (validation) {
         res.json({
             data: validation['result'],
             status: 200
@@ -134,7 +149,7 @@ export async function validate(req: express.Request, res: express.Response) {
 
 export async function stats(req: express.Request, res: express.Response) {
     var address = req.params.address
-    if(address.length > 0){
+    if (address.length > 0) {
         var received = 0
         var sent = 0
         var balance = 0
@@ -152,39 +167,39 @@ export async function stats(req: express.Request, res: express.Response) {
                 txns: []
             }
         }
-        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
             const db = client.db(global['db_name'])
-            let transactions = await db.collection('transactions').find({address: address}).sort({blockheight: -1}).toArray()
-            for(var index in transactions){
+            let transactions = await db.collection('transactions').find({ address: address }).sort({ blockheight: -1 }).toArray()
+            for (var index in transactions) {
                 var tx = transactions[index]
 
-                if(tx.value > 0){
+                if (tx.value > 0) {
                     received += tx.value
-                }else{
+                } else {
                     sent += tx.value
                 }
                 balance += tx.value
                 var datetime = new Date(tx.time * 1000);
-                var date = datetime.getFullYear()+ '-' + ('0' + (datetime.getMonth()+1)).slice(-2) + '-' + ('0' + datetime.getDate()).slice(-2);
+                var date = datetime.getFullYear() + '-' + ('0' + (datetime.getMonth() + 1)).slice(-2) + '-' + ('0' + datetime.getDate()).slice(-2);
 
 
-                if(tx.type === 'STAKE'){
+                if (tx.type === 'STAKE') {
                     stats.stake.count++
                     stats.stake.amount += tx.value
                     stats.stake.txns.push(tx)
 
-                    if(stats.stake.stats[date] === undefined){
+                    if (stats.stake.stats[date] === undefined) {
                         stats.stake.stats[date] = 0
                     }
                     stats.stake.stats[date] += tx.value
                 }
 
-                if(tx.type === 'REWARD'){
+                if (tx.type === 'REWARD') {
                     stats.rewards.count++
                     stats.rewards.amount += tx.value
                     stats.rewards.txns.push(tx)
 
-                    if(stats.rewards.stats[date] === undefined){
+                    if (stats.rewards.stats[date] === undefined) {
                         stats.rewards.stats[date] = 0
                     }
                     stats.rewards.stats[date] += tx.value
@@ -203,7 +218,7 @@ export async function stats(req: express.Request, res: express.Response) {
                 status: 200
             })
         })
-    }else{
+    } else {
         res.json({
             data: 'Missing parameter: address',
             status: 422
@@ -219,11 +234,11 @@ export async function networkstats(req: express.Request, res: express.Response) 
     var writtendatatotal = 0
     var planumtxs24h = 0
     var planumtxstotal = 0
-    try{
-        mongo.connect(global['db_url'], global['db_options'], async function(err, client) {
+    try {
+        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
             const db = client.db(global['db_name'])
-            let transactions = await db.collection('transactions').find().sort({blockheight: -1}).toArray()
-            
+            let transactions = await db.collection('transactions').find().sort({ blockheight: -1 }).toArray()
+
             client.close()
             res.json({
                 totaladdresses: totaladdresses,
@@ -235,7 +250,7 @@ export async function networkstats(req: express.Request, res: express.Response) 
                 planumtxstotal: planumtxstotal
             })
         })
-    }catch(e){
+    } catch (e) {
         res.json({
             error: true,
             message: "Can't fetch data"

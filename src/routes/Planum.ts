@@ -71,6 +71,11 @@ export async function issue(req: express.Request, res: express.Response) {
           dna = fields.dna
         }
 
+        var permissioned = false
+        if (fields.permissioned !== undefined && (fields.permissioned === 'true' || fields.reissuable === true)) {
+          permissioned = true
+        }
+
         let genesis = {
           "name": fields.name,
           "supply": supply,
@@ -82,6 +87,7 @@ export async function issue(req: express.Request, res: express.Response) {
           "burnable": burnable,
           "extendable": extendable,
           "contract": contract,
+          "permissioned": permissioned,
           "version": fields.version,
           "dna": dna,
           "time": new Date().getTime()
@@ -317,16 +323,20 @@ export async function checksidechain(req: express.Request, res: express.Response
                 client.close()
                 res.send(response)
               } else {
+                client.close()
                 res.send('Sidechain not found.')
               }
             } else {
+              client.close()
               res.send('Node not synced.')
             }
           } else {
+            client.close()
             res.send(false)
           }
         })
       } else {
+        client.close()
         res.send(false)
       }
     })
@@ -500,6 +510,7 @@ export async function send(req: express.Request, res: express.Response) {
               })
             }
           } else {
+            client.close()
             res.send({
               data: {
                 error: "Receiving address is invalid."
@@ -508,6 +519,7 @@ export async function send(req: express.Request, res: express.Response) {
             })
           }
         } else {
+          client.close()
           res.send({
             data: {
               error: "Sidechain not found."
@@ -1397,6 +1409,7 @@ export function listchains(req: express.Request, res: express.Response) {
         })
 
       } else {
+        client.close()
         res.send({
           data: {
             error: "Sidechains not found."
@@ -1492,4 +1505,193 @@ export async function shares(req: express.Request, res: express.Response) {
       status: 422
     })
   }
+}
+
+export function allowuser(req: express.Request, res: express.Response) {
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.level !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        if (check_sidechain[0] !== undefined) {
+          if (check_sidechain[0].data.genesis.permissioned === true) {
+            let wallet = new Crypto.Wallet
+            let checkPermissions = await db.collection('sc_permissions').findOne({ sidechain: fields.sidechain_address })
+            client.close()
+            let pubkey = await wallet.getPublicKey(fields.private_key)
+            let address = await wallet.getAddressFromPubKey(pubkey)
+            if (check_sidechain[0].data.genesis.owner === address || (checkPermissions !== null && checkPermissions.validators !== undefined && checkPermissions.validators.indexOf(address) !== -1)) {
+              let canUpdate = true
+              if (fields.level === 'validators' && address !== check_sidechain[0].data.genesis.owner) {
+                canUpdate = false
+              }
+              if (canUpdate) {
+                wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
+                  if (info['result']['isvalid'] === true) {
+                    var private_key = fields.private_key
+                    var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+                    var collection = '!*!'
+                    var refID = '!*!'
+                    var protocol = '!*!scallow://'
+                    var fees = 0.001
+                    var metadata = fields.level + ':' + fields.dapp_address + '@' + fields.sidechain_address
+
+                    var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
+                    console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
+                    var max_opreturn = 80
+                    if (process.env.MAX_OPRETURN !== undefined) {
+                      max_opreturn = parseInt(process.env.MAX_OPRETURN)
+                    }
+                    console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
+                    try {
+                      var write = await wallet.write(private_key, address, dataToWrite, uuid, collection, refID, protocol, fees)
+                      if (write !== false) {
+                        res.json(write)
+                      } else {
+                        res.json({ success: false })
+                      }
+                    } catch (e) {
+                      res.json(e)
+                    }
+                  } else {
+                    res.json({
+                      data: 'Address isn\'t valid.',
+                      status: 402,
+                      result: info['result']
+                    })
+                  }
+                })
+              } else {
+                res.send({
+                  data: {
+                    error: "You can't manage sidechain's validators."
+                  },
+                  status: 422
+                })
+              }
+            } else {
+              res.send({
+                data: {
+                  error: "You can't manage sidechain's users."
+                },
+                status: 422
+              })
+            }
+          } else {
+            res.send({
+              data: {
+                error: "Sidechain is permissionless."
+              },
+              status: 422
+            })
+          }
+        } else {
+          client.close()
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all the fields first."
+        },
+        status: 422
+      })
+    }
+  })
+}
+
+export function denyuser(req: express.Request, res: express.Response) {
+  var form = new formidable.IncomingForm();
+  form.parse(req, async function (err, fields, files) {
+    if (fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.level !== undefined) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        if (check_sidechain[0] !== undefined) {
+          if (check_sidechain[0].data.genesis.permissioned === true) {
+            let wallet = new Crypto.Wallet
+            let checkPermissions = await db.collection('sc_permissions').findOne({ sidechain: fields.sidechain_address })
+            client.close()
+            let pubkey = await wallet.getPublicKey(fields.private_key)
+            let address = await wallet.getAddressFromPubKey(pubkey)
+            if (check_sidechain[0].data.genesis.owner === address || (checkPermissions !== null && checkPermissions.validators !== undefined && checkPermissions.validators.indexOf(address) !== -1)) {
+              wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
+                if (info['result']['isvalid'] === true) {
+
+                  var private_key = fields.private_key
+                  var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+                  var collection = '!*!'
+                  var refID = '!*!'
+                  var protocol = '!*!scdeny://'
+                  var fees = 0.001
+                  var metadata = fields.level + ':' + fields.dapp_address + '@' + fields.sidechain_address
+
+                  var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + metadata + '*!*'
+                  console.log('\x1b[33m%s\x1b[0m', 'RECEIVED DATA TO WRITE ' + dataToWrite)
+                  var max_opreturn = 80
+                  if (process.env.MAX_OPRETURN !== undefined) {
+                    max_opreturn = parseInt(process.env.MAX_OPRETURN)
+                  }
+                  console.log('DATA TO WRITE IS ' + dataToWrite.length + ' BYTE LONG WHILE MAX IS ' + max_opreturn)
+                  try {
+                    var write = await wallet.write(private_key, address, dataToWrite, uuid, collection, refID, protocol, fees)
+                    if (write !== false) {
+                      res.json(write)
+                    } else {
+                      res.json({ success: false })
+                    }
+                  } catch (e) {
+                    res.json(e)
+                  }
+                } else {
+                  res.json({
+                    data: 'Address isn\'t valid.',
+                    status: 402,
+                    result: info['result']
+                  })
+                }
+              })
+
+            } else {
+              res.send({
+                data: {
+                  error: "You can't manage sidechain's users."
+                },
+                status: 422
+              })
+            }
+          } else {
+            res.send({
+              data: {
+                error: "Sidechain is permissionless."
+              },
+              status: 422
+            })
+          }
+        } else {
+          client.close()
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all the fields first."
+        },
+        status: 422
+      })
+    }
+  })
 }
