@@ -360,10 +360,11 @@ export async function send(req: express.Request, res: express.Response) {
         let checkto = await wallet.request('validateaddress', [fields.to])
         var scwallet = new Sidechain.Wallet;
 
-        if(check_sidechain[0].data.genesis.permissioned !== undefined && check_sidechain[0].data.genesis.permissioned === true){
+        // CHECK IF PERMISSIONED
+        if (check_sidechain[0].data.genesis.permissioned !== undefined && check_sidechain[0].data.genesis.permissioned === true) {
           checkto['result'].isvalid = false
           let permissions = await scwallet.returnsidechainusers(fields.sidechain_address)
-          if(permissions.users.indexOf(fields.to) !== -1 || permissions.validators.indexOf(fields.to) !== -1){
+          if (permissions.users.indexOf(fields.to) !== -1 || permissions.validators.indexOf(fields.to) !== -1) {
             checkto['result'].isvalid = true
           }
         }
@@ -1113,6 +1114,30 @@ export async function validatetransaction(req: express.Request, res: express.Res
           var amountinput = 0
           var amountoutput = 0
           var isGenesis = false
+
+          // CHECK IF PERMISSIONED
+          if (check_sidechain[0].data.genesis.permissioned !== undefined && check_sidechain[0].data.genesis.permissioned === true) {
+            if (transactionToValidate.inputs.length > 0) {
+              for (let x in transactionToValidate.inputs) {
+                let input = transactionToValidate.inputs[x]
+                let validated = await scwallet.validatepermissionedinput(input)
+                if (validated === false) {
+                  error_code = 'PERMISSIONED_INPUT_NOT_ALLOWED'
+                  valid = false
+                }
+              }
+            }
+            for (let address in transactionToValidate.outputs) {
+              if (valid) {
+                let validated = await scwallet.validateoutputaddress(address, transactionToValidate.sidechain)
+                if (validated === false) {
+                  error_code = 'PERMISSIONED_OUTPUT_NOT_ALLOWED'
+                  valid = false
+                }
+              }
+            }
+          }
+
           let time = transactionToValidate.time
           if (transactionToValidate.inputs.length > 0) {
             for (let x in transactionToValidate.inputs) {
