@@ -1520,7 +1520,7 @@ export function allowuser(req: express.Request, res: express.Response) {
             client.close()
             let pubkey = await wallet.getPublicKey(fields.private_key)
             let address = await wallet.getAddressFromPubKey(pubkey)
-            if (check_sidechain[0].data.genesis.owner === address || checkPermissions[0].validators.indexOf(address) !== -1) {
+            if (check_sidechain[0].data.genesis.owner === address || (checkPermissions !== null && checkPermissions.validators !== undefined && checkPermissions.validators.indexOf(address) !== -1)) {
               wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
                 if (info['result']['isvalid'] === true) {
                   var private_key = fields.private_key
@@ -1608,7 +1608,7 @@ export function denyuser(req: express.Request, res: express.Response) {
             client.close()
             let pubkey = await wallet.getPublicKey(fields.private_key)
             let address = await wallet.getAddressFromPubKey(pubkey)
-            if (check_sidechain[0].data.genesis.owner === address || checkPermissions[0].validators.indexOf(address) !== -1) {
+            if (check_sidechain[0].data.genesis.owner === address || (checkPermissions !== null && checkPermissions.validators !== undefined && checkPermissions.validators.indexOf(address) !== -1)) {
               wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
                 if (info['result']['isvalid'] === true) {
 
