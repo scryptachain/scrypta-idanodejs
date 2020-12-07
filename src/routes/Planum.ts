@@ -824,6 +824,7 @@ export async function transactions(req: express.Request, res: express.Response) 
                 to: to,
                 amount: parseFloat(amount.toFixed(check_sidechain[0].data.genesis.decimals)),
                 memo: memo,
+                dna: txs[tx].transaction.dna,
                 time: txs[tx].transaction.time,
                 block: txs[tx].block
               }
