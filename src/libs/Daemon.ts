@@ -1537,19 +1537,24 @@ module Daemon {
 
                                             // CHECK IF SIDECHAIN IS PERMISSIONED, IF YES CHECK IF USERS ARE ALLOWED TO OPERATE
                                             if (check_sidechain[0].data.genesis.permissioned !== undefined && check_sidechain[0].data.genesis.permissioned === true) {
+                                                utils.log('FOUND PERMISSIONED TRANSACTION')
                                                 // VERIFYING INPUTS
                                                 for(let k in datastore.data.transaction.inputs){
                                                     let input = datastore.data.transaction.inputs[k]
                                                     let validated = await scwallet.validatepermissionedinput(input)
+                                                    utils.log('INPUT RESPONSE IS ' + validated)
                                                     if(validated === false){
                                                         valid = false
                                                     }
                                                 }
                                                 // VERIFYING OUTPUTS
                                                 for(let address in datastore.data.transaction.outputs){
-                                                    let validated = await scwallet.validateoutputaddress(address, datastore.data.transaction.sidechain)
-                                                    if(validated === false){
-                                                        valid = false
+                                                    if(valid){
+                                                        let validated = await scwallet.validateoutputaddress(address, datastore.data.transaction.sidechain)
+                                                        utils.log('OUTPUT RESPONSE IS ' + validated)
+                                                        if(validated === false){
+                                                            valid = false
+                                                        }
                                                     }
                                                 }
                                             }

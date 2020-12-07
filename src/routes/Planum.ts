@@ -358,10 +358,18 @@ export async function send(req: express.Request, res: express.Response) {
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         let decimals = parseInt(check_sidechain[0].data.genesis.decimals)
         let checkto = await wallet.request('validateaddress', [fields.to])
+        var scwallet = new Sidechain.Wallet;
+
+        if(check_sidechain[0].data.genesis.permissioned !== undefined && check_sidechain[0].data.genesis.permissioned === true){
+          checkto['result'].isvalid = false
+          let permissions = await scwallet.returnsidechainusers(fields.sidechain_address)
+          if(permissions.users.indexOf(fields.to) !== -1 || permissions.validators.indexOf(fields.to) !== -1){
+            checkto['result'].isvalid = true
+          }
+        }
 
         if (checkto['result'].isvalid === true) {
           if (check_sidechain[0] !== undefined && check_sidechain[0].address === fields.sidechain_address) {
-            var scwallet = new Sidechain.Wallet;
             let unspent = await scwallet.listunspent(fields.from, fields.sidechain_address)
             let inputs = []
             let outputs = {}
@@ -522,7 +530,7 @@ export async function send(req: express.Request, res: express.Response) {
           client.close()
           res.send({
             data: {
-              error: "Sidechain not found."
+              error: "Receiving address is not valid."
             },
             status: 422
           })
@@ -679,12 +687,30 @@ export async function getsidechain(req: express.Request, res: express.Response) 
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
-        client.close()
         if (check_sidechain[0] !== undefined) {
-          res.json({
-            sidechain: check_sidechain
-          })
+          if (check_sidechain[0].data.genesis.permissioned !== undefined && check_sidechain[0].data.genesis.permissioned === true) {
+            let permissions = await db.collection('sc_permissions').findOne({ sidechain: fields.sidechain_address })
+            let resPermissions = {
+              users: [],
+              validators: []
+            }
+            if (permissions !== null) {
+              resPermissions['users'] = permissions.users
+              resPermissions['validators'] = permissions.validators
+            }
+            client.close()
+            res.json({
+              sidechain: check_sidechain,
+              permissions: resPermissions
+            })
+          } else {
+            client.close()
+            res.json({
+              sidechain: check_sidechain
+            })
+          }
         } else {
+          client.close()
           res.send({
             data: {
               error: "Sidechain not found."
@@ -1624,7 +1650,6 @@ export function denyuser(req: express.Request, res: express.Response) {
             if (check_sidechain[0].data.genesis.owner === address || (checkPermissions !== null && checkPermissions.validators !== undefined && checkPermissions.validators.indexOf(address) !== -1)) {
               wallet.request('validateaddress', [fields.dapp_address]).then(async function (info) {
                 if (info['result']['isvalid'] === true) {
-
                   var private_key = fields.private_key
                   var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
                   var collection = '!*!'
