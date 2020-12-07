@@ -62,10 +62,16 @@ export async function getstats(req: express.Request, res: express.Response) {
                 const db = client.db(global['db_name'])
                 wallet.request('masternode', ['count']).then(async function (count) {
                     let result = await db.collection('blocks').find().sort({ block: -1 }).limit(1).toArray()
+                    let written = await db.collection('written').find().sort({ block: -1 }).toArray()
+                    let sidechains = await db.collection('written').find({"data.genesis": { $exists: true }, "data.genesis.version": { $exists: true }}).sort({ block: -1 }).toArray()
+                    let planum = await db.collection('sc_transactions').find().sort({ block: -1 }).toArray()
                     client.close()
                     res.json({
                         blocks: result[0].block,
-                        masternodes: count['result']
+                        masternodes: count['result']['total'],
+                        written_data: written.length,
+                        planum_txs: planum.length,
+                        sidechains: sidechains.length
                     })
                 })
             } else {
