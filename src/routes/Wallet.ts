@@ -54,6 +54,41 @@ export async function getinfo(req: express.Request, res: express.Response) {
     }
 };
 
+export async function getstats(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+    try {
+        mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+            if (client !== undefined) {
+                const db = client.db(global['db_name'])
+                wallet.request('masternode', ['count']).then(async function (count) {
+                    let result = await db.collection('blocks').find().sort({ block: -1 }).limit(1).toArray()
+                    let written = await db.collection('written').find().sort({ block: -1 }).toArray()
+                    let sidechains = await db.collection('written').find({"data.genesis": { $exists: true }, "data.genesis.version": { $exists: true }}).sort({ block: -1 }).toArray()
+                    let planum = await db.collection('sc_transactions').find().sort({ block: -1 }).toArray()
+                    client.close()
+                    res.json({
+                        blocks: result[0].block,
+                        masternodes: count['result']['total'],
+                        written_data: written.length,
+                        planum_txs: planum.length,
+                        sidechains: sidechains.length
+                    })
+                })
+            } else {
+                res.json({
+                    error: true,
+                    message: "Idanode not working, please retry"
+                })
+            }
+        })
+    } catch (e) {
+        res.json({
+            error: true,
+            message: "Can't connect to wallet"
+        })
+    }
+};
+
 export async function integritycheck(req: express.Request, res: express.Response) {
     var parser = new Utilities.Parser
     var request = await parser.body(req)

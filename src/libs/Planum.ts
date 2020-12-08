@@ -207,7 +207,8 @@ module SideChain {
                             await db.collection('sc_permissions').insertOne({ sidechain: sidechain, users: [], validators: [] })
                             sidechain_datas = await db.collection('sc_permissions').findOne({ sidechain: sidechain }, { w: 1, j: true })
                         }
-                        sidechain_datas.users.push(check_sidechain[0].data.genesis.address)
+                        sidechain_datas.users.push(sidechain)
+                        sidechain_datas.users.push(check_sidechain[0].data.genesis.owner)
                         sidechain_datas.validators.push(check_sidechain[0].data.genesis.owner)
                         client.close()
                         response(sidechain_datas)
@@ -224,7 +225,7 @@ module SideChain {
                     const db = client.db(global['db_name'])
                     if (input.vout !== 'genesis' && input.vout !== 'reissue') {
                         let check_input = await db.collection('sc_unspent').findOne({ sxid: input.sxid, vout: input.vout })
-                        if (check_input !== undefined) {
+                        if (check_input !== undefined && check_input !== null) {
                             client.close()
                             let scwallet = new SideChain.Wallet
                             let permissions = await scwallet.returnsidechainusers(check_input.sidechain)
