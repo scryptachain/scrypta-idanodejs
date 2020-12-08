@@ -19,6 +19,28 @@ export function getblock(req: express.Request, res: express.Response) {
     })
 };
 
+export function getblockhash(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+    var block = req.params.hash
+    wallet.analyzeBlock(block).then(response => {
+        res.json({
+            data: response,
+            status: 200
+        })
+    })
+};
+
+export function getrawblock(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+    var block = req.params.hash
+    wallet.analyzeBlock(block).then(response => {
+        res.json({
+            data: response,
+            status: 200
+        })
+    })
+};
+
 export function analyzeblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     var block = req.params.block

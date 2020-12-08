@@ -147,6 +147,8 @@ class App {
     //EXPLORER 
     app.express.get('/block/last', explorer.getlastblock)
     app.express.get('/block/:block', explorer.getblock)
+    app.express.get('/blockhash/:index', explorer.getblockhash)
+    app.express.get('/rawblock/:hash', explorer.getrawblock)
     app.express.get('/analyze/mempool', explorer.analyzemempool)
     app.express.get('/analyze/:block', explorer.analyzeblock)
     app.express.get('/transactions/:address', explorer.transactions)
