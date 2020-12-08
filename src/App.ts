@@ -146,17 +146,19 @@ class App {
     app.express.post('/documenta/add', documenta.add)
 
     //EXPLORER 
+    app.express.get('/utxo/:txid/:vout', explorer.getutxo)
     app.express.get('/block/last', explorer.getlastblock)
-    app.express.get('/block/:block', explorer.getblock)
     app.express.get('/blockhash/:index', explorer.getblockhash)
     app.express.get('/rawblock/:hash', explorer.getrawblock)
     app.express.get('/analyze/mempool', explorer.analyzemempool)
+    app.express.get('/block/:block', explorer.analyzeblock)
     app.express.get('/analyze/:block', explorer.analyzeblock)
     app.express.get('/transactions/:address', explorer.transactions)
     app.express.get('/balance/:address', explorer.balance)
     app.express.get('/validate/:address', explorer.validate)
     app.express.get('/stats/:address', explorer.stats)
     app.express.get('/unspent/:address', explorer.unspent)
+    app.express.get('/rawtransaction/:txid', explorer.getrawtransaction)
     app.express.get('/networkstats', explorer.networkstats)
 
     //P2P-NETWORK

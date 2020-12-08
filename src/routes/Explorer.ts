@@ -6,25 +6,13 @@ export function info(req: express.Request, res: express.Response) {
     res.json({ status: "ONLINE" })
 };
 
-export function getblock(req: express.Request, res: express.Response) {
-    var wallet = new Crypto.Wallet;
-    var block = req.params.block
-    wallet.request('getblockhash', [parseInt(block)]).then(function (blockhash) {
-        wallet.analyzeBlock(blockhash['result']).then(response => {
-            res.json({
-                data: response,
-                status: 200
-            })
-        })
-    })
-};
-
 export function getblockhash(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
-    var block = req.params.hash
-    wallet.analyzeBlock(block).then(response => {
+    var block = req.params.index
+    wallet.request('getblockhash', [parseInt(block)]).then(function (response) {
         res.json({
-            data: response,
+            index: block,
+            hash: response['result'],
             status: 200
         })
     })
@@ -32,13 +20,45 @@ export function getblockhash(req: express.Request, res: express.Response) {
 
 export function getrawblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
-    var block = req.params.hash
-    wallet.analyzeBlock(block).then(response => {
+    var hash = req.params.hash
+    wallet.request('getblock', [hash]).then(async function (response) {
+        let tx = response['result']['tx']
+        if (tx !== undefined) {
+            let txs = []
+            for (let k in tx) {
+                let rawtransaction = await wallet.request('getrawtransaction', [tx[k], 1])
+                txs.push({
+                    hash: rawtransaction['result'].txid,
+                    inputs: rawtransaction['result'].vin,
+                    outputs: rawtransaction['result'].vout,
+                    time: rawtransaction['result'].time,
+                    blockhash: rawtransaction['result'].blockhash
+                })
+            }
+            response['result'].txs = txs
+        }
         res.json({
-            data: response,
+            data: response['result'],
             status: 200
         })
     })
+};
+
+export async function getrawtransaction(req: express.Request, res: express.Response) {
+    var wallet = new Crypto.Wallet;
+    var txid = req.params.txid
+    let rawtransaction = await wallet.request('getrawtransaction', [txid, 1])
+    if(rawtransaction['result'] !== undefined && rawtransaction['result'] !== null){
+        res.json({
+            hash: rawtransaction['result'].txid,
+            inputs: rawtransaction['result'].vin,
+            outputs: rawtransaction['result'].vout,
+            time: rawtransaction['result'].time,
+            blockhash: rawtransaction['result'].blockhash
+        })
+    }else{
+        res.json(false)
+    }
 };
 
 export function analyzeblock(req: express.Request, res: express.Response) {
@@ -51,6 +71,21 @@ export function analyzeblock(req: express.Request, res: express.Response) {
                 status: 200
             })
         })
+    })
+};
+
+export function getutxo(req: express.Request, res: express.Response) {
+    var txid = req.params.txid
+    var vout = req.params.vout
+    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let utxo = await db.collection('unspent').findOne({ txid: txid, vout: parseInt(vout) })
+        console.log(utxo)
+        if (utxo !== null) {
+            res.json(utxo)
+        } else {
+            res.json(false)
+        }
     })
 };
 
@@ -68,7 +103,6 @@ export function getlastblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     wallet.request('getinfo').then(info => {
         var block = info['result'].blocks
-
         wallet.request('getblockhash', [block]).then(function (blockhash) {
             wallet.analyzeBlock(blockhash['result']).then(response => {
                 res.json({
@@ -127,7 +161,7 @@ export async function unspent(req: express.Request, res: express.Response) {
             balance += blockchainunspent[i].amount
             if (masternodetxs.indexOf(blockchainunspent[i].txid + ':' + blockchainunspent[i].vout) !== -1) {
                 locked.push(blockchainunspent[i])
-            }else{
+            } else {
                 unspent.push(blockchainunspent[i])
             }
         }
