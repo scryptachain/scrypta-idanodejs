@@ -11,11 +11,7 @@ Then run it:
 docker run -d --name=idanode -dit -p 3001:3001 scrypta/idanode 
 ```
 
-When container is ready please run the application with:
-```
-docker exec -it idanode lyrad &
-docker exec -it -w /opt/scrypta-idanodejs idanode pm2 start dist/index.js
-```
+If you need you can attach the shell and interact with the node directly.
 
 If everything works you will be able to see a public page at `http://localhost:3001` and use all enpoints, as described in our official documentation:
 https://en.scrypta.wiki/idanode/

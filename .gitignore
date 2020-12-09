@@ -1,4 +1,5 @@
 .env
+.env.b
 node_modules/
 db/
 sync.lock
