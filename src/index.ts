@@ -161,30 +161,26 @@ async function checkConnections() {
     } else {
       console.log('Can\'t communicate with wallet, running process now.')
       var testnet_flag = ''
-      if (process.env.LYRAPATH !== undefined && process.env.LYRAFOLDER !== undefined) {
+      if (process.env.LYRAFOLDER !== undefined) {
         if (is_testnet) {
           testnet_flag = '-testnet'
           console.log('RUNNING WALLET IN TESTNET MODE')
         }
-        exec.spawn(process.env.LYRAPATH + '/lyrad ' + '-datadir=' + process.env.LYRAFOLDER, {
+        exec.spawn('lyrad ' + '-datadir=' + process.env.LYRAFOLDER, {
           stdio: 'ignore',
           detached: true
         }).unref().catch(e => {
           console.log(e)
         })
       } else {
-        if (process.env.LYRAPATH !== undefined) {
-          if (is_testnet) {
-            testnet_flag = '-testnet'
-            console.log('RUNNING WALLET IN TESTNET MODE')
-          }
-          exec.spawn(process.env.LYRAPATH + '/lyrad', [testnet_flag], {
-            stdio: 'ignore',
-            detached: true
-          }).unref()
-        } else {
-          console.error('LYRAD NOT RUNNING, PLEASE RUN IT.')
+        if (is_testnet) {
+          testnet_flag = '-testnet'
+          console.log('RUNNING WALLET IN TESTNET MODE')
         }
+        exec.spawn('lyrad', [testnet_flag], {
+          stdio: 'ignore',
+          detached: true
+        }).unref()
       }
       console.log('Waiting 5 seconds, then check again.')
       await sleep(5000)

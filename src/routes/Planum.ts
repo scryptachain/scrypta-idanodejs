@@ -336,7 +336,9 @@ export async function checksidechain(req: express.Request, res: express.Response
           }
         })
       } else {
-        client.close()
+        if(client !== undefined){
+          client.close()
+        }
         res.send(false)
       }
     })

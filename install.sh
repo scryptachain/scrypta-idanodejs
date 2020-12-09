@@ -1,26 +1,15 @@
 #!/bin/bash
 
-#INSTALL WALLET DEPENDENCIES
-sudo add-apt-repository -y ppa:bitcoin/bitcoin
-sudo apt-get install -y software-properties-common python-software-properties
-sudo apt-get update
-sudo apt-get install libdb4.8-dev libdb4.8++-dev -y
-sudo apt-get -y install build-essential autoconf automake libboost-all-dev libleveldb-dev libgmp-dev libgmp3-dev libssl-dev libcurl4-openssl-dev libcrypto++-dev libqrencode-dev libminiupnpc-dev autogen libtool git libevent-dev libprotobuf-dev
-sudo apt-get install -y curl g++ git-core pkg-config libtool faketime bsdmainutils mingw-w64 g++-mingw-w64 nsis zip ca-certificates python
-sudo apt-get install -y libzmq3-dev
-sudo apt-get install -y libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler
-sudo apt-get install -y libqrencode-dev
-
 #DOWNLOADING WALLET
-wget https://github.com/scryptachain/scrypta/releases/download/v1.0.0/lyra-1.0.0-linux-VPS.tar.gz
-tar -xvzf lyra-1.0.0-linux-VPS.tar.gz -C ./
-mv lyra-1.0.0-linux-VPS/lyrad ./lyrad
-mv lyra-1.0.0-linux-VPS/lyra-cli ./lyra-cli
-rm -rf lyra-1.0.0-linux-VPS
-rm lyra-1.0.0-linux-VPS.tar.gz
+https://github.com/scryptachain/scrypta/releases/download/2.0.1/lyra-2.0.1-linux-server.zip
+unzip lyra-2.0.1-linux-server.zip
+mv lyrad /usr/bin/lyrad
+mv lyra-cli /usr/bin/lyra-cli
+rm -rf bin
+rm lyra-2.0.1-linux-server.zip
 
 #RUNNING WALLET FOR THE FIRST TIME
-./lyrad &
+lyrad &
 sleep 10s
 pkill lyrad
 
@@ -33,17 +22,16 @@ server=1
 daemon=1
 index=1
 txindex=1
-datacarriersize=8000
 logtimestamps=1" > "/root/.lyra/lyra.conf"
 
 #INSTALL NODEJS
-curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
 sudo apt-get install -y nodejs
 npm install pm2 -g
 
 #INSTALL MONGODB
-wget -qO - https://www.mongodb.org/static/pgp/server-4.2.asc | sudo apt-key add -
-echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/4.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.2.list
+wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -
+echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.4.list
 sudo apt-get update
 sudo apt-get install -y mongodb-org
 mkdir mongodb_data
