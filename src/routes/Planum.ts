@@ -1445,6 +1445,14 @@ export function listchains(req: express.Request, res: express.Response) {
                 }
               }
 
+              if (sidechain_datas[x].data.genesis.permissioned !== undefined && sidechain_datas[x].data.genesis.permissioned === true) {
+                let permissions = await db.collection('sc_permissions').findOne({ sidechain: sidechain_datas[x].address })
+                if (permissions !== null) {
+                  sidechain_datas[x].data['users'] = permissions.users
+                  sidechain_datas[x].data['validators'] = permissions.validators
+                }
+              }
+
               sidechains.push(sidechain_datas[x].data)
             }
           }
