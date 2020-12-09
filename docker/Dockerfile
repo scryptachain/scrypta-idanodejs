@@ -5,15 +5,15 @@ RUN apt-get install -y git git-core curl wget nano zip
 
 #WRITING CONF FILE
 RUN mkdir /root/.lyra
-RUN echo "rpcuser=astrongrpcuser \
-rpcpassword=astrongrpcpassword \
-rpcallowip=127.0.0.1 \
-listen=1 \
-server=1 \
-daemon=1 \
-index=1 \
-txindex=1 \
-logtimestamps=1" > "/root/.lyra/lyra.conf"
+RUN echo "rpcuser=astrongrpcuser" > "/root/.lyra/lyra.conf"
+RUN echo "rpcpassword=astrongrpcpassword" >> "/root/.lyra/lyra.conf"
+RUN echo "rpcallowip=127.0.0.1" >> "/root/.lyra/lyra.conf"
+RUN echo "listen=1" >> "/root/.lyra/lyra.conf"
+RUN echo "server=1" >> "/root/.lyra/lyra.conf"
+RUN echo "daemon=1" >> "/root/.lyra/lyra.conf"
+RUN echo "index=1" >> "/root/.lyra/lyra.conf"
+RUN echo "txindex=1" >> "/root/.lyra/lyra.conf"
+RUN echo "logtimestamps=1" >> "/root/.lyra/lyra.conf"
 
 # CLONING REPO
 WORKDIR /opt
@@ -44,7 +44,16 @@ RUN apt-get install -y make build-essential
 RUN npm install
 RUN npm run build
 
-# RUNNING NODE
+#DOWNLOADING WALLET
+RUN wget https://github.com/scryptachain/scrypta/releases/download/2.0.1/lyra-2.0.1-linux-server.zip
+RUN unzip lyra-2.0.1-linux-server.zip
+RUN mv lyrad /usr/bin/lyrad
+RUN mv lyra-cli /usr/bin/lyra-cli
+RUN rm -rf bin
+RUN rm lyra-2.0.1-linux-server.zip
+
+# RUNNING IDANODE
+RUN lyrad &
 RUN pm2 start dist/index.js
 
 EXPOSE 3001
