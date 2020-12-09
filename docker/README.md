@@ -15,3 +15,8 @@ If you need you can attach the shell and interact with the node directly.
 
 If everything works you will be able to see a public page at `http://localhost:3001` and use all enpoints, as described in our official documentation:
 https://en.scrypta.wiki/idanode/
+
+If you want to speed up sync process use the `bootstrap.sh` script like this:
+```
+docker exec -it -w /opt/ idanode bash bootstrap.sh
+```

@@ -15,5 +15,5 @@ sudo mongorestore --db idanodejs --drop idanodejs
 rm -rf idanodejs
 rm idanode_bootstrap.gz
 killall mongod
-./lyrad &
+lyrad &
 pm2 start npm
