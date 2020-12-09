@@ -74,7 +74,7 @@ module Daemon {
                         } else {
                             last = sync[0].block
                             let continuitycheck = last - 1
-                            if (continuitycheck !== sync[1].block) {
+                            if (sync[1] !== undefined && sync[1] !== null && continuitycheck !== sync[1].block) {
                                 last = continuitycheck - 1
                             }
                             if (sync[0].block === sync[1].block) {
