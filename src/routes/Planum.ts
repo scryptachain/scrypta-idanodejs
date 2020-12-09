@@ -336,7 +336,7 @@ export async function checksidechain(req: express.Request, res: express.Response
           }
         })
       } else {
-        if(client !== undefined){
+        if (client !== undefined) {
           client.close()
         }
         res.send(false)
@@ -1560,9 +1560,11 @@ export async function shares(req: express.Request, res: express.Response) {
   }
 }
 
-export function allowuser(req: express.Request, res: express.Response) {
-  var form = new formidable.IncomingForm();
-  form.parse(req, async function (err, fields, files) {
+export async function allowuser(req: express.Request, res: express.Response) {
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
     if (fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.level !== undefined) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
@@ -1657,12 +1659,21 @@ export function allowuser(req: express.Request, res: express.Response) {
         status: 422
       })
     }
-  })
+  } else {
+    res.send({
+      data: {
+        error: "Specify all the fields first."
+      },
+      status: 422
+    })
+  }
 }
 
-export function denyuser(req: express.Request, res: express.Response) {
-  var form = new formidable.IncomingForm();
-  form.parse(req, async function (err, fields, files) {
+export async function denyuser(req: express.Request, res: express.Response) {
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
     if (fields.sidechain_address !== undefined && fields.private_key !== undefined && fields.dapp_address !== undefined && fields.level !== undefined) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
@@ -1745,5 +1756,12 @@ export function denyuser(req: express.Request, res: express.Response) {
         status: 422
       })
     }
-  })
+  } else {
+    res.send({
+      data: {
+        error: "Specify all the fields first."
+      },
+      status: 422
+    })
+  }
 }
