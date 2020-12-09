@@ -51,6 +51,18 @@ RUN mv lyrad /usr/bin/lyrad
 RUN mv lyra-cli /usr/bin/lyra-cli
 RUN rm -rf bin
 RUN rm lyra-2.0.1-linux-server.zip
+RUN lyrad &
+
+RUN pm2 startup
+
+WORKDIR /opt
+RUN echo "#!/bin/bash" > run.sh
+RUN echo "lyrad && pm2 start npm -- start && pm2 save" >> run.sh
+RUN echo "tail -f /dev/null" >> run.sh
+RUN chmod 777 run.sh
+WORKDIR /opt/scrypta-idanodejs
 
 EXPOSE 3001
+
+ENTRYPOINT [ "/opt/run.sh" ]
 CMD tail -f /dev/null
