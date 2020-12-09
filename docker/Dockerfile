@@ -52,9 +52,5 @@ RUN mv lyra-cli /usr/bin/lyra-cli
 RUN rm -rf bin
 RUN rm lyra-2.0.1-linux-server.zip
 
-# RUNNING IDANODE
-RUN lyrad &
-RUN pm2 start dist/index.js
-
 EXPOSE 3001
 CMD tail -f /dev/null
