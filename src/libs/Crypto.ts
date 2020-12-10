@@ -45,9 +45,13 @@ module Crypto {
                             if (process.env.DEBUG === "full") {
                                 console.log(body)
                             }
-                            if(body !== "Forbidden"){
-                                response(JSON.parse(body))
-                            }else{
+                            if (body !== "Forbidden") {
+                                try {
+                                    response(JSON.parse(body))
+                                } catch (e) {
+                                    response(body)
+                                }
+                            } else {
                                 response(false)
                             }
                         } catch (err) {

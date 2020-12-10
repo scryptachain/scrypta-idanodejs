@@ -1,9 +1,10 @@
 FROM mongo:bionic
+
 RUN apt-get -qq update
 RUN apt-get install -y software-properties-common make build-essential
 RUN apt-get install -y git git-core curl wget nano zip
 
-#WRITING CONF FILE
+# WRITING CONF FILE
 RUN mkdir /root/.lyra
 
 # CLONING REPO
@@ -11,7 +12,7 @@ WORKDIR /opt
 RUN git clone https://github.com/scryptachain/scrypta-idanodejs
 WORKDIR /opt/scrypta-idanodejs
 
-#INSTALL NODEJS
+# INSTALL NODEJS
 RUN curl -q https://deb.nodesource.com/setup_14.x | bash -
 RUN apt-get update
 RUN apt-get install -y nodejs
@@ -35,7 +36,7 @@ RUN npm install
 RUN npm run build
 RUN node create_conf.js
 
-#DOWNLOADING WALLET
+# DOWNLOADING WALLET
 RUN wget https://github.com/scryptachain/scrypta/releases/download/2.0.1/lyra-2.0.1-linux-server.zip
 RUN unzip lyra-2.0.1-linux-server.zip
 RUN mv lyrad /usr/bin/lyrad
@@ -49,12 +50,7 @@ RUN wget https://bs.scryptachain.org/latest.zip
 RUN rm -rf blocks chainstate database
 RUN unzip latest.zip
 
-WORKDIR /opt
-RUN echo "#!/bin/bash" > run.sh
-RUN echo "lyrad && pm2 start npm -- start && pm2 save && npm run update" >> run.sh
-RUN echo "tail -f /dev/null" >> run.sh
-RUN chmod 777 run.sh
-
+# CREATING BOOTSTRAP SCRIPT (MAINNET)
 WORKDIR /opt
 RUN echo "#!/bin/bash" > bootstrap.sh
 RUN echo "pm2 stop npm" >> bootstrap.sh
@@ -76,5 +72,5 @@ WORKDIR /opt/scrypta-idanodejs
 
 EXPOSE 3001
 
-ENTRYPOINT [ "/opt/run.sh" ]
+ENTRYPOINT [ "/opt/scrypta-idanodejs/run.sh" ]
 CMD tail -f /dev/null
