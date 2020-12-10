@@ -167,7 +167,7 @@ async function checkConnections() {
       var testnet_flag = ''
       var datadir_flag = ''
       if (global['testnet']) {
-        testnet_flag = '-testnet'
+        testnet_flag = ' -testnet'
         console.log('RUNNING WALLET IN TESTNET MODE')
       }
 
