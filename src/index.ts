@@ -77,13 +77,15 @@ async function checkConnections() {
   if (process.env.TESTNET !== undefined) {
     if (process.env.TESTNET === 'true') {
       global['testnet'] = true
+      global['db_name'] = 'testnet'
     }
   }
 
-  if(argv.testnet !== undefined && argv.testnet === true){
+  if (argv.testnet !== undefined && argv.testnet === true) {
     global['testnet'] = true
+    global['db_name'] = 'testnet'
   }
-  
+
   var wallet = new Crypto.Wallet;
   wallet.request('getinfo').then(async function (info) {
     if (info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0) {
@@ -94,10 +96,6 @@ async function checkConnections() {
             console.log('Database not connected, starting process now.')
             try {
               var mongo_path = './mongodb_data'
-              if (global['testnet']) {
-                console.log('RUNNING DATABASE IN TESTNET FOLDER')
-                mongo_path += '_testnet'
-              }
               if (!fs.existsSync(mongo_path)) {
                 fs.mkdirSync(mongo_path);
               }
@@ -149,43 +147,40 @@ async function checkConnections() {
         });
       } catch (e) {
         var mongo_path = './mongodb_data'
-        if (global['testnet']) {
-          console.log('RUNNING DATABASE IN TESTNET FOLDER')
-          mongo_path += '_testnet'
-        }
         if (!fs.existsSync(mongo_path)) {
           fs.mkdirSync(mongo_path);
         }
-        exec.exec('mongod --journal --dbpath=' + mongo_path, {
-          stdio: 'ignore',
-          detached: true
-        }).unref()
+        try {
+          exec.exec('mongod --journal --dbpath=' + mongo_path, {
+            stdio: 'ignore',
+            detached: true
+          }).unref()
+        } catch (e) {
+          console.log(e)
+          console.log("Can't run MongoDB, please run it manually!")
+        }
         console.log('Waiting 5 seconds, then try again.')
         await sleep(5000)
       }
     } else {
       console.log('Can\'t communicate with wallet, running process now.')
       var testnet_flag = ''
+      var datadir_flag = ''
+      if (global['testnet']) {
+        testnet_flag = '-testnet'
+        console.log('RUNNING WALLET IN TESTNET MODE')
+      }
+
       if (process.env.LYRAFOLDER !== undefined) {
-        if (global['testnet']) {
-          testnet_flag = '-testnet'
-          console.log('RUNNING WALLET IN TESTNET MODE')
-        }
-        exec.spawn('lyrad ' + '-datadir=' + process.env.LYRAFOLDER, {
-          stdio: 'ignore',
-          detached: true
-        }).unref().catch(e => {
-          console.log(e)
-        })
-      } else {
-        if (global['testnet']) {
-          testnet_flag = '-testnet'
-          console.log('RUNNING WALLET IN TESTNET MODE')
-        }
-        exec.spawn('lyrad', [testnet_flag], {
+        datadir_flag = ' -datadir=' + process.env.LYRAFOLDER
+      }
+      try {
+        exec.exec('lyrad' + testnet_flag + datadir_flag, {
           stdio: 'ignore',
           detached: true
         }).unref()
+      } catch (e) {
+        console.log("Can\'t run wallet, please run it manually!")
       }
       console.log('Waiting 5 seconds, then check again.')
       await sleep(5000)
@@ -254,7 +249,7 @@ async function runIdaNode() {
   } else {
     console.info('IDANODE IS VALID.')
   }
-  
+
   setInterval(function () {
     checkConnections()
   }, 5000)
