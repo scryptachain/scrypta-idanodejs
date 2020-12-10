@@ -26,21 +26,12 @@ global['isCheckingSpace'] = false
 global['remainingBlocks'] = 0
 global['restartSync'] = 0
 
-if (process.env.TESTNET !== undefined) {
-  if (process.env.TESTNET === 'true') {
-    // TESTNET BLOCKCHAIN PARAMS
-    global['lyraInfo'] = {
-      private: 0xae,
-      public: 0x7f,
-      scripthash: 0x13
-    }
-  } else {
-    // MAINNET BLOCKCHAIN PARAMS
-    global['lyraInfo'] = {
-      private: 0xae,
-      public: 0x30,
-      scripthash: 0x0d
-    }
+if (global['testnet'] === true) {
+  // TESTNET BLOCKCHAIN PARAMS
+  global['lyraInfo'] = {
+    private: 0xae,
+    public: 0x7f,
+    scripthash: 0x13
   }
 } else {
   // MAINNET BLOCKCHAIN PARAMS

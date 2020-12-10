@@ -17,10 +17,8 @@ module Crypto {
         public async request(method, params = []) {
             return new Promise(response => {
                 var rpcport = process.env.RPCPORT
-                if (process.env.TESTNET !== undefined && process.env.RPCPORT_TESTNET !== undefined) {
-                    if (process.env.TESTNET === 'true') {
-                        rpcport = process.env.RPCPORT_TESTNET
-                    }
+                if (global['testnet']) {
+                    rpcport = process.env.RPCPORT_TESTNET
                 }
                 var rpcuser = process.env.RPCUSER
                 var rpcpassword = process.env.RPCPASSWORD

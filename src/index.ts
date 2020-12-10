@@ -22,6 +22,7 @@ global['db_options'] = { useNewUrlParser: true, useUnifiedTopology: true }
 global['db_name'] = 'idanodejs'
 global['isAnalyzing'] = false
 global['retrySync'] = 0
+global['testnet'] = false
 if (process.env.PINIPFS !== undefined && process.env.PINIPFS === 'false') {
   global['pinipfs'] = false
 } else if (process.env.PINIPFS === undefined || process.env.PINIPFS === 'true') {
@@ -30,6 +31,7 @@ if (process.env.PINIPFS !== undefined && process.env.PINIPFS === 'false') {
 utils.log('IPFS PIN STATUS IS ' + global['pinipfs'])
 const rateLimit = require("express-rate-limit");
 const helmet = require('helmet')
+var argv = require('minimist')(process.argv.slice(2));
 
 // SETTING RATE LIMIT
 var limiter = rateLimit({
@@ -72,13 +74,16 @@ function sleep(time) {
 }
 
 async function checkConnections() {
-  var is_testnet = false
   if (process.env.TESTNET !== undefined) {
     if (process.env.TESTNET === 'true') {
-      is_testnet = true
+      global['testnet'] = true
     }
   }
 
+  if(argv.testnet !== undefined && argv.testnet === true){
+    global['testnet'] = true
+  }
+  
   var wallet = new Crypto.Wallet;
   wallet.request('getinfo').then(async function (info) {
     if (info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0) {
@@ -89,7 +94,7 @@ async function checkConnections() {
             console.log('Database not connected, starting process now.')
             try {
               var mongo_path = './mongodb_data'
-              if (is_testnet) {
+              if (global['testnet']) {
                 console.log('RUNNING DATABASE IN TESTNET FOLDER')
                 mongo_path += '_testnet'
               }
@@ -144,7 +149,7 @@ async function checkConnections() {
         });
       } catch (e) {
         var mongo_path = './mongodb_data'
-        if (is_testnet) {
+        if (global['testnet']) {
           console.log('RUNNING DATABASE IN TESTNET FOLDER')
           mongo_path += '_testnet'
         }
@@ -162,7 +167,7 @@ async function checkConnections() {
       console.log('Can\'t communicate with wallet, running process now.')
       var testnet_flag = ''
       if (process.env.LYRAFOLDER !== undefined) {
-        if (is_testnet) {
+        if (global['testnet']) {
           testnet_flag = '-testnet'
           console.log('RUNNING WALLET IN TESTNET MODE')
         }
@@ -173,7 +178,7 @@ async function checkConnections() {
           console.log(e)
         })
       } else {
-        if (is_testnet) {
+        if (global['testnet']) {
           testnet_flag = '-testnet'
           console.log('RUNNING WALLET IN TESTNET MODE')
         }

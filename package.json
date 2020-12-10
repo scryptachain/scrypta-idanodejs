@@ -1,10 +1,11 @@
 {
   "name": "scrypta-idanodejs",
-  "version": "2.8.2",
+  "version": "2.8.3",
   "description": "NodeJS implementation of Scrypta IdANode Technology",
   "main": "index.js",
   "scripts": {
     "dev": "tsc --watch & nodemon --delay 3 dist",
+    "dev:testnet": "tsc --watch & nodemon --delay 3 dist --testnet",
     "build": "rm -rf dist && tsc",
     "pub": "node publish_idanode.js",
     "mongodump": "node create_bootstrap.js",
@@ -12,7 +13,8 @@
     "test": "tsc && mocha dist/**/*.spec.js",
     "lint": "eslint src --ext ts",
     "tsc": "tsc",
-    "start": "tsc & node dist/index.js"
+    "start": "tsc & node dist/index.js",
+    "start:testnet": "tsc & node dist/index.js --testnet"
   },
   "keywords": [],
   "author": "Scrypta Foundation",
@@ -45,6 +47,7 @@
     "lcrypt": "^1.0.2",
     "lzutf8": "^0.5.6",
     "mathjs": "^8.1.0",
+    "minimist": "^1.2.5",
     "mongodb": "^3.6.3",
     "multiaddr": "^8.1.1",
     "node-port-check": "^2.0.1",
