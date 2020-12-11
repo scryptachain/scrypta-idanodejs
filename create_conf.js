@@ -21,7 +21,7 @@ async function create() {
             console.log('CONFIG FILE VERIFIED, CREATING IDANODE CONFIG FILE')
             fs.writeFileSync(idanodeconf, idanodeconfcontent)
             let checkIdaConf = fs.readFileSync(lyraconf, { encoding: 'utf8' })
-            if (checkLyraConf === lyraconfcontent) {
+            if (checkIdaConf === idanodeconfcontent) {
                 console.log('CONFIGURATIONS FILE WROTED CORRECTLY!')
             }else{
                 console.log('CAN\'T VERIFY IDANODE FILE, RETRY.')
