@@ -1,5 +1,5 @@
 #!/bin/bash
-
+cd ..
 if [[ $1 == "-testnet" ]]
 then
     echo "Running Scrypta IdaNode in testnet mode"

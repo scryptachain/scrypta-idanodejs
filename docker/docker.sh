@@ -3,8 +3,7 @@
 cd docker
 if [[ "$@" =~ "-rebuild" ]]
 then
-    docker stop idanode
-    docker rm idanode
+    echo "Rebuilding Docker Image"
     docker build --no-cache -t scrypta:idanode .
 else
     docker build -t scrypta:idanode .

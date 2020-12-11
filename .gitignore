@@ -8,14 +8,13 @@ sync.lock
 dist/
 rethinkdb_data/
 ipfs_data/
-mongodb_data/
+data/
 __pycache__
 lyrad
 lyra-cli
 mongo_*
 idanodejs/
 public/bootstrap.zip
-mongodb_data_testnet
 keys/public.pem
 keys/private.pem
 log

@@ -1,49 +1,23 @@
-# Use the Idanode with Docker
+# Run Scrypta IdaNode Docker
 
-Assuming you've Docker installed to your system this guide will allow you build the image or download it form Docker HUB.
-
-## Build the image
-
-To build the image you've to simply run our bash script:
-
+Run bash script to run mainnet idanode:
 ```
-sudo bash docker.sh
+bash docker/docker.sh
 ```
 
-If you want to run the IdaNode in *mainnet* mode use the script like this:
-
+Or use `-testnet` flag to run in testnet mode:
 ```
-sudo bash docker.sh -testnet
-```
-
-If you want to **force** the building of the image use bash script with `-rebuild` parameter:
-```
-sudo bash docker.sh -rebuild
-sudo bash docker-sh -testnet -rebuild
+bash docker/docker.sh -testnet
 ```
 
-## Using from Docker HUB
-To use it first pull image: 
+If you want to rebuild the docker image pass `-rebuild` flag:
+```
+bash docker/docker.sh -rebuild
+``
+
+# Bootstrap blockchain and idanode (only for mainnet)
 
 ```
-docker pull scrypta/idanode
-```
-
-If you want to run it in *mainnet* mode you can run it like this:
-```
-docker run --restart=unless-stopped -d --name=idanode -dit -p 3001:3001 scrypta:idanode
-```
-
-If you want to run it in *testnet* mode you can run it like this:
-```
-docker run --restart=unless-stopped -d --name=idanode_testnet -dit -p 4001:3001 scrypta:idanode -testnet
-```
-
-If everything works you will be able to see a public page at `http://localhost:3001` or `http://localhost:4001` in testnet,  and use all enpoints, as described in our official documentation:
-https://en.scrypta.wiki/idanode/
-
-If you want to speed up the *mainnet* syncronization process run `bootstrap.sh` script in this way:
-```
-docker exec -it -w /opt/ idanode bash bootstrap.sh
-docker restart idanode
+docker exec -it -w /opt/ idanode bash bootstrap_blockchain.sh
+docker exec -it -w /opt/ idanode bash bootstrap_idanode.sh
 ```
