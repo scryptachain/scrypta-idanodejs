@@ -48,7 +48,7 @@ export async function getrawtransaction(req: express.Request, res: express.Respo
     var wallet = new Crypto.Wallet;
     var txid = req.params.txid
     let rawtransaction = await wallet.request('getrawtransaction', [txid, 1])
-    if(rawtransaction['result'] !== undefined && rawtransaction['result'] !== null){
+    if (rawtransaction['result'] !== undefined && rawtransaction['result'] !== null) {
         res.json({
             hash: rawtransaction['result'].txid,
             inputs: rawtransaction['result'].vin,
@@ -56,7 +56,7 @@ export async function getrawtransaction(req: express.Request, res: express.Respo
             time: rawtransaction['result'].time,
             blockhash: rawtransaction['result'].blockhash
         })
-    }else{
+    } else {
         res.json(false)
     }
 };
@@ -102,15 +102,19 @@ export function analyzemempool(req: express.Request, res: express.Response) {
 export function getlastblock(req: express.Request, res: express.Response) {
     var wallet = new Crypto.Wallet;
     wallet.request('getinfo').then(info => {
-        var block = info['result'].blocks
-        wallet.request('getblockhash', [block]).then(function (blockhash) {
-            wallet.analyzeBlock(blockhash['result']).then(response => {
-                res.json({
-                    data: response,
-                    status: 200
+        if (info['result'] !== undefined && info['result'].blocks !== undefined) {
+            var block = info['result'].blocks
+            wallet.request('getblockhash', [block]).then(function (blockhash) {
+                wallet.analyzeBlock(blockhash['result']).then(response => {
+                    res.json({
+                        data: response,
+                        status: 200
+                    })
                 })
             })
-        })
+        } else {
+            res.json(false)
+        }
     })
 };
 

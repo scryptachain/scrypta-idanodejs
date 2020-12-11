@@ -25,7 +25,7 @@ RUN apt-get install -y nodejs
 RUN npm install -g npm
 
 # SETTING UP MONGODB
-RUN mkdir -p data configdb && chown -R mongodb:mongodb data configdb
+RUN mkdir -p mongodb_data configdb && chown -R mongodb:mongodb mongodb_data configdb
 RUN ulimit -n 640000
 
 # BUILDING IDANODE
