@@ -56,7 +56,7 @@ module Daemon {
         }
 
         public async process() {
-            if (global['isSyncing'] === false) {
+            if (global['isSyncing'] === false && !fs.existsSync('.BOOTSTRAPPING')) {
                 let utils = new Utilities.Parser
 
                 // CHECK IF THERE ARE PINNED CONTRACTS
@@ -300,7 +300,11 @@ module Daemon {
                     }, 1000)
                 }
             } else {
-                console.log('\x1b[41m%s\x1b[0m', 'CAN\'T PROCESS, IDANODE IS SYNCING YET!')
+                if(!fs.existsSync('.BOOTSTRAPPING')){
+                    console.log('\x1b[41m%s\x1b[0m', 'CAN\'T INIT, IDANODE IS SYNCING YET!')
+                }else{
+                    console.log('\x1b[41m%s\x1b[0m', 'BOOTSTRAP IN PROCESS, PLEASE WAIT')
+                }
             }
         }
 
@@ -594,7 +598,6 @@ module Daemon {
                     response(false)
                 }
             })
-
         }
 
         private async deleteLastBlock() {
