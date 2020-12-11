@@ -96,6 +96,9 @@ async function checkConnections() {
             console.log('Database not connected, starting process now.')
             try {
               var mongo_path = './mongodb_data'
+              if(process.env.MONGODB_PATH !== undefined){
+                mongo_path = process.env.MONGODB_PATH
+              }
               if (!fs.existsSync(mongo_path)) {
                 fs.mkdirSync(mongo_path);
               }
@@ -147,6 +150,9 @@ async function checkConnections() {
         });
       } catch (e) {
         var mongo_path = './mongodb_data'
+        if(process.env.MONGODB_PATH !== undefined){
+          mongo_path = process.env.MONGODB_PATH
+        }
         if (!fs.existsSync(mongo_path)) {
           fs.mkdirSync(mongo_path);
         }
