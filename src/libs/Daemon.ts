@@ -35,7 +35,7 @@ module Daemon {
     export class Sync {
 
         public async init() {
-            if (global['isSyncing'] === false) {
+            if (global['isSyncing'] === false && !fs.existsSync('.BOOTSTRAPPING')) {
                 var wallet = new Crypto.Wallet
                 // console.clear()
                 global['retrySync'] = 0
@@ -47,7 +47,11 @@ module Daemon {
                     task.process()
                 })
             } else {
-                console.log('\x1b[41m%s\x1b[0m', 'CAN\'T INIT, IDANODE IS SYNCING YET!')
+                if(!fs.existsSync('.BOOTSTRAPPING')){
+                    console.log('\x1b[41m%s\x1b[0m', 'CAN\'T INIT, IDANODE IS SYNCING YET!')
+                }else{
+                    console.log('\x1b[41m%s\x1b[0m', 'BOOTSTRAP IN PROCESS, PLEASE WAIT')
+                }
             }
         }
 

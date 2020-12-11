@@ -1,5 +1,6 @@
 core
 .env
+.BOOTSTRAPPING
 .env.b
 node_modules/
 db/
