@@ -181,6 +181,7 @@ async function checkConnections() {
         datadir_flag = ' -datadir=' + process.env.LYRAFOLDER
       }
       try {
+        console.log('Running wallet using: ' + 'lyrad' + testnet_flag + datadir_flag)
         exec.exec('lyrad' + testnet_flag + datadir_flag, {
           stdio: 'ignore',
           detached: true
