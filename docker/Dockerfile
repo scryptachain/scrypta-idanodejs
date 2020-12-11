@@ -6,6 +6,8 @@ RUN apt-get install -y git git-core curl wget nano zip
 
 # CLONING REPO
 WORKDIR /opt
+RUN mkdir /root/.lyra
+RUN echo "datadir=/opt/data/lyra" > /root/.lyra/lyra.conf
 RUN mkdir /opt/data
 RUN mkdir /opt/data/lyra
 RUN mkdir /opt/data/idanode
@@ -39,10 +41,10 @@ RUN rm lyra-2.0.1-linux-server.zip
 # BLOCKCHAIN BOOTSTRAP SCRIPT
 WORKDIR /opt
 RUN echo "#!/bin/bash" > bootstrap_blockchain.sh
-RUN echo "lyra-cli stop" >> bootstrap_blockchain.sh
+RUN echo "pkill lyrad" >> bootstrap_blockchain.sh
 RUN echo "cd /opt/data/lyra" >> bootstrap_blockchain.sh
 RUN echo "wget https://bs.scryptachain.org/latest.zip" >> bootstrap_blockchain.sh
-RUN echo "lyra-cli stop" >> bootstrap_blockchain.sh
+RUN echo "pkill lyrad" >> bootstrap_blockchain.sh
 RUN echo "rm- -rf blocks chainstate database" >> bootstrap_blockchain.sh
 RUN echo "unzip -o latest.zip" >> bootstrap_blockchain.sh
 RUN echo "lyrad -datadir=/opt/data/lyra &" >> bootstrap_blockchain.sh
