@@ -47,9 +47,9 @@ module Daemon {
                     task.process()
                 })
             } else {
-                if(!fs.existsSync('.BOOTSTRAPPING')){
+                if (!fs.existsSync('.BOOTSTRAPPING')) {
                     console.log('\x1b[41m%s\x1b[0m', 'CAN\'T INIT, IDANODE IS SYNCING YET!')
-                }else{
+                } else {
                     console.log('\x1b[41m%s\x1b[0m', 'BOOTSTRAP IN PROCESS, PLEASE WAIT')
                 }
             }
@@ -300,9 +300,9 @@ module Daemon {
                     }, 1000)
                 }
             } else {
-                if(!fs.existsSync('.BOOTSTRAPPING')){
+                if (!fs.existsSync('.BOOTSTRAPPING')) {
                     console.log('\x1b[41m%s\x1b[0m', 'CAN\'T INIT, IDANODE IS SYNCING YET!')
-                }else{
+                } else {
                     console.log('\x1b[41m%s\x1b[0m', 'BOOTSTRAP IN PROCESS, PLEASE WAIT')
                 }
             }
@@ -1065,12 +1065,12 @@ module Daemon {
                                                     field = 'users'
                                                 } else if (role === 'validator') {
                                                     field = 'validators'
-                                                    if(datastore.address !== check_sidechain[0].data.genesis.owner){
+                                                    if (datastore.address !== check_sidechain[0].data.genesis.owner) {
                                                         canUpdate = false
                                                     }
                                                 }
                                                 if (field !== '' && canUpdate === true) {
-                                                    if(toUpdate[field].indexOf(user) === -1){
+                                                    if (toUpdate[field].indexOf(user) === -1) {
                                                         toUpdate[field].push(user)
                                                         await db.collection("sc_permissions").updateOne({ sidechain: sidechain }, { $set: { users: toUpdate.users, validators: toUpdate.validators } }, { writeConcern: { w: 1, j: true } })
                                                         let checkUpdated = await db.collection('sc_permissions').find({ sidechain: sidechain }).limit(1).toArray()
@@ -1084,7 +1084,7 @@ module Daemon {
                                                             client.close()
                                                             response(false)
                                                         }
-                                                    }else{
+                                                    } else {
                                                         // NOTHING TO DO
                                                         inserted = true
                                                         client.close()
@@ -1170,11 +1170,11 @@ module Daemon {
                                                     field = 'validators'
                                                 }
                                                 if (field !== '') {
-                                                    if(toUpdate[field].indexOf(user) !== -1){
+                                                    if (toUpdate[field].indexOf(user) !== -1) {
                                                         let old = toUpdate[field]
                                                         toUpdate[field] = []
-                                                        for(let k in old){
-                                                            if(old[k] !== user){
+                                                        for (let k in old) {
+                                                            if (old[k] !== user) {
                                                                 toUpdate[field].push(old[k])
                                                             }
                                                         }
@@ -1190,7 +1190,7 @@ module Daemon {
                                                             client.close()
                                                             response(false)
                                                         }
-                                                    }else{
+                                                    } else {
                                                         // NOTHING TO DO
                                                         inserted = true
                                                         client.close()
@@ -1546,20 +1546,20 @@ module Daemon {
                                             if (check_sidechain[0].data.genesis.permissioned !== undefined && check_sidechain[0].data.genesis.permissioned === true) {
                                                 utils.log('FOUND PERMISSIONED TRANSACTION')
                                                 // VERIFYING INPUTS
-                                                for(let k in datastore.data.transaction.inputs){
+                                                for (let k in datastore.data.transaction.inputs) {
                                                     let input = datastore.data.transaction.inputs[k]
                                                     let validated = await scwallet.validatepermissionedinput(input)
                                                     utils.log('INPUT RESPONSE IS ' + validated)
-                                                    if(validated === false){
+                                                    if (validated === false) {
                                                         valid = false
                                                     }
                                                 }
                                                 // VERIFYING OUTPUTS
-                                                for(let address in datastore.data.transaction.outputs){
-                                                    if(valid){
+                                                for (let address in datastore.data.transaction.outputs) {
+                                                    if (valid) {
                                                         let validated = await scwallet.validateoutputaddress(address, datastore.data.transaction.sidechain)
                                                         utils.log('OUTPUT RESPONSE IS ' + validated)
-                                                        if(validated === false){
+                                                        if (validated === false) {
                                                             valid = false
                                                         }
                                                     }
@@ -1659,6 +1659,11 @@ module Daemon {
                                                             if (isDoubleSpended === true) {
                                                                 valid = false
                                                                 utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS A DOUBLE SPEND.')
+                                                            }else if(isDoubleSpended === false){
+                                                                if (datastore.transaction.inputs[x].time >= datastore.data.transaction.time) {
+                                                                    valid = false
+                                                                    console.log('INPUT ' + sxid + ':' + vout + ' IS NOT VALID, CAN\'T BE SPENT BEFORE ' + datastore.transaction.inputs[x].time + '.')
+                                                                }
                                                             }
                                                         }
                                                     }

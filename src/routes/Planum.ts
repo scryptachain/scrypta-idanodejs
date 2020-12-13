@@ -379,6 +379,8 @@ export async function send(req: express.Request, res: express.Response) {
             let amountinput = 0
             let amount = math.round(fields.amount, decimals)
             let usedtx = []
+            let txtime = new Date().getTime()
+            
             for (let i in unspent) {
               if (amountinput < amount) {
                 delete unspent[i]._id
@@ -387,19 +389,21 @@ export async function send(req: express.Request, res: express.Response) {
                 let checkinput = await db.collection('sc_transactions').find({ sxid: unspent[i].sxid }).limit(1).toArray()
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
                   if (global['sxidcache'].indexOf(unspent[i].sxid + ':' + unspent[i].vout) === -1) {
-                    delete unspent[i].block
-                    delete unspent[i].redeemblock
-                    delete unspent[i].redeemed
-                    let validateinput = await scwallet.validateinput(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, fields.from)
-                    let isDoubleSpended = await scwallet.checkdoublespending(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, "")
-                    if (validateinput === true && isDoubleSpended === false) {
-                      inputs.push(unspent[i])
-                      usedtx.push(unspent[i].sxid + ':' + unspent[i].vout)
-                      let toadd = math.round(unspent[i].amount, decimals)
-                      amountinput = math.sum(amountinput, toadd)
-                      amountinput = math.round(amountinput, decimals)
-                    } else {
-                      parser.log('FOUND DOUBLE SPENDED TRANSACTION ' + unspent[i].sxid + ':' + unspent[i].vout)
+                    if (unspent[i].time < txtime) {
+                      delete unspent[i].block
+                      delete unspent[i].redeemblock
+                      delete unspent[i].redeemed
+                      let validateinput = await scwallet.validateinput(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, fields.from)
+                      let isDoubleSpended = await scwallet.checkdoublespending(unspent[i].sxid, unspent[i].vout, fields.sidechain_address, "")
+                      if (validateinput === true && isDoubleSpended === false) {
+                        inputs.push(unspent[i])
+                        usedtx.push(unspent[i].sxid + ':' + unspent[i].vout)
+                        let toadd = math.round(unspent[i].amount, decimals)
+                        amountinput = math.sum(amountinput, toadd)
+                        amountinput = math.round(amountinput, decimals)
+                      } else {
+                        parser.log('FOUND DOUBLE SPENDED TRANSACTION ' + unspent[i].sxid + ':' + unspent[i].vout)
+                      }
                     }
                   }
                 }
@@ -462,7 +466,7 @@ export async function send(req: express.Request, res: express.Response) {
                     memo = fields.memo
                   }
                   transaction["memo"] = memo
-                  transaction["time"] = new Date().getTime()
+                  transaction["time"] = txtime
 
                   let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
 
@@ -1142,11 +1146,11 @@ export async function validatetransaction(req: express.Request, res: express.Res
 
           let time = transactionToValidate.time
           if (transactionToValidate.inputs.length > 0) {
+            let validatetime = true
             for (let x in transactionToValidate.inputs) {
               let sxid = transactionToValidate.inputs[x].sxid
               let vout = transactionToValidate.inputs[x].vout
               // VALIDATING INPUT TIME
-              let validatetime = true
               if (transactionToValidate.inputs[x].time >= time) {
                 validatetime = false
               }
