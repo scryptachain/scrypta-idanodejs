@@ -1648,21 +1648,24 @@ module Daemon {
                                                 for (let x in datastore.data.transaction.inputs) {
                                                     let sxid = datastore.data.transaction.inputs[x].sxid
                                                     let vout = datastore.data.transaction.inputs[x].vout
+                                                    let inputtime = datastore.data.transaction.inputs[x].time
                                                     let validategenesis = await scwallet.validategenesis(sxid, datastore.data.transaction.sidechain)
                                                     if (validategenesis === false) {
                                                         let validateinput = await scwallet.validateinput(sxid, vout, datastore.data.transaction.sidechain, datastore.address, datastore.data.sxid)
                                                         if (validateinput === false) {
                                                             valid = false
-                                                            utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID.')
+                                                            utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS NOT VALID.', '', 'errors')
                                                         } else if (validateinput === true) {
                                                             let isDoubleSpended = await scwallet.checkdoublespending(sxid, vout, datastore.data.transaction.sidechain, datastore.data.sxid)
                                                             if (isDoubleSpended === true) {
                                                                 valid = false
                                                                 utils.log('INPUT ' + sxid + ':' + vout + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS A DOUBLE SPEND.')
-                                                            }else if(isDoubleSpended === false){
-                                                                if (datastore.transaction.inputs[x].time >= datastore.data.transaction.time) {
+                                                            } else if (isDoubleSpended === false) {
+                                                                if (inputtime > datastore.data.transaction.time) {
                                                                     valid = false
-                                                                    console.log('INPUT ' + sxid + ':' + vout + ' IS NOT VALID, CAN\'T BE SPENT BEFORE ' + datastore.transaction.inputs[x].time + '.')
+                                                                    utils.log('TIME FOR INPUT ' + sxid + ':' + vout + ' IS NOT VALID, CAN\'T BE SPENT BEFORE ' + inputtime + '.', '', 'errors')
+                                                                } else {
+                                                                    utils.log('TIME FOR INPUT ' + sxid + ':' + vout + ' VALIDATED (' + inputtime + ' vs ' + datastore.data.transaction.time + ')')
                                                                 }
                                                             }
                                                         }
@@ -1723,7 +1726,6 @@ module Daemon {
                                                     valid = false
                                                 }
                                             } else {
-                                                utils.log('TRANSACTION IS NOT VALID')
                                                 valid = false
                                             }
 
@@ -1783,7 +1785,9 @@ module Daemon {
                                                                     utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
                                                                 } else if (checkUnspentRedeemed[0] === undefined) {
                                                                     updated = true
-                                                                    utils.log('UNSPENT DOESN\'T EXISTS!', '', 'errors')
+                                                                    if (vout !== 'reissue' && vout !== 'genesis') {
+                                                                        utils.log('UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' DOESN\'T EXISTS!', '', 'errors')
+                                                                    }
                                                                 }
 
                                                                 retries++
@@ -1868,7 +1872,7 @@ module Daemon {
                                                 // TRANSACTION STORED CORRECTLY
                                                 response(true)
                                             } else {
-                                                utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS INVALID', '\x1b[31m%s\x1b[0m')
+                                                utils.log('TRANSACTION ' + datastore.data.sxid + ' IN SIDECHAIN ' + datastore.data.transaction.sidechain + ' AT BLOCK ' + datastore.block + ' IS NOT VALID', '\x1b[31m%s\x1b[0m', 'errors')
                                                 response('INVALID')
                                             }
                                         } else {
@@ -1894,7 +1898,9 @@ module Daemon {
                                                                     utils.log('REDEEMING UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' AT BLOCK ' + datastore.block)
                                                                 } else if (checkUnspentRedeemed[0] === undefined) {
                                                                     updated = true
-                                                                    utils.log('UNSPENT DOESN\'T EXISTS!', '', 'errors')
+                                                                    if (vout !== 'reissue' && vout !== 'genesis') {
+                                                                        utils.log('UNSPENT IN SIDECHAIN ' + datastore.data.transaction.sidechain + ':' + sxid + ':' + vout + ' DOESN\'T EXISTS!', '', 'errors')
+                                                                    }
                                                                 }
 
                                                                 retries++

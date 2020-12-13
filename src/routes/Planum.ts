@@ -389,7 +389,7 @@ export async function send(req: express.Request, res: express.Response) {
                 let checkinput = await db.collection('sc_transactions').find({ sxid: unspent[i].sxid }).limit(1).toArray()
                 if (checkinput[0] !== undefined && checkinput[0].transaction.outputs[fields.from] !== undefined && checkinput[0].transaction.outputs[fields.from] === unspent[i].amount) {
                   if (global['sxidcache'].indexOf(unspent[i].sxid + ':' + unspent[i].vout) === -1) {
-                    if (unspent[i].time < txtime) {
+                    if (unspent[i].time <= txtime) {
                       delete unspent[i].block
                       delete unspent[i].redeemblock
                       delete unspent[i].redeemed
@@ -414,9 +414,7 @@ export async function send(req: express.Request, res: express.Response) {
             amount = math.round(amount, decimals)
             client.close()
             if (amountinput >= fields.amount) {
-
               if (fields.to === check_sidechain[0].address && check_sidechain[0].data.burnable === false) {
-
                 res.send({
                   error: true,
                   description: "Can\'t burn asset.",
@@ -1151,7 +1149,7 @@ export async function validatetransaction(req: express.Request, res: express.Res
               let sxid = transactionToValidate.inputs[x].sxid
               let vout = transactionToValidate.inputs[x].vout
               // VALIDATING INPUT TIME
-              if (transactionToValidate.inputs[x].time >= time) {
+              if (transactionToValidate.inputs[x].time > time) {
                 validatetime = false
               }
 
@@ -1379,12 +1377,21 @@ export async function transaction(req: express.Request, res: express.Response) {
         if (check_sidechain[0] !== undefined) {
           var written = await db.collection('sc_transactions').find({ "sxid": fields.sxid }).sort({ block: -1 }).limit(1).toArray()
           client.close()
-          delete written[0]._id
-          res.json({
-            transaction: written[0],
-            symbol: check_sidechain[0].data.genesis.symbol,
-            sidechain: check_sidechain[0].address
-          })
+          if(written[0] !== undefined){
+            delete written[0]._id
+            res.json({
+              transaction: written[0],
+              symbol: check_sidechain[0].data.genesis.symbol,
+              sidechain: check_sidechain[0].address
+            })
+          }else{
+            res.send({
+              data: {
+                error: "Transaction not found."
+              },
+              status: 422
+            })
+          }
         } else {
           res.send({
             data: {
