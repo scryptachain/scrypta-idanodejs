@@ -12,4 +12,3 @@ sudo mongorestore --db idanodejs --drop idanodejs
 rm .BOOTSTRAPPING
 rm -rf idanodejs
 rm idanode_bootstrap.gz
-rm .BOOTSTRAPPING
