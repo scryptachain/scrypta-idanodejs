@@ -1376,10 +1376,12 @@ export async function transaction(req: express.Request, res: express.Response) {
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         if (check_sidechain[0] !== undefined) {
           var written = await db.collection('sc_transactions').find({ "sxid": fields.sxid }).sort({ block: -1 }).limit(1).toArray()
+          let complete_data = await db.collection('written').findOne({ "data.sxid": fields.sxid })
           client.close()
           if(written[0] !== undefined){
             delete written[0]._id
             res.json({
+              address: complete_data.address,
               transaction: written[0],
               symbol: check_sidechain[0].data.genesis.symbol,
               sidechain: check_sidechain[0].address
