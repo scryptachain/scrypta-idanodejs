@@ -14,9 +14,9 @@ const options = {
     files: { include: ['*.js', '*.json'] }
 }
 
-hashElement('./dist', options).then(async hash => {
+hashElement('../dist', options).then(async hash => {
     let checksum_hash = CryptoJS.SHA256(hash.hash).toString(CryptoJS.enc.Hex)
-    const data = fs.readFileSync('checksum', 'utf8')
+    const data = fs.readFileSync('../checksum', 'utf8')
     let checksums = data.split("\n")
     let found = false
     for (let x in checksums) {
@@ -38,7 +38,7 @@ hashElement('./dist', options).then(async hash => {
                 let result = await scrypta.write(sid.walletstore, 'TEMP', checksum_hash, '', version, '')
                 if (result.uuid !== undefined) {
                     console.log('WRITTEN CHECKSUM ON THE BLOCKCHAIN')
-                    fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
+                    fs.appendFileSync('../checksum', "\n" + version + ':' + checksum_hash)
                     console.log('APPENDING CHECKSUM IN LOCAL FILE')
                 }else{
                     console.log('ERROR WRITING CHECKSUM')
@@ -47,7 +47,8 @@ hashElement('./dist', options).then(async hash => {
                 console.log('NOT ENOUGH BALANCE')
             }
         } else {
-            fs.appendFileSync('checksum', "\n" + version + ':' + checksum_hash)
+            console.log('APPENDING CHECKSUM IN LOCAL FILE')
+            fs.appendFileSync('../checksum', "\n" + version + ':' + checksum_hash)
         }
     }else{
         console.log('CHECKSUM ALREADY WRITTEN')
