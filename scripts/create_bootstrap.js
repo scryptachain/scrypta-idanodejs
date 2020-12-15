@@ -1,7 +1,7 @@
 const { exec } = require('child_process');
 
 console.log('CREATING BOOTSTRAP DUMP')
-exec('mkdir ../.BOOTSTRAPPING', function (error, stdout, stderr) {
+exec('touch ./.BOOTSTRAPPING', function (error, stdout, stderr) {
   exec('rm -rf idanodejs && mongodump --db idanodejs --excludeCollection contracts --out ./', function (error, stdout, stderr) {
     if (error) {
       console.log(error.stack);
@@ -22,10 +22,8 @@ exec('mkdir ../.BOOTSTRAPPING', function (error, stdout, stderr) {
               console.log('Error code: '+error.code);
               console.log('Signal received: '+error.signal);
           }
-          exec('rm ../.BOOTSTRAPPING', function (error, stdout, stderr) {
-            exec('mv idanode_bootstrap.gz ../dumps', function (error, stdout, stderr) {
-              console.log('BOOTSTRAP COMPLETED')
-            })
+          exec('rm ./.BOOTSTRAPPING', function (error, stdout, stderr) {
+            console.log('BOOTSTRAP COMPLETED')
           })
       })
     })
