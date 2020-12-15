@@ -26,22 +26,6 @@ global['isCheckingSpace'] = false
 global['remainingBlocks'] = 0
 global['restartSync'] = 0
 
-if (global['testnet'] === true) {
-  // TESTNET BLOCKCHAIN PARAMS
-  global['lyraInfo'] = {
-    private: 0xae,
-    public: 0x7f,
-    scripthash: 0x13
-  }
-} else {
-  // MAINNET BLOCKCHAIN PARAMS
-  global['lyraInfo'] = {
-    private: 0xae,
-    public: 0x30,
-    scripthash: 0x0d
-  }
-}
-
 class App {
   public express
   public db

@@ -87,6 +87,20 @@ async function checkConnections() {
       global['db_name'] = 'testnet'
     }
 
+    if (global['testnet'] === true) {
+      global['lyraInfo'] = {
+        private: 0xae,
+        public: 0x7f,
+        scripthash: 0x13
+      }
+    } else {
+      global['lyraInfo'] = {
+        private: 0xae,
+        public: 0x30,
+        scripthash: 0x0d
+      }
+    }
+
     var wallet = new Crypto.Wallet;
     wallet.request('getinfo').then(async function (info) {
       if (info !== undefined && info['result'] !== null && info['result'] !== undefined && info['result']['blocks'] >= 0) {
