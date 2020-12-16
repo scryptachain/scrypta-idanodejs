@@ -1,7 +1,5 @@
 #!/bin/bash
 
-pm2 start npm
-sleep 30s
 touch .BOOTSTRAPPING
 rm idanode_bootstrap.gz
 wget https://sfo2.digitaloceanspaces.com/scrypta/idanode_bootstrap.gz
