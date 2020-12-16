@@ -572,78 +572,87 @@ export async function reissue(req: express.Request, res: express.Response) {
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         client.close()
         if (check_sidechain[0] !== undefined) {
-          if (check_sidechain[0].data.genesis.reissuable === true) {
-            let supply = parseFloat(fields.supply)
-            var dna = ''
-            if (fields.dna !== undefined && fields.dna !== '') {
-              dna = fields.dna
-            }
-
-            if (supply > 0) {
-
-              let reissue = {
-                "sidechain": fields.sidechain_address,
-                "owner": fields.dapp_address,
-                "supply": supply,
-                "dna": dna,
-                "time": new Date().getTime()
+          if (check_sidechain[0].block !== undefined && check_sidechain[0].block !== null && check_sidechain[0].data > 0){
+            if (check_sidechain[0].data.genesis.reissuable === true) {
+              let supply = parseFloat(fields.supply)
+              var dna = ''
+              if (fields.dna !== undefined && fields.dna !== '') {
+                dna = fields.dna
               }
 
-              let sign = await wallet.signmessage(fields.private_key, JSON.stringify(reissue))
-              if (sign.address === fields.dapp_address && sign.pubkey === fields.pubkey && sign.address === check_sidechain[0].data.genesis.owner) {
-                let signature = sign.signature
-                let sxid = sign.id
-                let signed = {
-                  reissue: reissue,
-                  signature: signature,
-                  pubkey: sign.pubkey,
-                  sxid: sxid
+              if (supply > 0) {
+
+                let reissue = {
+                  "sidechain": fields.sidechain_address,
+                  "owner": fields.dapp_address,
+                  "supply": supply,
+                  "dna": dna,
+                  "time": new Date().getTime()
                 }
 
-                // WRITE REISSUE
-                var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
-                var collection = '!*!'
-                var refID = '!*!'
-                var protocol = '!*!chain://'
-                var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
-                let write = await wallet.write(fields.private_key, fields.dapp_address, dataToWrite, uuid, collection, refID, protocol)
+                let sign = await wallet.signmessage(fields.private_key, JSON.stringify(reissue))
+                if (sign.address === fields.dapp_address && sign.pubkey === fields.pubkey && sign.address === check_sidechain[0].data.genesis.owner) {
+                  let signature = sign.signature
+                  let sxid = sign.id
+                  let signed = {
+                    reissue: reissue,
+                    signature: signature,
+                    pubkey: sign.pubkey,
+                    sxid: sxid
+                  }
 
-                // CREATE REISSUE UNSPENT
-                var uuidtx = uuidv4().replace(new RegExp('-', 'g'), '.')
+                  // WRITE REISSUE
+                  var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+                  var collection = '!*!'
+                  var refID = '!*!'
+                  var protocol = '!*!chain://'
+                  var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
+                  let write = await wallet.write(fields.private_key, fields.dapp_address, dataToWrite, uuid, collection, refID, protocol)
 
-                let transaction = {}
-                transaction["sidechain"] = fields.sidechain_address
-                transaction["inputs"] = [{ sxid: sxid, vout: "reissue" }]
-                transaction["outputs"] = {}
-                transaction["outputs"][fields.dapp_address] = supply
-                transaction["time"] = new Date().getTime()
+                  // CREATE REISSUE UNSPENT
+                  var uuidtx = uuidv4().replace(new RegExp('-', 'g'), '.')
 
-                let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
-                let reissuetx = {
-                  transaction: transaction,
-                  pubkey: fields.pubkey,
-                  signature: signtx.signature,
-                  sxid: signtx.id
+                  let transaction = {}
+                  transaction["sidechain"] = fields.sidechain_address
+                  transaction["inputs"] = [{ sxid: sxid, vout: "reissue" }]
+                  transaction["outputs"] = {}
+                  transaction["outputs"][fields.dapp_address] = supply
+                  transaction["time"] = new Date().getTime()
+
+                  let signtx = await wallet.signmessage(fields.private_key, JSON.stringify(transaction))
+                  let reissuetx = {
+                    transaction: transaction,
+                    pubkey: fields.pubkey,
+                    signature: signtx.signature,
+                    sxid: signtx.id
+                  }
+                  var reissuetxTxToWrite = '*!*' + uuidtx + collection + refID + protocol + '*=>' + JSON.stringify(reissuetx) + '*!*'
+                  let unspent = await wallet.write(fields.private_key, fields.dapp_address, reissuetxTxToWrite, uuid, collection, refID, protocol)
+
+                  res.send({
+                    reissue: signed,
+                    written: write,
+                    unspent: unspent,
+                    status: 200
+                  })
+                } else {
+                  res.send({
+                    error: 'Sign don\'t match',
+                    status: 402
+                  })
                 }
-                var reissuetxTxToWrite = '*!*' + uuidtx + collection + refID + protocol + '*=>' + JSON.stringify(reissuetx) + '*!*'
-                let unspent = await wallet.write(fields.private_key, fields.dapp_address, reissuetxTxToWrite, uuid, collection, refID, protocol)
-
-                res.send({
-                  reissue: signed,
-                  written: write,
-                  unspent: unspent,
-                  status: 200
-                })
               } else {
                 res.send({
-                  error: 'Sign don\'t match',
-                  status: 402
+                  data: {
+                    error: "Supply must be greater than 0."
+                  },
+                  status: 422
                 })
               }
             } else {
               res.send({
                 data: {
-                  error: "Supply must be greater than 0."
+                  error: "Sidechain not reissuable."
                 },
                 status: 422
               })
@@ -651,7 +660,7 @@ export async function reissue(req: express.Request, res: express.Response) {
           } else {
             res.send({
               data: {
-                error: "Sidechain not reissuable."
+                error: "Sidechain not confirmed yet, please wait for the confirmation."
               },
               status: 422
             })
