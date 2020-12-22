@@ -72,7 +72,7 @@ export async function issue(req: express.Request, res: express.Response) {
         }
 
         var permissioned = false
-        if (fields.permissioned !== undefined && (fields.permissioned === 'true' || fields.reissuable === true)) {
+        if (fields.permissioned !== undefined && (fields.permissioned === 'true' || fields.permissioned === true)) {
           permissioned = true
         }
 
