@@ -572,7 +572,7 @@ export async function reissue(req: express.Request, res: express.Response) {
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         client.close()
         if (check_sidechain[0] !== undefined) {
-          if (check_sidechain[0].block !== undefined && check_sidechain[0].block !== null && check_sidechain[0].data > 0){
+          if (check_sidechain[0].block !== undefined && check_sidechain[0].block !== null && check_sidechain[0].block > 0){
             if (check_sidechain[0].data.genesis.reissuable === true) {
               let supply = parseFloat(fields.supply)
               var dna = ''
