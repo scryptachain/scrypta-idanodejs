@@ -1016,17 +1016,19 @@ module Daemon {
                                     utils.log('DB ERROR WHILE STORING DOCUMENTA', '', 'errors')
                                     utils.log(e, '', 'errors')
                                     client.close()
-                                    response(false)
                                 }
                             } else {
                                 await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
                                 console.log('FILE STORED YET')
                             }
                             client.close()
+                            response(true)
                         } else {
                             response(false)
                         }
                     })
+                } else {
+                    response(false)
                 }
             })
         }
