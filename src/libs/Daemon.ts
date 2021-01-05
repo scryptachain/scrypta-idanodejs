@@ -1382,6 +1382,15 @@ module Daemon {
                                     }
 
                                     try {
+                                        await db.collection('written').deleteMany({ block: blockheight }, { writeConcern: { w: 1, j: true } })
+                                    } catch (e) {
+                                        console.log(e)
+                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING WRITTEN DATA', '', 'errors')
+                                        client.close()
+                                        response(false)
+                                    }
+
+                                    try {
                                         await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: { $gt: blockheight } }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         console.log(e)
