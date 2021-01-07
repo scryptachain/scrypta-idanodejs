@@ -202,6 +202,10 @@ module Daemon {
 
                         if (analyze <= blocks) {
                             global['remainingBlocks'] = remains
+                            global['chunkretain']++
+                            if(global['chunkretain'] > 10){
+                                global['chunkcache'] = []
+                            }
                             let errors = false
                             if (remains === 0) {
                                 // CONSOLIDATING TRANSACTIONS WITHOUT CONFIRMS FIRST
@@ -445,8 +449,14 @@ module Daemon {
                                     }
 
                                     if (process.env.PINNED_SIDECHAINS !== 'NO') {
-                                        let pinned_sidechains = process.env.PINNED_SIDECHAINS.split(',')
-                                        utils.log('CHECK ' + sidechains.length + ' CHANGED SIDECHAINS')
+                                        let pinned_sidechains = []
+                                        if(process.env.PINNED_SIDECHAINS !== undefined){
+                                            pinned_sidechains = process.env.PINNED_SIDECHAINS.split(',')
+                                            utils.log('CHECK ' + sidechains.length + ' / ' + pinned_sidechains.length + ' CHANGED SIDECHAINS')
+                                        }else{
+                                            process.env.PINNED_SIDECHAINS = 'ALL'
+                                            utils.log('CHECK ' + sidechains.length + ' CHANGED SIDECHAINS')
+                                        }
                                         for (let sxi in sidechains) {
                                             let sidechain = sidechains[sxi]
                                             let shouldCheck = false
