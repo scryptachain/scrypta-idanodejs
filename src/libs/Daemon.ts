@@ -403,18 +403,10 @@ module Daemon {
                                 // console.log('CLEANING USXO CACHE')
                                 global['usxocache'] = []
                                 global['sxidcache'] = []
-
+                                global['valid_txs_block'] = []
+                                
                                 // STORE PLANUM DATA
                                 if (block['planum'].length > 0) {
-                                    let cleaned = false
-                                    while (cleaned === false) {
-                                        try {
-                                            cleaned = await task.cleanplanummempool(block['planum'])
-                                        } catch (e) {
-                                            utils.log('ERROR CLEANING PLANUM', '', 'errors')
-                                        }
-                                    }
-
                                     let sidechains = []
                                     for (var dix in block['planum']) {
                                         utils.log('FOUND PLANUM TX.', '\x1b[32m%s\x1b[0m')
@@ -452,41 +444,56 @@ module Daemon {
                                         }
                                     }
 
-                                    utils.log('CHECK ' + sidechains.length + ' CHANGED SIDECHAINS')
-                                    for (let sxi in sidechains) {
-                                        let sidechain = sidechains[sxi]
-                                        utils.log('START CHECKING ' + sidechain)
-                                        let checked = false
-                                        let validated = false
-                                        while (checked === false) {
-                                            try {
-                                                let resultvalidation = await task.checkplanum(sidechain)
-                                                if (resultvalidation.validated === false && resultvalidation.checked === true) {
-                                                    checked = true
-                                                } else if (resultvalidation.validated === true && resultvalidation.checked === true) {
-                                                    validated = true
-                                                    checked = true
+                                    if (process.env.PINNED_SIDECHAINS !== 'NO') {
+                                        let pinned_sidechains = process.env.PINNED_SIDECHAINS.split(',')
+                                        utils.log('CHECK ' + sidechains.length + ' CHANGED SIDECHAINS')
+                                        for (let sxi in sidechains) {
+                                            let sidechain = sidechains[sxi]
+                                            let shouldCheck = false
+                                            if (pinned_sidechains.length > 0) {
+                                                if (pinned_sidechains.indexOf(sidechain) !== -1) {
+                                                    shouldCheck = true
+                                                }else if(process.env.PINNED_SIDECHAINS === 'ALL'){
+                                                    shouldCheck = true
                                                 }
-                                            } catch (e) {
-                                                utils.log('ERROR WHILE VALIDATING SIDECHAIN', '', 'errors')
-                                                utils.log(e)
+                                            } else if (process.env.PINNED_SIDECHAINS !== 'NO') {
+                                                shouldCheck = true
                                             }
-                                        }
-                                        if (validated === false) {
-                                            let cleaned = false
-                                            while (cleaned === false) {
-                                                try {
-                                                    cleaned = await task.cleanplanum(block['planum'], block['height'])
-                                                } catch (e) {
-                                                    utils.log('ERROR CLEANING PLANUM', '', 'errors')
+                                            if (shouldCheck) {
+                                                utils.log('START CHECKING ' + sidechain)
+                                                let checked = false
+                                                let validated = false
+                                                while (checked === false) {
+                                                    try {
+                                                        let resultvalidation = await task.checkplanum(sidechain)
+                                                        if (resultvalidation.validated === false && resultvalidation.checked === true) {
+                                                            checked = true
+                                                        } else if (resultvalidation.validated === true && resultvalidation.checked === true) {
+                                                            validated = true
+                                                            checked = true
+                                                        }
+                                                    } catch (e) {
+                                                        utils.log('ERROR WHILE VALIDATING SIDECHAIN', '', 'errors')
+                                                        utils.log(e)
+                                                    }
+                                                }
+                                                if (validated === false) {
+                                                    let cleaned = false
+                                                    while (cleaned === false) {
+                                                        try {
+                                                            cleaned = await task.cleanplanum(global['valid_txs_block'], block['height'])
+                                                        } catch (e) {
+                                                            utils.log('ERROR CLEANING PLANUM', '', 'errors')
+                                                        }
+                                                    }
+                                                    await task.deleteLastBlock()
+                                                    utils.log('ERROR WHILE STORING SIDECHAINS TRANSACTIONS, NOW IS INVALID, RETRY SYNC BLOCK.', '', 'errors')
+                                                    response('RESTART')
+                                                } else {
+                                                    global['restartSync'] = 0
+                                                    utils.log('SIDECHAIN ' + sidechain + ' SUCCESSFULLY VALIDATED AFTER CHANGE', '\x1b[32m%s\x1b[0m')
                                                 }
                                             }
-                                            await task.deleteLastBlock()
-                                            utils.log('ERROR WHILE STORING SIDECHAINS TRANSACTIONS, NOW IS INVALID, RETRY SYNC BLOCK.', '', 'errors')
-                                            response('RESTART')
-                                        } else {
-                                            global['restartSync'] = 0
-                                            utils.log('SIDECHAIN ' + sidechain + ' SUCCESSFULLY VALIDATED AFTER CHANGE', '\x1b[32m%s\x1b[0m')
                                         }
                                     }
                                 }
@@ -1244,65 +1251,6 @@ module Daemon {
             })
         }
 
-        private async cleanplanummempool(transactions): Promise<boolean> {
-            return new Promise(async response => {
-                const utils = new Utilities.Parser
-                try {
-                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                        if (!err) {
-                            var db = client.db(global['db_name'])
-                            try {
-                                let sidechains = []
-                                for (let y in transactions) {
-                                    let datastore = transactions[y]
-                                    if (datastore.data !== undefined && datastore.data.transaction !== undefined) {
-                                        if (sidechains.indexOf(datastore.data.transaction.sidechain) === -1) {
-                                            sidechains.push(datastore.data.transaction.sidechain)
-                                        }
-                                    }
-                                }
-                                utils.log('CLEANING SIDECHAINS ' + JSON.stringify(sidechains))
-                                for (let k in sidechains) {
-                                    let sidechain = sidechains[k]
-                                    utils.log('CLEANING ' + sidechain, '', 'log')
-                                    try {
-                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null }, { writeConcern: { w: 1, j: true } })
-                                    } catch (e) {
-                                        console.log(e)
-                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING MEMPOOL TRANSACTIONS', '', 'errors')
-                                        client.close()
-                                        response(false)
-                                    }
-
-                                    try {
-                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: null }, { writeConcern: { w: 1, j: true } })
-                                    } catch (e) {
-                                        console.log(e)
-                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING MEMPOOL UNSPENT', '', 'errors')
-                                        client.close()
-                                        response(false)
-                                    }
-                                }
-                                utils.log('CLEAN SUCCESS ON BLOCK', '', 'log')
-                                client.close()
-                                response(true)
-                            } catch (e) {
-                                console.log(e)
-                                utils.log('CLEANING ERROR GENERAL', '', 'errors')
-                                client.close()
-                                response(false)
-                            }
-                        } else {
-                            client.close()
-                            response(false)
-                        }
-                    })
-                } catch (e) {
-                    response(false)
-                }
-            })
-        }
-
         private async cleanplanum(transactions, blockheight): Promise<boolean> {
             return new Promise(async response => {
                 const utils = new Utilities.Parser
@@ -1338,6 +1286,7 @@ module Daemon {
                                     utils.log('CLEANING ' + sidechain, '', 'log')
                                     try {
                                         await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: null }, { writeConcern: { w: 1, j: true } })
+                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: null }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         console.log(e)
                                         utils.log('CLEAN ERROR ON BLOCK WHILE DELETING MEMPOOL TRANSACTIONS', '', 'errors')
@@ -1346,43 +1295,18 @@ module Daemon {
                                     }
 
                                     try {
-                                        await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: null }, { writeConcern: { w: 1, j: true } })
-                                    } catch (e) {
-                                        console.log(e)
-                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING MEMPOOL UNSPENT', '', 'errors')
-                                        client.close()
-                                        response(false)
-                                    }
-
-                                    try {
                                         await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: blockheight }, { writeConcern: { w: 1, j: true } })
-                                    } catch (e) {
-                                        console.log(e)
-                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING CONFIRMED TRANSACTIONS', '', 'errors')
-                                        client.close()
-                                        response(false)
-                                    }
-
-                                    try {
                                         await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: blockheight }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         console.log(e)
-                                        utils.log('CLEAN ERROR ON BLOCK WHILE DELETING CONFIRMED UNSPENTS', '', 'errors')
-                                        client.close()
-                                        response(false)
-                                    }
-
-                                    try {
-                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: { $gt: blockheight } }, { writeConcern: { w: 1, j: true } })
-                                    } catch (e) {
-                                        console.log(e)
                                         utils.log('CLEAN ERROR ON BLOCK WHILE DELETING CONFIRMED TRANSACTIONS', '', 'errors')
                                         client.close()
                                         response(false)
                                     }
 
                                     try {
-                                        await db.collection('written').deleteMany({ block: blockheight }, { writeConcern: { w: 1, j: true } })
+                                        await db.collection('written').deleteMany({ "data.transaction": { $exists: true }, "data.transaction.sidechain": sidechain, block: null }, { writeConcern: { w: 1, j: true } })
+                                        await db.collection('written').deleteMany({ "data.transaction": { $exists: true }, "data.transaction.sidechain": sidechain, block: blockheight }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         console.log(e)
                                         utils.log('CLEAN ERROR ON BLOCK WHILE DELETING WRITTEN DATA', '', 'errors')
@@ -1391,6 +1315,7 @@ module Daemon {
                                     }
 
                                     try {
+                                        await db.collection('sc_transactions').deleteMany({ "transaction": { $exists: true }, "transaction.sidechain": sidechain, block: { $gt: blockheight } }, { writeConcern: { w: 1, j: true } })
                                         await db.collection('sc_unspent').deleteMany({ sidechain: sidechain, block: { $gt: blockheight } }, { writeConcern: { w: 1, j: true } })
                                     } catch (e) {
                                         console.log(e)
@@ -1746,6 +1671,7 @@ module Daemon {
                                                 datastore.data.block = datastore.block
                                                 let insertTx = false
                                                 let retries = 0
+                                                global['valid_txs_block'].push(datastore)
                                                 while (insertTx === false) {
                                                     try {
                                                         let checkTx = await db.collection('sc_transactions').find({ sxid: datastore.data.sxid }).limit(1).toArray()

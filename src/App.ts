@@ -18,6 +18,7 @@ global['utxocache'] = []
 global['sxidcache'] = []
 global['usxocache'] = []
 global['chunkcache'] = []
+global['valid_txs_block'] = []
 global['syncLock'] = false
 global['isSyncing'] = false
 global['syncTimeout'] = null
