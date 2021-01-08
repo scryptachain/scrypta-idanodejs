@@ -8,7 +8,7 @@
     "dev:testnet": "tsc --watch & nodemon --delay 3 dist --testnet",
     "build": "rm -rf dist && tsc",
     "pub": "node scripts/publish_idanode.js",
-    "mongodump": "node create_bootstrap.js",
+    "mongodump": "node scripts/create_bootstrap.js",
     "update": "pm2 stop npm && git checkout . && git pull && npm run build && npm install && pm2 start npm",
     "test": "tsc && mocha dist/**/*.spec.js",
     "lint": "eslint src --ext ts",
