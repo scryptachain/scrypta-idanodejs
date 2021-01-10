@@ -114,7 +114,7 @@ module Daemon {
                                     global['retrySync'] = 0
                                     for (var address in mempool['data_written']) {
                                         var data = mempool['data_written'][address]
-                                        console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                                        console.log('\x1b[32m%s\x1b[0m', 'FOUND GENERIC DATA FOR ' + address + '.')
                                         for (var dix in data) {
                                             if (data[dix].protocol !== 'chain://') {
                                                 await task.storewritten(data[dix], true)
@@ -169,9 +169,10 @@ module Daemon {
                                         }
                                     }
 
-                                    if (mempool['outputs'].length > 0 && pinned.length > 0) {
+                                    if ((mempool['outputs'].length > 0 || mempool['data_written'].length > 0 || mempool['data_received'].length > 0) && pinned.length > 0) {
                                         for (let k in pinned) {
                                             let contract = pinned[k]
+                                            console.log('CHECKING ' + contract.contract + ' FOR IFMEMPOOL FUNCTION')
                                             let request = {
                                                 function: "ifMempool",
                                                 params: mempool,
@@ -511,7 +512,7 @@ module Daemon {
                                 // STORE OTHER DATA
                                 for (var address in block['data_written']) {
                                     var data = block['data_written'][address]
-                                    console.log('\x1b[32m%s\x1b[0m', 'FOUND WRITTEN DATA FOR ' + address + '.')
+                                    console.log('\x1b[32m%s\x1b[0m', 'FOUND GENERIC DATA FOR ' + address + '.')
                                     for (var dix in data) {
                                         if (data[dix].protocol !== 'chain://') {
                                             let task = new Daemon.Sync
@@ -544,6 +545,7 @@ module Daemon {
 
                                 // CHECK IF THERE ARE PINNED CONTRACTS
                                 try {
+                                    console.log('CHECKING CONTRACTS')
                                     let contracts = new Contracts.Local
                                     let pinned = await contracts.pinned()
 
