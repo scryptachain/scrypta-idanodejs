@@ -47,6 +47,7 @@ export async function run(req: express.Request, res: express.Response) {
             client.close()
             if (isPinned) {
               if (parsed['function'] !== 'eachBlock' && parsed['function'] !== 'ifMempool') {
+                // TODO: CHECK FOR CONSENSUS FUNCTION
                 let run = await vm.run(parsed['contract'], request['body'], true, version)
                 res.send(run)
               } else {
