@@ -2096,12 +2096,10 @@ module Daemon {
                             utils.log('FOUND ' + checkplanumtxs.length + ' SIDECHAIN TRANSACTIONS TO CONSOLIDATE')
                             for (let k in checkplanumtxs) {
                                 let tx = checkplanumtxs[k]
-                                let txids = tx.txid
-                                let validtxs = 0
-                                let block
-                                for (let txi in txids) {
+                                if(tx.txid.length === 64){
+                                    let block
                                     var wallet = new Crypto.Wallet
-                                    let rawtransaction = await wallet.request('getrawtransaction', [txids[txi], 1])
+                                    let rawtransaction = await wallet.request('getrawtransaction', [tx.txid, 1])
                                     let txvalid = true
                                     if (rawtransaction['result'] !== undefined) {
                                         let rawtx = rawtransaction['result']
@@ -2122,37 +2120,91 @@ module Daemon {
                                     }
 
                                     if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
+                                        try {
+                                            await db.collection("sc_transactions").updateOne({
+                                                sxid: tx.sxid
+                                            }, {
+                                                $set: {
+                                                    block: block['height']
+                                                }
+                                            }, { writeConcern: { w: 1, j: true } })
+                                        } catch (e) {
+                                            utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                            utils.log(e)
+                                        }
+                                        try {
+                                            await db.collection("sc_unspent").updateMany({
+                                                sxid: tx.sxid
+                                            }, {
+                                                $set: {
+                                                    block: block['height']
+                                                }
+                                            }, { writeConcern: { w: 1, j: true } })
+                                        } catch (e) {
+                                            utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                            utils.log(e)
+                                        }
                                         utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION ' + tx.txid + '!')
-                                        validtxs++
                                     }
-                                }
-                                if (validtxs === txids.length) {
-                                    try {
-                                        await db.collection("sc_transactions").updateOne({
-                                            txid: tx.txid
-                                        }, {
-                                            $set: {
-                                                block: block['height']
+                                }else{
+                                    let txids = tx.txid
+                                    let validtxs = 0
+                                    let block
+                                    for (let txi in txids) {
+                                        var wallet = new Crypto.Wallet
+                                        let rawtransaction = await wallet.request('getrawtransaction', [txids[txi], 1])
+                                        let txvalid = true
+                                        if (rawtransaction['result'] !== undefined) {
+                                            let rawtx = rawtransaction['result']
+                                            if (rawtx !== null && rawtx['blockhash'] !== undefined) {
+                                                let getblock = await wallet.request('getblock', [rawtx['blockhash']])
+                                                if (getblock['result'] !== undefined) {
+                                                    block = getblock['result']
+                                                } else {
+                                                    console.log('CAN\'T FIND BLOCK.')
+                                                    txvalid = false
+                                                }
+                                            } else {
+                                                console.log('CAN\' FIND TRANSACTION BLOCK HASH')
+                                                txvalid = false
                                             }
-                                        }, { writeConcern: { w: 1, j: true } })
-                                    } catch (e) {
-                                        utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
-                                        utils.log(e)
+                                        }else{
+                                            console.log('CAN\' FIND TRANSACTION')
+                                        }
+
+                                        if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
+                                            utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION ' + tx.txid + '!')
+                                            validtxs++
+                                        }
                                     }
-                                    try {
-                                        await db.collection("sc_unspent").updateMany({
-                                            txid: tx.txid
-                                        }, {
-                                            $set: {
-                                                block: block['height']
-                                            }
-                                        }, { writeConcern: { w: 1, j: true } })
-                                    } catch (e) {
-                                        utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
-                                        utils.log(e)
+                                    if (validtxs === txids.length) {
+                                        try {
+                                            await db.collection("sc_transactions").updateOne({
+                                                sxid: tx.sxid
+                                            }, {
+                                                $set: {
+                                                    block: block['height']
+                                                }
+                                            }, { writeConcern: { w: 1, j: true } })
+                                        } catch (e) {
+                                            utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                            utils.log(e)
+                                        }
+                                        try {
+                                            await db.collection("sc_unspent").updateMany({
+                                                sxid: tx.sxid
+                                            }, {
+                                                $set: {
+                                                    block: block['height']
+                                                }
+                                            }, { writeConcern: { w: 1, j: true } })
+                                        } catch (e) {
+                                            utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
+                                            utils.log(e)
+                                        }
+                                    } else {
+                                        console.log('NEED ' + validtxs + '/' + txids.length + ', TRANSACTION NOT CONSOLIDATED.')
                                     }
-                                } else {
-                                    console.log('NEED ' + validtxs + '/' + txids.length + ', TRANSACTION NOT CONSOLIDATED.')
                                 }
                             }
                         } else {
