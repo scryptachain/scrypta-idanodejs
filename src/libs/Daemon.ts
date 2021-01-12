@@ -204,7 +204,7 @@ module Daemon {
                         if (analyze <= blocks) {
                             global['remainingBlocks'] = remains
                             global['chunkretain']++
-                            if(global['chunkretain'] > 10){
+                            if (global['chunkretain'] > 10) {
                                 global['chunkcache'] = []
                             }
                             let errors = false
@@ -409,7 +409,7 @@ module Daemon {
                                 global['usxocache'] = []
                                 global['sxidcache'] = []
                                 global['valid_txs_block'] = []
-                                
+
                                 // STORE PLANUM DATA
                                 if (block['planum'].length > 0) {
                                     let sidechains = []
@@ -451,10 +451,10 @@ module Daemon {
 
                                     if (process.env.PINNED_SIDECHAINS !== 'NO') {
                                         let pinned_sidechains = []
-                                        if(process.env.PINNED_SIDECHAINS !== undefined){
+                                        if (process.env.PINNED_SIDECHAINS !== undefined) {
                                             pinned_sidechains = process.env.PINNED_SIDECHAINS.split(',')
                                             utils.log('CHECK ' + sidechains.length + ' / ' + pinned_sidechains.length + ' CHANGED SIDECHAINS')
-                                        }else{
+                                        } else {
                                             process.env.PINNED_SIDECHAINS = 'ALL'
                                             utils.log('CHECK ' + sidechains.length + ' CHANGED SIDECHAINS')
                                         }
@@ -464,7 +464,7 @@ module Daemon {
                                             if (pinned_sidechains.length > 0) {
                                                 if (pinned_sidechains.indexOf(sidechain) !== -1) {
                                                     shouldCheck = true
-                                                }else if(process.env.PINNED_SIDECHAINS === 'ALL'){
+                                                } else if (process.env.PINNED_SIDECHAINS === 'ALL') {
                                                     shouldCheck = true
                                                 }
                                             } else if (process.env.PINNED_SIDECHAINS !== 'NO') {
@@ -2099,7 +2099,7 @@ module Daemon {
                                 let txids = tx.txid
                                 let validtxs = 0
                                 let block
-                                for(let txi in txids){
+                                for (let txi in txids) {
                                     var wallet = new Crypto.Wallet
                                     let rawtransaction = await wallet.request('getrawtransaction', [txids[txi], 1])
                                     let txvalid = true
@@ -2110,11 +2110,15 @@ module Daemon {
                                             if (getblock['result'] !== undefined) {
                                                 block = getblock['result']
                                             } else {
+                                                console.log('CAN\'T FIND BLOCK.')
                                                 txvalid = false
                                             }
                                         } else {
+                                            console.log('CAN\' FIND TRANSACTION BLOCK HASH')
                                             txvalid = false
                                         }
+                                    }else{
+                                        console.log('CAN\' FIND TRANSACTION')
                                     }
 
                                     if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
@@ -2122,7 +2126,7 @@ module Daemon {
                                         validtxs++
                                     }
                                 }
-                                if(validtxs === txids.length){
+                                if (validtxs === txids.length) {
                                     try {
                                         await db.collection("sc_transactions").updateOne({
                                             txid: tx.txid
@@ -2147,6 +2151,8 @@ module Daemon {
                                         utils.log('ERROR ON DB WHILE CONSOLIDATING', '', 'errors')
                                         utils.log(e)
                                     }
+                                } else {
+                                    console.log('NEED ' + validtxs + '/' + txids.length + ', TRANSACTION NOT CONSOLIDATED.')
                                 }
                             }
                         } else {
