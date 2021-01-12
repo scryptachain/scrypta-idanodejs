@@ -2121,7 +2121,7 @@ module Daemon {
 
                                     if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
                                         try {
-                                            await db.collection("sc_transactions").updateOne({
+                                            await db.collection("sc_transactions").updateMany({
                                                 sxid: tx.sxid
                                             }, {
                                                 $set: {
@@ -2179,7 +2179,7 @@ module Daemon {
                                     }
                                     if (validtxs === txids.length) {
                                         try {
-                                            await db.collection("sc_transactions").updateOne({
+                                            await db.collection("sc_transactions").updateMany({
                                                 sxid: tx.sxid
                                             }, {
                                                 $set: {
