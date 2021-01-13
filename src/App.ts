@@ -105,6 +105,7 @@ class App {
     app.express.get('/sidechain/check/:sidechain/:consensus', sidechains.checksidechain)
     app.express.post('/sidechain/allow', sidechains.allowuser)
     app.express.post('/sidechain/deny', sidechains.denyuser)
+    app.express.post('/sidechain/unconfirmed', sidechains.unconfirmed)
 
     //IPFS
     app.express.get('/ipfs/info', ipfs.info)

@@ -99,11 +99,11 @@ module SideChain {
                                 }
                             }
                             if (existat === '') {
-                                utils.log('UNSPENT ' + sxid + ':' + vout + ' DOESN\'T EXIST!')
+                                utils.log('UNSPENT ' + sxid + ':' + vout + ' DOESN\'T EXIST!', '', 'errors')
                             }
                         } else {
                             valid = false
-                            utils.log('UNSPENT ' + sxid + ':' + vout + ' DOESN\'T EXIST!')
+                            utils.log('UNSPENT ' + sxid + ':' + vout + ' DOESN\'T EXIST!', '', 'errors')
                         }
 
                         client.close()
@@ -123,7 +123,6 @@ module SideChain {
                     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                         const db = client.db(global['db_name'])
                         let valid = false
-                        let utils = new Utilities.Parser
 
                         // CHECKING IF UNSPENT EXISTS IN LOCAL DATABASE
                         let unspentcheck = await db.collection('sc_unspent').find({ "sidechain": sidechain, "sxid": sxid, "vout": vout }).sort({ block: 1 }).limit(1).toArray()
@@ -147,14 +146,14 @@ module SideChain {
                                     }
                                 }
                                 if (existat === '') {
-                                    utils.log('CAN\'T FIND UNSPENT IN TRANSACTION ' + sxid + ':' + vout + ' DOESN\'T EXIST!')
+                                    utils.log('CAN\'T FIND UNSPENT IN TRANSACTION ' + sxid + ':' + vout + ' DOESN\'T EXIST!', '', 'errors')
                                 }
                             } else {
-                                utils.log('UNSPENT ' + sxid + ':' + vout + ' REDEEMED YET IN ANOTHER TRANSACTION!')
+                                utils.log('UNSPENT ' + sxid + ':' + vout + ' REDEEMED YET IN ANOTHER TRANSACTION!', '', 'errors')
                             }
                         } else {
                             valid = false
-                            utils.log('UNSPENT ' + sxid + ':' + vout + ' DOESN\'T EXIST!')
+                            utils.log('UNSPENT ' + sxid + ':' + vout + ' DOESN\'T EXIST!', '', 'errors')
                         }
 
                         client.close()
@@ -169,6 +168,7 @@ module SideChain {
 
         public async checkdoublespending(sxid, vout, sidechain, incomingSxid = '') {
             return new Promise<boolean>(async response => {
+                let utils = new Utilities.Parser
                 mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
                     const db = client.db(global['db_name'])
                     let invalid = false
@@ -181,10 +181,12 @@ module SideChain {
                             if (incomingSxid !== '') {
                                 if (input.sxid === sxid && input.vout === vout && transaction.sxid !== incomingSxid) {
                                     invalid = true
+                                    utils.log('UNSPENT ' + sxid + ':' + vout + ' IS SPENDED YET!', '', 'errors')
                                 }
                             } else {
                                 if (input.sxid === sxid && input.vout === vout) {
                                     invalid = true
+                                    utils.log('UNSPENT ' + sxid + ':' + vout + ' IS SPENDED YET!', '', 'errors')
                                 }
                             }
                         }

@@ -380,7 +380,7 @@ export async function send(req: express.Request, res: express.Response) {
             let amount = math.round(fields.amount, decimals)
             let usedtx = []
             let txtime = new Date().getTime()
-            
+
             for (let i in unspent) {
               if (amountinput < amount) {
                 delete unspent[i]._id
@@ -572,7 +572,7 @@ export async function reissue(req: express.Request, res: express.Response) {
         let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
         client.close()
         if (check_sidechain[0] !== undefined) {
-          if (check_sidechain[0].block !== undefined && check_sidechain[0].block !== null && check_sidechain[0].block > 0){
+          if (check_sidechain[0].block !== undefined && check_sidechain[0].block !== null && check_sidechain[0].block > 0) {
             if (check_sidechain[0].data.genesis.reissuable === true) {
               let supply = parseFloat(fields.supply)
               var dna = ''
@@ -983,6 +983,50 @@ export async function listunspent(req: express.Request, res: express.Response) {
   }
 }
 
+export async function unconfirmed(req: express.Request, res: express.Response) {
+  var parser = new Utilities.Parser
+  var request = await parser.body(req)
+  if (request !== false) {
+    let fields = request['body']
+    if (fields.sidechain_address) {
+      mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+        const db = client.db(global['db_name'])
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        let unspent =  await db.collection('sc_unspent').find({ sidechain: fields.sidechain_address, block: null}).sort({ time: 1 }).toArray()
+        let transactions = await db.collection('sc_transactions').find({ sidechain: fields.sidechain_address, block: null}).sort({ time: 1 }).toArray()
+        client.close()
+        if (check_sidechain[0] !== undefined) {
+          res.json({
+            unspent: unspent,
+            transactions: transactions
+          })
+        } else {
+          res.send({
+            data: {
+              error: "Sidechain not found."
+            },
+            status: 422
+          })
+        }
+      })
+    } else {
+      res.send({
+        data: {
+          error: "Specify all required fields first."
+        },
+        status: 422
+      })
+    }
+  } else {
+    res.send({
+      data: {
+        error: "Specify all required fields first."
+      },
+      status: 422
+    })
+  }
+}
+
 export async function scanaddress(req: express.Request, res: express.Response) {
   var parser = new Utilities.Parser
   var request = await parser.body(req)
@@ -1319,24 +1363,28 @@ export async function verifychain(req: express.Request, res: express.Response) {
                 if (validatesign !== false) {
                   let inputs = sidechain_datas[x].transaction.inputs
                   for (let y in inputs) {
-                    let input = inputs[y]
-                    if (input.vout !== "genesis" && input.vout !== "reissue") {
-                      let block = sidechain_datas[x].block
-                      let validateinput = await sidechain.checkinputspent(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
-                      let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address, sidechain_datas[x].sxid)
-                      if (validateinput === false || isdoublespended === true) {
-                        verified = false
-                        errors.push(sidechain_datas[x].sxid + ':' + sidechain_datas[x].block)
-                        console.log('ERROR VALIDATING INPUT ' + input.sxid + ':' + input.vout)
+                    if(verified){
+                      let input = inputs[y]
+                      if (input.vout !== "genesis" && input.vout !== "reissue") {
+                        let block = sidechain_datas[x].block
+                        let validateinput = await sidechain.checkinputspent(input.sxid, input.vout, fields.sidechain_address, validatesign['address'], block)
+                        let isdoublespended = await sidechain.checkdoublespending(input.sxid, input.vout, fields.sidechain_address, sidechain_datas[x].sxid)
+                        if (validateinput === false || isdoublespended === true) {
+                          verified = false
+                          errors.push(sidechain_datas[x].sxid + ':' + sidechain_datas[x].block)
+                          utils.log('ERROR VALIDATING INPUT ' + input.sxid + ':' + input.vout)
+                        } else {
+                          utils.log(input.sxid + ':' + input.vout + ' VALIDATED')
+                        }
                       }
                     }
                   }
                 } else {
-                  console.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))
+                  utils.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))
                   verified = false
                 }
               } else {
-                console.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))
+                utils.log('ERROR AT TX ' + JSON.stringify(sidechain_datas[x].transaction))
                 verified = false
               }
             }
@@ -1387,7 +1435,7 @@ export async function transaction(req: express.Request, res: express.Response) {
           var written = await db.collection('sc_transactions').find({ "sxid": fields.sxid }).sort({ block: -1 }).limit(1).toArray()
           let complete_data = await db.collection('written').findOne({ "data.sxid": fields.sxid })
           client.close()
-          if(written[0] !== undefined){
+          if (written[0] !== undefined) {
             delete written[0]._id
             res.json({
               address: complete_data.address,
@@ -1395,7 +1443,7 @@ export async function transaction(req: express.Request, res: express.Response) {
               symbol: check_sidechain[0].data.genesis.symbol,
               sidechain: check_sidechain[0].address
             })
-          }else{
+          } else {
             res.send({
               data: {
                 error: "Transaction not found."
