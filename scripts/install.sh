@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #DOWNLOADING WALLET
-https://github.com/scryptachain/scrypta/releases/download/2.0.1/lyra-2.0.1-linux-server.zip
+wget https://github.com/scryptachain/scrypta/releases/download/2.0.1/lyra-2.0.1-linux-server.zip
 unzip lyra-2.0.1-linux-server.zip
 mv lyrad /usr/bin/lyrad
 mv lyra-cli /usr/bin/lyra-cli
