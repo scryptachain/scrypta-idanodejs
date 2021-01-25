@@ -2070,7 +2070,7 @@ module Daemon {
                                     if (txvalid === true && block['height'] !== undefined && block['hash'] !== undefined && block['time'] !== undefined) {
                                         utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION ' + tx.address + ':' + tx.txid + '!')
                                         try {
-                                            await db.collection("transactions").updateOne({
+                                            await db.collection("transactions").updateMany({
                                                 address: tx.address, txid: tx.txid
                                             }, {
                                                 $set: {
