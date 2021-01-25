@@ -701,6 +701,7 @@ module Crypto {
                             block['result']['inputs'] = []
                             block['result']['outputs'] = []
                             block['result']['planum'] = []
+                            block['result']['contracts'] = {}
                             block['result']['raw_written'] = {}
                             block['result']['data_written'] = {}
                             block['result']['data_received'] = {}
@@ -1023,6 +1024,11 @@ module Crypto {
                                         } else {
                                             var protocol = ''
                                         }
+                                        if (headsplit[4] !== undefined) {
+                                            var contract = headsplit[4]
+                                        } else {
+                                            var contract = ''
+                                        }
                                         if (datastore === undefined) {
                                             datastore = ''
                                         }
@@ -1032,6 +1038,7 @@ module Crypto {
                                             collection: collection,
                                             refID: refID,
                                             protocol: protocol,
+                                            contract: contract,
                                             data: datastore,
                                             block: block['result']['height'],
                                             blockhash: block['result']['hash'],
@@ -1059,6 +1066,15 @@ module Crypto {
                                                 if (block['result']['planum'].indexOf(parsed) === -1) {
                                                     block['result']['planum'].push(parsed)
                                                 }
+                                            }
+                                        }
+
+                                        if(contract !== ""){
+                                            if (block['result']['contracts'][contract] === undefined) {
+                                                block['result']['contracts'][contract] = []
+                                            }
+                                            if (block['result']['contracts'][contract].indexOf(parsed) === -1) {
+                                                block['result']['contracts'][contract].push(parsed)
                                             }
                                         }
                                     } else {
@@ -1110,6 +1126,7 @@ module Crypto {
                         mempool['result']['raw_written'] = {}
                         mempool['result']['data_written'] = {}
                         mempool['result']['data_received'] = {}
+                        mempool['result']['contracts'] = {}
                         mempool['result']['tx'] = []
                         var mempool_written = []
                         //PARSING ALL TRANSACTIONS
@@ -1425,6 +1442,11 @@ module Crypto {
                                     } else {
                                         var protocol = ''
                                     }
+                                    if (headsplit[4] !== undefined) {
+                                        var contract = headsplit[4]
+                                    } else {
+                                        var contract = ''
+                                    }
                                     if (datastore === undefined) {
                                         datastore = ''
                                     }
@@ -1434,12 +1456,21 @@ module Crypto {
                                         collection: collection,
                                         refID: refID,
                                         protocol: protocol,
+                                        contract: contract,
                                         data: datastore,
                                         txid: written_txid
                                     }
                                     singledata = ''
                                     if (mempool['result']['data_written'][addressdata].indexOf(parsed) === -1) {
                                         mempool['result']['data_written'][addressdata].push(parsed)
+                                    }
+                                    if(contract !== ""){
+                                        if (mempool['result']['contracts'][contract] === undefined) {
+                                            mempool['result']['contracts'][contract] = []
+                                        }
+                                        if (mempool['result']['contracts'][contract].indexOf(parsed) === -1) {
+                                            mempool['result']['contracts'][contract].push(parsed)
+                                        }
                                     }
                                 } else {
                                     if (global['chunkcache'][addressdata] === undefined) {
@@ -1458,6 +1489,7 @@ module Crypto {
                         let res = {
                             data_written: mempool['result']['data_written'],
                             data_received: mempool['result']['data_received'],
+                            contracts: mempool['result']['contracts'],
                             analysis: mempool['result']['analysis'],
                             inputs: mempool['result']['inputs'],
                             outputs: mempool['result']['outputs']

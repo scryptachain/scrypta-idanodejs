@@ -7,9 +7,7 @@ import * as Contracts from './Contracts'
 require('dotenv').config()
 const mongo = require('mongodb').MongoClient
 import { create, all, exp } from 'mathjs'
-import { Console } from "console";
-import SideChain = require("./Planum");
-const messages = require('./p2p/messages.js')
+import { utils } from "mocha";
 const console = require('better-console')
 const LZUTF8 = require('lzutf8')
 const axios = require('axios')
@@ -169,7 +167,7 @@ module Daemon {
                                         }
                                     }
 
-                                    if ((mempool['outputs'].length > 0 || mempool['data_written'].length > 0 || mempool['data_received'].length > 0) && pinned.length > 0) {
+                                    if ((mempool['outputs'].length > 0 || mempool['data_written'].length > 0 || mempool['data_received'].length > 0 || Object.keys(mempool['contracts']).length > 0) && pinned.length > 0) {
                                         for (let k in pinned) {
                                             let contract = pinned[k]
                                             console.log('CHECKING ' + contract.contract + ' FOR IFMEMPOOL FUNCTION')
@@ -185,7 +183,7 @@ module Daemon {
                                                 try {
                                                     let hex = Buffer.from(JSON.stringify(request)).toString('hex')
                                                     let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                                    let contractResponse = await vm.run(contract.contract, signed, true)
+                                                    let contractResponse = await task.runcontract(contract.contract, signed, contract.version)
                                                     if (contractResponse !== undefined && contractResponse !== false) {
                                                         utils.log(contractResponse)
                                                     }
@@ -193,6 +191,21 @@ module Daemon {
                                                     console.log(e)
                                                     utils.log('ERROR ON IFMEMPOOL CONTRACT', '', 'errors')
                                                     utils.log(e, '', 'errors')
+                                                }
+                                            }
+
+                                            if (mempool['contracts'][contract.contract] !== undefined) {
+                                                utils.log('RUNNING USER CALLED CONTRACT MEMPOOL REQUEST')
+                                                for (let req in mempool['contracts'][contract.contract]) {
+                                                    try {
+                                                        let contractrequest = mempool['contracts'][contract.contract][req].data
+                                                        let contractResponse = await task.runcontract(contract.contract, contractrequest, contract.version)
+                                                        if (contractResponse !== undefined && contractResponse !== false) {
+                                                            utils.log(contractResponse)
+                                                        }
+                                                    } catch (e) {
+                                                        utils.log(e, '', 'errors')
+                                                    }
                                                 }
                                             }
                                         }
@@ -565,12 +578,27 @@ module Daemon {
                                                 try {
                                                     let hex = Buffer.from(JSON.stringify(request)).toString('hex')
                                                     let signed = await wallet.signmessage(process.env.NODE_KEY, hex)
-                                                    let contractResponse = await vm.run(contract.contract, signed, true)
+                                                    let contractResponse = await task.runcontract(contract.contract, signed, contract.version)
                                                     if (contractResponse !== undefined && contractResponse !== false) {
                                                         utils.log(contractResponse)
                                                     }
                                                 } catch (e) {
                                                     utils.log(e, '', 'errors')
+                                                }
+                                            }
+
+                                            if (block['contracts'][contract.contract] !== undefined) {
+                                                utils.log('RUNNING USER CALLED CONTRACT REQUEST')
+                                                for (let req in block['contracts'][contract.contract]) {
+                                                    let contractrequest = block['contracts'][contract.contract][req].data
+                                                    try {
+                                                        let contractResponse = await task.runcontract(contract.contract, contractrequest, contract.version)
+                                                        if (contractResponse !== undefined && contractResponse !== false) {
+                                                            utils.log(contractResponse)
+                                                        }
+                                                    } catch (e) {
+                                                        utils.log(e, '', 'errors')
+                                                    }
                                                 }
                                             }
                                         }
@@ -1531,7 +1559,8 @@ module Daemon {
                                                             try {
                                                                 let searchhex = Buffer.from(JSON.stringify(searchRequest)).toString('hex')
                                                                 let searchsigned = await wallet.signmessage(process.env.NODE_KEY, searchhex)
-                                                                let maintainers = await vm.run(datastore.data.contract.address, searchsigned, true)
+                                                                let task = new Daemon.Sync
+                                                                let maintainers = await task.runcontract(datastore.data.contract.address, searchsigned, 'latest')
                                                                 if (maintainers !== undefined && maintainers !== false) {
                                                                     if (maintainers.length > 0) {
                                                                         // RUN CONTRACT AND LET'S SEE IF IS TRANSACTION VALID
@@ -2096,7 +2125,7 @@ module Daemon {
                             utils.log('FOUND ' + checkplanumtxs.length + ' SIDECHAIN TRANSACTIONS TO CONSOLIDATE')
                             for (let k in checkplanumtxs) {
                                 let tx = checkplanumtxs[k]
-                                if(tx.txid.length === 64){
+                                if (tx.txid.length === 64) {
                                     let block
                                     var wallet = new Crypto.Wallet
                                     let rawtransaction = await wallet.request('getrawtransaction', [tx.txid, 1])
@@ -2115,7 +2144,7 @@ module Daemon {
                                             console.log('CAN\' FIND TRANSACTION BLOCK HASH')
                                             txvalid = false
                                         }
-                                    }else{
+                                    } else {
                                         console.log('CAN\' FIND TRANSACTION')
                                     }
 
@@ -2146,7 +2175,7 @@ module Daemon {
                                         }
                                         utils.log('SUCCESSFULLY CONSOLIDATED TRANSACTION ' + tx.txid + '!')
                                     }
-                                }else{
+                                } else {
                                     let txids = tx.txid
                                     let validtxs = 0
                                     let block
@@ -2168,7 +2197,7 @@ module Daemon {
                                                 console.log('CAN\' FIND TRANSACTION BLOCK HASH')
                                                 txvalid = false
                                             }
-                                        }else{
+                                        } else {
                                             console.log('CAN\' FIND TRANSACTION')
                                         }
 
@@ -2218,6 +2247,22 @@ module Daemon {
                     utils.log('ERROR WHILE CONSOLIDATE', '', 'errors')
                     utils.log(e, '', 'errors')
                     response(false)
+                }
+            })
+        }
+
+        private runcontract(contract, signed, version = 'latest'): any {
+            return new Promise(async response => {
+                let utils = new Utilities.Parser
+                try {
+                    let contractresponse = vm.run(contract, signed, true, version).catch(e => {
+                        response(false)
+                        utils.log(e, '', 'errors')
+                    })
+                    response(contractresponse)
+                } catch (e) {
+                    response(false)
+                    utils.log(e)
                 }
             })
         }
