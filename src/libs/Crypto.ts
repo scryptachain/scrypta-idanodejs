@@ -642,7 +642,6 @@ module Crypto {
                     var totalfees = 0
                     var error = false
                     console.log('ATTEMPTING TO WRITE ' + chunks.length + ' CHUNKS')
-                    console.log(chunks)
                     for (var cix = 0; cix < chunks.length; cix++) {
                         var txid = ''
                         var i = 0

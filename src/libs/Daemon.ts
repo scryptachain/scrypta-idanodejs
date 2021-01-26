@@ -2255,12 +2255,15 @@ module Daemon {
             return new Promise(async response => {
                 let utils = new Utilities.Parser
                 try {
-                    let contractresponse = vm.run(contract, signed, true, version).catch(e => {
+                    vm.run(contract, signed, true, version).catch(e => {
                         response(false)
+                        console.log('CONTRACT ERRORED, RETURNING')
                         utils.log(e, '', 'errors')
+                    }).then(contractresponse => {
+                        response(contractresponse)
                     })
-                    response(contractresponse)
                 } catch (e) {
+                    console.log('CONTRACT ERRORED, RETURNING')
                     response(false)
                     utils.log(e)
                 }
