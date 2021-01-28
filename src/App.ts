@@ -122,6 +122,7 @@ class App {
 
     //SPACE
     app.express.post('/documenta/add', documenta.add)
+    app.express.get('/documenta/:address/:hash', documenta.get)
 
     //EXPLORER 
     app.express.get('/utxo/:txid/:vout', explorer.getutxo)

@@ -96,8 +96,9 @@ module Space {
       return new Promise(response => {
         try {
           var url = "https://" + endpoint + '/' + address + '/' + spaceFile
-          console.log('Remote file ' + url + ' downloading in tmp folder')
-
+          if(process.env.DEBUG === 'full'){
+            console.log('DOWNLOADING REMOTE ' + url + ' IN TMP FOLDER')
+          }
           var options = {
             directory: './tmp',
             filename: spaceFile
@@ -108,8 +109,12 @@ module Space {
               console.log(err)
               response(false)
             } else {
-              console.log("Downloaded correctly.")
-              response(true)
+              if(process.env.DEBUG === 'full'){
+                console.log("FILE " + spaceFile + " DOWNLOADED CORRECTLY")
+              }
+              let buffer = fs.readFileSync('./tmp/' + spaceFile)
+              fs.unlinkSync('./tmp/' + spaceFile)
+              response(buffer)
             }
           })
         } catch (e) {
@@ -122,6 +127,7 @@ module Space {
     async syncSpace() {
       if (!global['isCheckingSpace']) {
         global['isCheckingSpace'] = true
+        console.log('SYNCING SPACE')
         var space = new Space.syncer
         var files = {}
         let list: Object = await space.readSpace()

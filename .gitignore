@@ -18,5 +18,6 @@ public/bootstrap.zip
 keys/public.pem
 keys/private.pem
 log
+tmp/
 errors
 idanode_bootstrap.gz
