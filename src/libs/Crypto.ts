@@ -136,6 +136,21 @@ module Crypto {
                 })
             });
         }
+        
+        public async balanceOf(address) {
+            return new Promise<any>(async response => {
+                mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+                    const db = client.db(global['db_name'])
+                    let unspent = await db.collection("unspent").find({ address: address, redeemed: null }).sort({ block: -1 }).toArray()
+                    let balance = 0
+                    for(let k in unspent){
+                        balance += parseFloat(unspent[k].amount)
+                    }
+                    client.close()
+                    response(balance)
+                })
+            });
+        }
 
         public async send(private_key, from, to, amount, metadata = '', fees = 0.001, send = true) {
             return new Promise(async response => {

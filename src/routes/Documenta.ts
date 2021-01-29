@@ -7,63 +7,106 @@ import * as Crypto from '../libs/Crypto'
 const crypto = require('crypto')
 const LZUTF8 = require('lzutf8')
 import { v4 as uuidv4 } from 'uuid'
+const ScryptaCore = require('@scrypta/core')
 
 export async function add(req: express.Request, res: express.Response) {
   var form = new formidable.IncomingForm();
+  let space = new Space.syncer
+  var wallet = new Crypto.Wallet;
   form.maxFileSize = global['limit'] * 1024 * 1024
   form.maxFieldsSize = global['limit'] * 1024 * 1024
   form.multiples = true
-  if (req.body.signature !== undefined && req.body.message !== undefined && req.body.pubkey !== undefined) {
-    let space = new Space.syncer
-    var wallet = new Crypto.Wallet;
-    let validatesign = await wallet.verifymessage(req.body.pubkey, req.body.signature, req.body.message)
-    if (validatesign) {
-      let buf = Buffer.from(req.body.message, 'hex')
-      try {
-        let hash = crypto.createHash("sha256").update(buf).digest("hex")
-        let uploaded = await space.uploadToSpace(hash, buf, validatesign['address'])
-        if (uploaded !== false) {
-          let written = 'Private key not provided'
-          if (req.body.private_key !== undefined) {
-            let refID = '!*!'
-            if (req.body.title !== undefined) {
-              refID += LZUTF8.compress(req.body.title, { outputEncoding: "Base64" })
+  form.parse(req, async function (err, fields, files) {
+    if (req.body.signature !== undefined && req.body.message !== undefined && req.body.pubkey !== undefined) {
+      let validatesign = await wallet.verifymessage(req.body.pubkey, req.body.signature, req.body.message)
+      if (validatesign) {
+        let buf = Buffer.from(req.body.message, 'hex')
+        try {
+          let hash = crypto.createHash("sha256").update(buf).digest("hex")
+          let uploaded = await space.uploadToSpace(hash, buf, validatesign['address'])
+          if (uploaded !== false) {
+            let written = 'Private key not provided'
+            if (req.body.private_key !== undefined) {
+              let refID = '!*!'
+              if (req.body.title !== undefined) {
+                refID += LZUTF8.compress(req.body.title, { outputEncoding: "Base64" })
+              }
+              var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+              var collection = '!*!'
+              var protocol = '!*!documenta://'
+              let signed = await wallet.signmessage(req.body.private_key, JSON.stringify(uploaded))
+              var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
+              written = <string>await wallet.write(req.body.private_key, validatesign['address'], dataToWrite, uuid, collection, refID, protocol)
             }
-            var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
-            var collection = '!*!'
-            var protocol = '!*!documenta://'
-            let signed = await wallet.signmessage(req.body.private_key, JSON.stringify(uploaded))
-            var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
-            written = <string>await wallet.write(req.body.private_key, validatesign['address'], dataToWrite, uuid, collection, refID, protocol)
+
+            res.send({
+              uploaded: uploaded,
+              address: validatesign['address'],
+              written: written,
+              status: 200
+            })
+          } else {
+            res.send({
+              error: true,
+              status: 500
+            })
           }
+        } catch (e) {
+          res.send({
+            error: true,
+            status: 500
+          })
+        }
+      }
+    } else if (fields.private_key !== undefined && files.file !== undefined) {
+      try {
+        const scrypta = new ScryptaCore(false, ['http://localhost:3001'])
+        scrypta.staticnodes = true
+        let temporary = await scrypta.importPrivateKey(fields.private_key, '-')
+        let balance = await wallet.balanceOf(temporary.pub)
+        if (balance > 0) {
+          let content = fs.readFileSync(files.file.path)
+          let hash = crypto.createHash("sha256").update(content).digest("hex")
+          let uploaded = await space.uploadToSpace(hash, content, temporary.pub)
+          let refID = '!*!'
+          if (fields.title !== undefined) {
+            refID += LZUTF8.compress(fields.title, { outputEncoding: "Base64" })
+          }
+          var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+          var collection = '!*!'
+          var protocol = '!*!documenta://'
+          let signed = await wallet.signmessage(fields.private_key, JSON.stringify(uploaded))
+          var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
+          let written = <string>await wallet.write(fields.private_key, signed['address'], dataToWrite, uuid, collection, refID, protocol)
 
           res.send({
             uploaded: uploaded,
-            address: validatesign['address'],
+            address: signed['address'],
             written: written,
             status: 200
           })
         } else {
           res.send({
             error: true,
+            address: temporary.pub,
+            message: "Not enough balance",
             status: 500
           })
         }
       } catch (e) {
+        console.log(e)
         res.send({
           error: true,
           status: 500
         })
       }
+    } else {
+      res.send({
+        error: "Specify fields or signed message first.",
+        status: 422
+      })
     }
-  } else {
-    res.send({
-      data: {
-        error: "Specify hexed buffer and signed message first."
-      },
-      status: 422
-    })
-  }
+  })
 };
 
 export async function get(req: express.Request, res: express.Response) {
