@@ -8,6 +8,7 @@ const crypto = require('crypto')
 const LZUTF8 = require('lzutf8')
 import { v4 as uuidv4 } from 'uuid'
 const ScryptaCore = require('@scrypta/core')
+const mongo = require('mongodb').MongoClient
 
 export async function add(req: express.Request, res: express.Response) {
   var form = new formidable.IncomingForm();
@@ -40,6 +41,7 @@ export async function add(req: express.Request, res: express.Response) {
             }
 
             res.send({
+              space: 'https://' + process.env.S3_BUCKET + '.' + process.env.S3_ENDPOINT + '/' + validatesign['address'] + '/' + hash,
               uploaded: uploaded,
               address: validatesign['address'],
               written: written,
@@ -110,7 +112,6 @@ export async function add(req: express.Request, res: express.Response) {
 };
 
 export async function get(req: express.Request, res: express.Response) {
-  // GET FILE FROM SPACE OR LINKED SPACES
   let space = new Space.syncer
   let s3 = process.env.S3_BUCKET + '.' + process.env.S3_ENDPOINT
   let downloaded = await space.downloadFromSpace(req.params.hash, s3, req.params.address)
@@ -124,5 +125,77 @@ export async function get(req: express.Request, res: express.Response) {
     }
   } else {
     res.send({ message: 'Error while downloading file', error: true })
+  }
+};
+
+export async function read(req: express.Request, res: express.Response) {
+  let s3 = process.env.S3_BUCKET + '.' + process.env.S3_ENDPOINT
+  try {
+    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+      if (client !== undefined) {
+        const db = client.db(global['db_name'])
+        let documenta = await db.collection('documenta').find({ "address": req.params.address }).sort({ block: -1 }).toArray()
+        let response = []
+        for (let k in documenta) {
+          delete documenta[k]['_id']
+          try {
+            documenta[k].endpoint = LZUTF8.decompress(documenta[k].endpoint, { inputEncoding: "Base64" })
+          } catch (e) { }
+          try {
+            documenta[k].refID = LZUTF8.decompress(documenta[k].refID, { inputEncoding: "Base64" })
+          } catch (e) { }
+          documenta[k].space = 'https://' + documenta[k].endpoint + '/' + documenta[k].address + '/' + documenta[k].file
+          response.push(documenta[k])
+        }
+        client.close()
+        res.send(response)
+      } else {
+        res.json({
+          error: true,
+          message: "Idanode not working, please retry"
+        })
+      }
+    })
+  } catch (e) {
+    res.json({
+      error: true,
+      message: "Can't connect to wallet"
+    })
+  }
+};
+
+export async function returnDoc(req: express.Request, res: express.Response) {
+  let s3 = process.env.S3_BUCKET + '.' + process.env.S3_ENDPOINT
+  try {
+    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
+      if (client !== undefined) {
+        const db = client.db(global['db_name'])
+        let doc = await db.collection('documenta').findOne({ "address": req.params.address, "file": req.params.hash })
+        client.close()
+        if (doc !== undefined && doc !== null) {
+          delete doc['_id']
+          try {
+            doc.endpoint = LZUTF8.decompress(doc.endpoint, { inputEncoding: "Base64" })
+          } catch (e) { }
+          try {
+            doc.refID = LZUTF8.decompress(doc.refID, { inputEncoding: "Base64" })
+          } catch (e) { }
+          doc.space = 'https://' + doc.endpoint + '/' + doc.address + '/' + doc.file
+          res.send(doc)
+        } else {
+          res.send({ message: "Document not found", status: 404 })
+        }
+      } else {
+        res.json({
+          error: true,
+          message: "Idanode not working, please retry"
+        })
+      }
+    })
+  } catch (e) {
+    res.json({
+      error: true,
+      message: "Can't connect to wallet"
+    })
   }
 };

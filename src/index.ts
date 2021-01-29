@@ -32,6 +32,7 @@ utils.log('IPFS PIN STATUS IS ' + global['pinipfs'])
 const rateLimit = require("express-rate-limit");
 const helmet = require('helmet')
 var argv = require('minimist')(process.argv.slice(2));
+process.setMaxListeners(0);
 
 // SETTING RATE LIMIT
 var limiter = rateLimit({
