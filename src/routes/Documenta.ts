@@ -17,50 +17,55 @@ export async function add(req: express.Request, res: express.Response) {
   form.maxFileSize = global['limit'] * 1024 * 1024
   form.maxFieldsSize = global['limit'] * 1024 * 1024
   form.multiples = true
-  form.parse(req, async function (err, fields, files) {
-    if (req.body.signature !== undefined && req.body.message !== undefined && req.body.pubkey !== undefined) {
-      let validatesign = await wallet.verifymessage(req.body.pubkey, req.body.signature, req.body.message)
-      if (validatesign) {
-        let buf = Buffer.from(req.body.message, 'hex')
-        try {
-          let hash = crypto.createHash("sha256").update(buf).digest("hex")
-          let uploaded = await space.uploadToSpace(hash, buf, validatesign['address'])
-          if (uploaded !== false) {
-            let written = 'Private key not provided'
-            if (req.body.private_key !== undefined) {
-              let refID = '!*!'
-              if (req.body.title !== undefined) {
-                refID += LZUTF8.compress(req.body.title, { outputEncoding: "Base64" })
-              }
-              var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
-              var collection = '!*!'
-              var protocol = '!*!documenta://'
-              let signed = await wallet.signmessage(req.body.private_key, JSON.stringify(uploaded))
-              var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
-              written = <string>await wallet.write(req.body.private_key, validatesign['address'], dataToWrite, uuid, collection, refID, protocol)
+  if (req.body.signature !== undefined && req.body.message !== undefined && req.body.pubkey !== undefined) {
+    let validatesign = await wallet.verifymessage(req.body.pubkey, req.body.signature, req.body.message)
+    if (validatesign) {
+      let buf = Buffer.from(req.body.message, 'hex')
+      try {
+        let hash = crypto.createHash("sha256").update(buf).digest("hex")
+        let uploaded = await space.uploadToSpace(hash, buf, validatesign['address'])
+        if (uploaded !== false) {
+          let written = 'Private key not provided'
+          if (req.body.private_key !== undefined) {
+            let refID = '!*!'
+            if (req.body.title !== undefined) {
+              refID += LZUTF8.compress(req.body.title, { outputEncoding: "Base64" })
             }
-
-            res.send({
-              space: 'https://' + process.env.S3_BUCKET + '.' + process.env.S3_ENDPOINT + '/' + validatesign['address'] + '/' + hash,
-              uploaded: uploaded,
-              address: validatesign['address'],
-              written: written,
-              status: 200
-            })
-          } else {
-            res.send({
-              error: true,
-              status: 500
-            })
+            var uuid = uuidv4().replace(new RegExp('-', 'g'), '.')
+            var collection = '!*!'
+            var protocol = '!*!documenta://'
+            let signed = await wallet.signmessage(req.body.private_key, JSON.stringify(uploaded))
+            var dataToWrite = '*!*' + uuid + collection + refID + protocol + '*=>' + JSON.stringify(signed) + '*!*'
+            written = <string>await wallet.write(req.body.private_key, validatesign['address'], dataToWrite, uuid, collection, refID, protocol)
           }
-        } catch (e) {
+
+          res.send({
+            space: 'https://' + process.env.S3_BUCKET + '.' + process.env.S3_ENDPOINT + '/' + validatesign['address'] + '/' + hash,
+            uploaded: uploaded,
+            address: validatesign['address'],
+            written: written,
+            status: 200
+          })
+        } else {
           res.send({
             error: true,
             status: 500
           })
         }
+      } catch (e) {
+        res.send({
+          error: true,
+          status: 500
+        })
       }
-    } else if (fields.private_key !== undefined && files.file !== undefined) {
+    } else {
+      res.send({
+        error: "Can't validate signature, please retry.",
+        status: 422
+      })
+    }
+  } else {
+    form.parse(req, async function (err, fields, files) {
       try {
         const scrypta = new ScryptaCore(false, ['http://localhost:3001'])
         scrypta.staticnodes = true
@@ -102,13 +107,8 @@ export async function add(req: express.Request, res: express.Response) {
           status: 500
         })
       }
-    } else {
-      res.send({
-        error: "Specify fields or signed message first.",
-        status: 422
-      })
-    }
-  })
+    })
+  }
 };
 
 export async function get(req: express.Request, res: express.Response) {
