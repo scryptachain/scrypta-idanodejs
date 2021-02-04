@@ -68,5 +68,9 @@ sudo apt update
 sudo apt install python-certbot-nginx -y
 
 pm2 startup
-echo "NOW EDIT .env FILE AND RUN FOLLOWING COMMAND:"
+node docker/create_conf.js
+echo "RUN THIS COMMAND TO RUN IDANODE IN BACKGROUND:"
 echo "pm2 start npm -- start && pm2 save"
+echo ""
+echo "RUN THIS COMMAND TO RUN IDANODE IN FOREGROUND:"
+echo "npm start"
