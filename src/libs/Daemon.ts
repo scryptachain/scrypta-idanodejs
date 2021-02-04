@@ -941,12 +941,6 @@ module Daemon {
                                     await task.storedenydata(datastore)
                                 }
 
-                                // DOCUMENTA SPECIFIC
-                                if (datastore.protocol === 'documenta://') {
-                                    let task = new Daemon.Sync
-                                    await task.storedocumentadata(datastore)
-                                }
-
                                 // STORE GENERIC DATA
                                 if (datastore.uuid !== undefined && datastore.uuid !== '') {
                                     let task = new Daemon.Sync
@@ -1019,64 +1013,6 @@ module Daemon {
                         response(false)
                     }
                 })
-            })
-        }
-
-        // DOCUMENTA DATA
-        private async storedocumentadata(datastore): Promise<any> {
-            return new Promise(async response => {
-                const utils = new Utilities.Parser
-                var wallet = new Crypto.Wallet;
-                let valid = true
-                let pubkey
-
-                if (datastore.data.pubkey !== undefined) {
-                    pubkey = datastore.data.pubkey
-                } else if (datastore.data.pubKey !== undefined) {
-                    pubkey = datastore.data.pubKey
-                }
-
-                if (pubkey !== undefined && pubkey.length > 0 && datastore.data.signature !== undefined && datastore.data.message !== undefined) {
-                    let validatesign = await wallet.verifymessage(pubkey, datastore.data.signature, datastore.data.message)
-                    if (validatesign === false) {
-                        valid = false
-                    }
-                } else {
-                    valid = false
-                }
-
-                if (valid) {
-                    var file = JSON.parse(datastore.data.message)
-                    mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
-                        if (!err && client !== undefined) {
-                            var db = client.db(global['db_name'])
-                            let checkfile = await db.collection("documenta").findOne({ file: file.file })
-                            if (checkfile === null) {
-                                file.endpoint = file.endpoint
-                                file.address = datastore.data.address
-                                file.refID = datastore.refID
-                                file.block = datastore.block
-                                file.time = new Date().getTime()
-                                try {
-                                    await db.collection("documenta").insertOne(file, { w: 1, j: true })
-                                } catch (e) {
-                                    utils.log('DB ERROR WHILE STORING DOCUMENTA', '', 'errors')
-                                    utils.log(e, '', 'errors')
-                                    client.close()
-                                }
-                            } else {
-                                await db.collection("documenta").updateOne({ file: file.file }, { $set: { block: datastore.block } }, { writeConcern: { w: 1, j: true } })
-                                console.log('FILE STORED YET')
-                            }
-                            client.close()
-                            response(true)
-                        } else {
-                            response(false)
-                        }
-                    })
-                } else {
-                    response(false)
-                }
             })
         }
 

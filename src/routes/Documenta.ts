@@ -134,19 +134,33 @@ export async function read(req: express.Request, res: express.Response) {
     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
       if (client !== undefined) {
         const db = client.db(global['db_name'])
-        let documenta = await db.collection('documenta').find({ "address": req.params.address }).sort({ block: -1 }).toArray()
+        let documenta = await db.collection('written').find({ "protocol": "documenta://", "address": req.params.address }).sort({ block: -1 }).toArray()
         let response = []
+        let unique = []
         for (let k in documenta) {
-          delete documenta[k]['_id']
-          try {
-            documenta[k].endpoint = LZUTF8.decompress(documenta[k].endpoint, { inputEncoding: "Base64" })
-          } catch (e) { }
-          try {
-            documenta[k].refID = LZUTF8.decompress(documenta[k].refID, { inputEncoding: "Base64" })
-          } catch (e) { }
-          documenta[k].space = 'https://' + documenta[k].endpoint + '/' + documenta[k].address + '/' + documenta[k].file
-          response.push(documenta[k])
+          if (documenta[k].data.message !== undefined && unique.indexOf(documenta[k].uuid) === -1) {
+            let file = JSON.parse(documenta[k].data.message)
+            unique.push(documenta[k].uuid)
+            try {
+              let endpoint = LZUTF8.decompress(file.endpoint, { inputEncoding: "Base64" })
+              let refID = ""
+              if(documenta[k].refID !== ""){
+                refID = LZUTF8.decompress(documenta[k].refID, { inputEncoding: "Base64" })
+              }
+              response.push({
+                uuid: documenta[k].uuid,
+                space: 'https://' + endpoint + '/' + documenta[k].address + '/' + file.file,
+                endpoint: endpoint,
+                refID: refID,
+                block: documenta[k].block,
+                time: documenta[k].time
+              })
+            } catch (e) {
+              console.log(e)
+            }
+          }
         }
+
         client.close()
         res.send(response)
       } else {
@@ -170,7 +184,7 @@ export async function returnDoc(req: express.Request, res: express.Response) {
     mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
       if (client !== undefined) {
         const db = client.db(global['db_name'])
-        let doc = await db.collection('documenta').findOne({ "address": req.params.address, "file": req.params.hash })
+        let doc = await db.collection('written').findOne({ "protocol": "documenta://", "address": req.params.address, "data.message": { $regex: ".*" + req.params.hash + ".*" } })
         client.close()
         if (doc !== undefined && doc !== null) {
           delete doc['_id']

@@ -96,7 +96,7 @@ module Space {
       return new Promise(response => {
         try {
           var url = "https://" + endpoint + '/' + address + '/' + spaceFile
-          if(process.env.DEBUG === 'full'){
+          if (process.env.DEBUG === 'full') {
             console.log('DOWNLOADING REMOTE ' + url + ' IN TMP FOLDER')
           }
           var options = {
@@ -109,7 +109,7 @@ module Space {
               console.log(err)
               response(false)
             } else {
-              if(process.env.DEBUG === 'full'){
+              if (process.env.DEBUG === 'full') {
                 console.log("FILE " + spaceFile + " DOWNLOADED CORRECTLY")
               }
               let buffer = fs.readFileSync('./tmp/' + spaceFile)
@@ -127,7 +127,7 @@ module Space {
     async syncSpace() {
       if (!global['isCheckingSpace']) {
         global['isCheckingSpace'] = true
-        console.log('SYNCING SPACE')
+        console.log('\x1b[45m%s\x1b[0m', 'SYNCING SPACE.')
         var space = new Space.syncer
         var files = {}
         let list: Object = await space.readSpace()
@@ -145,47 +145,68 @@ module Space {
           }
           mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
             var db = client.db(global['db_name'])
-            let stored = await db.collection('documenta').find().sort({ time: -1 }).toArray()
-            for(let k in stored){
-              let file = stored[k]
-              if (files[file.address] === undefined || files[file.address].indexOf(file.file) === -1) {
-                if(process.env.DEBUG === 'full'){
-                  console.info('NEED TO DOWNLOAD THE FILE AND UPLOAD AGAIN')
-                }
-                let endpoint = LZUTF8.decompress(file.endpoint, { inputEncoding: "Base64" })
-                let url = 'https://' + endpoint + '/' + file.address + '/' + file.file
-                try {
-                  let downloaded = await axios.get(url, { responseType: 'arraybuffer' })
-                  if (downloaded.data !== undefined) {
-                    let uploaded = await space.uploadToSpace(file.file, downloaded.data, file.address)
-                    if(process.env.DEBUG === 'full'){
-                      if (uploaded === false) {
-                        console.log('CAN\'T UPLOAD FILE!')
+            let stored = await db.collection('written').find({ protocol: "documenta://" }).sort({ block: -1 }).toArray()
+            let endpoints = []
+            for (let k in stored) {
+              if(stored[k].data.message !== undefined){
+                let file = JSON.parse(stored[k].data.message)
+                if (files[stored[k].data.address] === undefined || files[stored[k].data.address].indexOf(file.file) === -1) {
+                  if (process.env.DEBUG === 'full') {
+                    console.info('NEED TO DOWNLOAD THE FILE AND UPLOAD AGAIN')
+                  }
+                  let endpoint = LZUTF8.decompress(file.endpoint, { inputEncoding: "Base64" })
+                  if(endpoints.indexOf(endpoint) === -1){
+                    endpoints.push(endpoint)
+                  }
+                  let synced = false
+                  let retries = 0
+                  while(!synced){
+                    retries ++
+                    if(endpoints[retries] !== undefined){
+                      endpoint = endpoints[retries]
+                    }
+                    let url = 'https://' + endpoint + '/' + stored[k].data.address + '/' + file.file
+                    console.log('Downloading file from ' + url)
+                    try {
+                      let downloaded = await axios.get(url, { responseType: 'arraybuffer' })
+                      if (downloaded.data !== undefined) {
+                        let uploaded = await space.uploadToSpace(file.file, downloaded.data, stored[k].data.address)
+                        if (uploaded === false) {
+                          console.log('CAN\'T UPLOAD FILE!')
+                        } else {
+                          synced = true
+                          console.log('FILE UPLOADED CORRECTLY!')
+                        }
                       } else {
-                        console.info('UPLOADED CORRECTLY')
+                        if (process.env.DEBUG === 'full') {
+                          console.error('CAN\'T DOWNLOAD FILE, TRYING WITH ANOTHER SPACE!')
+                        }
+                      }
+                    } catch (e) {
+                      console.error('CAN\'T DOWNLOAD FILE!')
+                      if(retries > endpoints.length){
+                        synced = true
                       }
                     }
-                  } else {
-                    if(process.env.DEBUG === 'full'){
-                      console.error('CAN\'T DOWNLOAD FILE!')
-                    }
                   }
-                } catch (e) {
-                  console.error('CAN\'T DOWNLOAD FILE!')
-                }
-              } else {
-                if(process.env.DEBUG === 'full'){
-                  console.log('FILE IS IN THE SPACE YET')
+                } else {
+                  if (process.env.DEBUG === 'full') {
+                    console.log('FILE IS IN THE SPACE YET')
+                  }
                 }
               }
             }
             client.close()
             global['isCheckingSpace'] = false
           })
+        }else{
+          global['isCheckingSpace'] = false
         }
+      }else{
+        console.log('\x1b[41m%s\x1b[0m', 'SPACE IS SYNCING YET.')
       }
     }
-    
+
   }
 
 }
