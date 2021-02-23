@@ -227,10 +227,10 @@ async function parseDB(DB, filters = {}, history = false, limit = 100) {
                             }
                         } else {
                             if (uuids.indexOf(written['uuid'] + written['block']) === -1 && written['uuid'].length > 0 && written['block'] !== undefined) {
-                                uuids.push(written['uuid'] + written['block'])
+                                uuids.push(written['uuid'] + written['txid'])
                                 data.push(written)
                             } else {
-                                uuids.push(written['uuid'] + written['time'])
+                                uuids.push(written['uuid'] + written['txid'])
                                 unconfirmed.push(written)
                             }
                         }
