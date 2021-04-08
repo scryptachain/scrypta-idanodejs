@@ -1846,7 +1846,7 @@ module Daemon {
                                                         txid: datastore.data.txid,
                                                         sxid: datastore.data.sxid,
                                                         vout: vout,
-                                                        address: x,
+                                                        address: x.trim(),
                                                         amount: amount,
                                                         sidechain: datastore.data.transaction.sidechain,
                                                         block: datastore.block,
