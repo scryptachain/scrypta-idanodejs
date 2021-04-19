@@ -258,7 +258,7 @@ export async function checksidechain(req: express.Request, res: express.Response
                 let users = []
                 for (let x in unspents) {
                   let unspent = unspents[x]
-                  unspent.address = unspent.address.trim()
+                  unspent.address = unspent.address
                   if (unspent.sxid !== undefined && unspent.sxid !== null && sxids.indexOf(unspent.sxid + ':' + unspent.vout) === -1) {
                     sxids.push(unspent.sxid + ':' + unspent.vout)
                     let amount = math.round(unspent.amount, decimals)
