@@ -570,7 +570,7 @@ export async function reissue(req: express.Request, res: express.Response) {
       mongo.connect(global['db_url'], global['db_options'], async function (err, client) {
         const db = client.db(global['db_name'])
 
-        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: 1 }).limit(1).toArray()
+        let check_sidechain = await db.collection('written').find({ address: fields.sidechain_address, "data.genesis": { $exists: true } }).sort({ block: -1 }).limit(1).toArray()
         client.close()
         if (check_sidechain[0] !== undefined) {
           if (check_sidechain[0].block !== undefined && check_sidechain[0].block !== null && check_sidechain[0].block > 0) {
