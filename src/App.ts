@@ -27,6 +27,7 @@ global['limit'] = 200
 global['isCheckingSpace'] = false
 global['remainingBlocks'] = 0
 global['restartSync'] = 0
+global['vmtimeout'] = null
 
 class App {
   public express

@@ -592,11 +592,13 @@ module Daemon {
                                                 for (let req in block['contracts'][contract.contract]) {
                                                     let contractrequest = block['contracts'][contract.contract][req].data
                                                     try {
+                                                        console.log('AWAITING FOR CONTRACT RESPONSE')
                                                         let contractResponse = await task.runcontract(contract.contract, contractrequest, contract.version)
                                                         if (contractResponse !== undefined && contractResponse !== false) {
                                                             utils.log(contractResponse)
                                                         }
                                                     } catch (e) {
+                                                        console.log('CONTRACT ERRORED!')
                                                         utils.log(e, '', 'errors')
                                                     }
                                                 }
@@ -2190,16 +2192,22 @@ module Daemon {
         private runcontract(contract, signed, version = 'latest'): any {
             return new Promise(async response => {
                 let utils = new Utilities.Parser
+                clearTimeout(global['vmtimeout'])
+                global['vmtimeout'] = setTimeout(function(){
+                    utils.log('CONTRACT TIMED OUT', 'errors')
+                    response(false)
+                }, 5000)
                 try {
                     vm.run(contract, signed, true, version).catch(e => {
-                        response(false)
-                        console.log('CONTRACT ERRORED, RETURNING')
                         utils.log(e, '', 'errors')
+                        clearTimeout(global['vmtimeout'])
+                        response(false)
                     }).then(contractresponse => {
+                        clearTimeout(global['vmtimeout'])
                         response(contractresponse)
                     })
                 } catch (e) {
-                    console.log('CONTRACT ERRORED, RETURNING')
+                    clearTimeout(global['vmtimeout'])
                     response(false)
                     utils.log(e)
                 }
