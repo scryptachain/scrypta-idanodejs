@@ -43,7 +43,7 @@
     "folder-hash": "^4.0.0",
     "formidable": "^1.2.2",
     "helmet": "^4.4.1",
-    "ipfs": "^0.53.2",
+    "ipfs": "^0.65.0",
     "lcrypt": "^1.0.2",
     "lzutf8": "^0.5.8",
     "mathjs": "^9.0.0",
